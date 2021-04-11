@@ -1,0 +1,15 @@
+include $(SRCDIR)/config/aros.cfg
+
+ZFSDIR := $(SRCDIR)/$(CURDIR)/../..
+
+USER_CFLAGS := \
+  -I$(ZFSDIR)/include \
+  -I$(ZFSDIR)/lib/libspl/include
+
+FILES := \
+  thread_pool
+
+%build_linklib mmake=linklibs-zfs-libtpool libname=zfs_tpool \
+  files=$(FILES) objdir=$(GENDIR)/$(CURDIR)/static
+
+%common
