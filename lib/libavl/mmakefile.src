@@ -1,0 +1,12 @@
+include $(SRCDIR)/config/aros.cfg
+
+ZFSDIR := $(SRCDIR)/$(CURDIR)/../..
+
+USER_CFLAGS := -I$(ZFSDIR)/include -I $(ZFSDIR)/lib/libspl/include
+
+FILES := $(ZFSDIR)/module/avl/avl
+
+%build_linklib mmake=linklibs-zfs-libavl libname=zfs_avl \
+  files=$(FILES) objdir=$(GENDIR)/$(CURDIR)/static
+
+%common
