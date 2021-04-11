@@ -1,0 +1,22 @@
+include $(SRCDIR)/config/aros.cfg
+
+ZFSDIR := $(SRCDIR)/$(CURDIR)/../..
+
+USER_CFLAGS := \
+  -Iinclude \
+  -I$(ZFSDIR)/include/os/aros/spl \
+
+FILES := \
+  asm-generic/atomic \
+  assert \
+  list \
+  mkdirp \
+  page \
+  strlcat \
+  strlcpy \
+
+%build_linklib mmake=linklibs-zfs-libspl libname=zfs_spl \
+  files=$(FILES) objdir=$(GENDIR)/$(CURDIR)/static
+
+%common
+
