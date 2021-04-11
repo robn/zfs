@@ -1,0 +1,73 @@
+include $(SRCDIR)/config/aros.cfg
+
+ZFSDIR := $(SRCDIR)/$(CURDIR)/../..
+
+USER_CFLAGS := \
+  -I$(ZFSDIR)/include \
+  -I$(ZFSDIR)/include/os/aros/spl \
+  -I$(ZFSDIR)/include/os/aros/zfs \
+  -I$(ZFSDIR)/lib/libspl/include \
+  -I$(ZFSDIR)/lib/libspl/include/os/aros \
+  -I$(ZFSDIR)/module/icp/include \
+
+USER_AFLAGS := -I$(ZFSDIR)/module/icp/include
+
+FILES := \
+  $(ZFSDIR)/module/icp/asm-x86_64/aes/aeskey \
+  $(ZFSDIR)/module/icp/spi/kcf_spi \
+  $(ZFSDIR)/module/icp/api/kcf_ctxops \
+  $(ZFSDIR)/module/icp/api/kcf_digest \
+  $(ZFSDIR)/module/icp/api/kcf_cipher \
+  $(ZFSDIR)/module/icp/api/kcf_miscapi \
+  $(ZFSDIR)/module/icp/api/kcf_mac \
+  $(ZFSDIR)/module/icp/algs/aes/aes_impl_aesni \
+  $(ZFSDIR)/module/icp/algs/aes/aes_impl_generic \
+  $(ZFSDIR)/module/icp/algs/aes/aes_impl_x86-64 \
+  $(ZFSDIR)/module/icp/algs/aes/aes_impl \
+  $(ZFSDIR)/module/icp/algs/aes/aes_modes \
+  $(ZFSDIR)/module/icp/algs/edonr/edonr \
+  $(ZFSDIR)/module/icp/algs/modes/modes \
+  $(ZFSDIR)/module/icp/algs/modes/cbc \
+  $(ZFSDIR)/module/icp/algs/modes/gcm_generic \
+  $(ZFSDIR)/module/icp/algs/modes/gcm_pclmulqdq \
+  $(ZFSDIR)/module/icp/algs/modes/gcm \
+  $(ZFSDIR)/module/icp/algs/modes/ctr \
+  $(ZFSDIR)/module/icp/algs/modes/ccm \
+  $(ZFSDIR)/module/icp/algs/modes/ecb \
+  $(ZFSDIR)/module/icp/algs/sha1/sha1 \
+  $(ZFSDIR)/module/icp/algs/sha2/sha2 \
+  $(ZFSDIR)/module/icp/algs/skein/skein \
+  $(ZFSDIR)/module/icp/algs/skein/skein_block \
+  $(ZFSDIR)/module/icp/algs/skein/skein_iv \
+  $(ZFSDIR)/module/icp/illumos-crypto \
+  $(ZFSDIR)/module/icp/io/aes \
+  $(ZFSDIR)/module/icp/io/edonr_mod \
+  $(ZFSDIR)/module/icp/io/sha1_mod \
+  $(ZFSDIR)/module/icp/io/sha2_mod \
+  $(ZFSDIR)/module/icp/io/skein_mod \
+  $(ZFSDIR)/module/icp/os/modhash \
+  $(ZFSDIR)/module/icp/os/modconf \
+  $(ZFSDIR)/module/icp/core/kcf_sched \
+  $(ZFSDIR)/module/icp/core/kcf_prov_lib \
+  $(ZFSDIR)/module/icp/core/kcf_callprov \
+  $(ZFSDIR)/module/icp/core/kcf_mech_tabs \
+  $(ZFSDIR)/module/icp/core/kcf_prov_tabs \
+
+ASMFILES := \
+  $(ZFSDIR)/module/icp/asm-x86_64/aes/aes_amd64 \
+  $(ZFSDIR)/module/icp/asm-x86_64/aes/aes_aesni \
+  $(ZFSDIR)/module/icp/asm-x86_64/modes/gcm_pclmulqdq \
+  $(ZFSDIR)/module/icp/asm-x86_64/modes/aesni-gcm-x86_64 \
+  $(ZFSDIR)/module/icp/asm-x86_64/modes/ghash-x86_64 \
+  $(ZFSDIR)/module/icp/asm-x86_64/sha1/sha1-x86_64 \
+  $(ZFSDIR)/module/icp/asm-x86_64/sha2/sha256_impl \
+  $(ZFSDIR)/module/icp/asm-x86_64/sha2/sha512_impl \
+
+# mmake assemble rules only look for .s, but ZFS ships .S; convert them
+%.s: %.S
+	@cp -f $< $@
+
+%build_linklib mmake=linklibs-zfs-libicp libname=zfs_icp \
+  files=$(FILES) asmfiles=$(ASMFILES) objdir=$(GENDIR)/$(CURDIR)/static
+
+%common
