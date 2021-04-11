@@ -220,6 +220,13 @@ typedef struct zfs_kernel_param {
  */
 typedef pthread_t	kthread_t;
 
+#ifdef __AROS__
+/* AROS has an unrelated TS_RUN, get rid of it. */
+#ifdef TS_RUN
+#undef TS_RUN
+#endif /* TS_RUN */
+#endif /* __AROS__ */
+
 #define	TS_RUN		0x00000002
 #define	TS_JOINABLE	0x00000004
 
