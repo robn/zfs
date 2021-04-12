@@ -1,0 +1,8 @@
+include $(SRCDIR)/config/aros.cfg
+
+FILES := libintl
+
+%build_linklib mmake=linklibs-zfs-libintl libname=zfs_intl \
+  files=$(FILES) objdir=$(GENDIR)/$(CURDIR)/static
+
+%common
