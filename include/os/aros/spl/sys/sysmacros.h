@@ -16,6 +16,11 @@ extern "C" {
 #define	IS_P2ALIGNED(v, a) ((((uintptr_t)(v)) & ((uintptr_t)(a) - 1)) == 0)
 
 /*
+ * Macro to determine if value is a power of 2
+ */
+#define	ISP2(x)		(((x) & ((x) - 1)) == 0)
+
+/*
  * return x rounded up to an align boundary
  * eg, P2ROUNDUP(0x1234, 0x100) == 0x1300 (0x13*align)
  * eg, P2ROUNDUP(0x5600, 0x100) == 0x5600 (0x56*align)

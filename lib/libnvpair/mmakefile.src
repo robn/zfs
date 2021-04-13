@@ -1,0 +1,24 @@
+include $(SRCDIR)/config/aros.cfg
+
+ZFSDIR := $(SRCDIR)/$(CURDIR)/../..
+
+USER_CFLAGS := \
+  -I$(ZFSDIR)/include \
+  -I$(ZFSDIR)/include/os/aros/spl \
+  -I$(ZFSDIR)/lib/libspl/include \
+  -I$(ZFSDIR)/lib/libspl/include/os/aros \
+  -I$(ZFSDIR)/lib/libintl/include \
+  -DTEXT_DOMAIN=\"zfs-aros-user\" \
+
+FILES := \
+  $(ZFSDIR)/lib/libnvpair/libnvpair \
+  $(ZFSDIR)/lib/libnvpair/libnvpair_json \
+  $(ZFSDIR)/lib/libnvpair/nvpair_alloc_system \
+  $(ZFSDIR)/module/nvpair/nvpair_alloc_fixed \
+  $(ZFSDIR)/module/nvpair/nvpair \
+  $(ZFSDIR)/module/nvpair/fnvpair \
+
+%build_linklib mmake=linklibs-zfs-libnvpair libname=zfs_nvpair \
+  files=$(FILES) objdir=$(GENDIR)/$(CURDIR)/static
+
+%common
