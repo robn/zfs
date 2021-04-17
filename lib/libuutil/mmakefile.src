@@ -1,0 +1,25 @@
+include $(SRCDIR)/config/aros.cfg
+
+ZFSDIR := $(SRCDIR)/$(CURDIR)/../..
+
+USER_CFLAGS := \
+  -I$(ZFSDIR)/include \
+  -I$(ZFSDIR)/include/os/aros/spl \
+  -I$(ZFSDIR)/lib/libspl/include \
+  -I$(ZFSDIR)/lib/libintl/include \
+
+FILES := \
+  uu_alloc \
+  uu_avl \
+  uu_dprintf \
+  uu_ident \
+  uu_list \
+  uu_misc \
+  uu_open \
+  uu_pname \
+  uu_string
+
+%build_linklib mmake=linklibs-zfs-libuutil libname=zfs_uutil \
+  files=$(FILES) objdir=$(GENDIR)/$(CURDIR)/static
+
+%common
