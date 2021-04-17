@@ -1,0 +1,18 @@
+include $(SRCDIR)/config/aros.cfg
+
+ZFSDIR := $(SRCDIR)/$(CURDIR)/../..
+
+USER_CFLAGS := \
+  -I$(ZFSDIR)/include \
+  -I$(ZFSDIR)/include/os/aros/spl \
+  -I$(ZFSDIR)/lib/libspl/include \
+  -I$(ZFSDIR)/lib/libspl/include/os/aros \
+
+FILES := \
+  libzfs_core
+
+%build_linklib mmake=linklibs-zfs-libcore libname=zfs_core \
+  files=$(FILES) objdir=$(GENDIR)/$(CURDIR)/static
+
+%common
+
