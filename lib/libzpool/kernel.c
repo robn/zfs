@@ -24,10 +24,14 @@
  * Copyright (c) 2016 Actifio, Inc. All rights reserved.
  */
 
+#define _GNU_SOURCE /* for vasprintf */
+
 #include <assert.h>
 #include <fcntl.h>
 #include <libgen.h>
+#ifndef __AROS__
 #include <poll.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -662,7 +666,17 @@ cmn_err(int ce, const char *fmt, ...)
 void
 delay(clock_t ticks)
 {
+#ifdef __AROS__
+	struct timespec req;
+
+	int ms = ticks * (1000 / hz);
+	req.tv_sec = ms / 1000;
+	req.tv_nsec = (ms % 1000) * 1000;
+
+	(void) nanosleep(&req, NULL);
+#else
 	(void) poll(0, 0, ticks * (1000 / hz));
+#endif
 }
 
 /*

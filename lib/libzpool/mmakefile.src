@@ -1,0 +1,26 @@
+include $(SRCDIR)/config/aros.cfg
+
+ZFSDIR := $(SRCDIR)/$(CURDIR)/../..
+
+USER_CFLAGS := \
+  -I$(ZFSDIR)/include \
+  -I$(ZFSDIR)/include/os/aros/spl \
+  -I$(ZFSDIR)/lib/libspl/include \
+  -I$(ZFSDIR)/lib/libspl/include/os/aros \
+  -include $(ZFSDIR)/include/os/aros/spl/sys/ccompile.h \
+
+#  -I$(ZFSDIR)/lib/libintl/include \
+#  -DTEXT_DOMAIN=\"zfs-aros-user\" \
+#  -DZFS_META_ALIAS=\"zfs-2.0.4\" \
+#  -D_GNU_SOURCE \
+
+FILES := \
+  kernel \
+  taskq \
+  util
+
+%build_linklib mmake=linklibs-zfs-libzpool libname=zpool \
+  files=$(FILES) objdir=$(GENDIR)/$(CURDIR)/static
+
+%common
+

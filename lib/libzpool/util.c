@@ -35,7 +35,9 @@
 #include <sys/fs/zfs.h>
 #include <sys/zfs_refcount.h>
 #include <sys/zfs_ioctl.h>
+#ifndef __AROS__
 #include <dlfcn.h>
+#endif
 #include <libzutil.h>
 
 /*
@@ -195,6 +197,14 @@ set_global_var(char const *arg)
 	u_longlong_t val;
 	int ret;
 
+#ifdef __AROS__
+
+	/* AROS doesnt have dlfcn, and I haven't decided how linkage will work
+	 * anyway, so this just gets us compiling.
+	 */
+	return (ENOSYS);
+#else
+
 #ifndef _ZFS_LITTLE_ENDIAN
 	/*
 	 * On big endian systems changing a 64-bit variable would set the high
@@ -237,6 +247,7 @@ out_dlclose:
 	free(varname);
 out_ret:
 	return (ret);
+#endif
 }
 
 static nvlist_t *
