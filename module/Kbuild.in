@@ -111,6 +111,7 @@ ICP_OBJS := \
 	io/aes.o \
 	io/sha2_mod.o \
 	io/skein_mod.o \
+	io/chapoly.o \
 	spi/kcf_spi.o
 
 ICP_OBJS_X86_64 := \
