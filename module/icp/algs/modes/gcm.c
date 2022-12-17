@@ -679,82 +679,6 @@ gcm_init_ctx(gcm_ctx_t *gcm_ctx, char *param, size_t block_size,
 	return (rv);
 }
 
-int
-gmac_init_ctx(gcm_ctx_t *gcm_ctx, char *param, size_t block_size,
-    int (*encrypt_block)(const void *, const uint8_t *, uint8_t *),
-    void (*copy_block)(uint8_t *, uint8_t *),
-    void (*xor_block)(uint8_t *, uint8_t *))
-{
-	int rv;
-	CK_AES_GMAC_PARAMS *gmac_param;
-
-	if (param != NULL) {
-		gmac_param = (CK_AES_GMAC_PARAMS *)(void *)param;
-
-		gcm_ctx->gcm_tag_len = CRYPTO_BITS2BYTES(AES_GMAC_TAG_BITS);
-		gcm_ctx->gcm_processed_data_len = 0;
-
-		/* these values are in bits */
-		gcm_ctx->gcm_len_a_len_c[0]
-		    = htonll(CRYPTO_BYTES2BITS(gmac_param->ulAADLen));
-
-		rv = CRYPTO_SUCCESS;
-		gcm_ctx->gcm_flags |= GMAC_MODE;
-	} else {
-		return (CRYPTO_MECHANISM_PARAM_INVALID);
-	}
-
-#ifdef CAN_USE_GCM_ASM
-	/*
-	 * Handle the "cycle" implementation by creating avx and non avx
-	 * contexts alternately.
-	 */
-	if (GCM_IMPL_READ(icp_gcm_impl) != IMPL_CYCLE) {
-		gcm_ctx->gcm_use_avx = GCM_IMPL_USE_AVX;
-	} else {
-		gcm_ctx->gcm_use_avx = gcm_toggle_avx();
-	}
-	/* We don't handle byte swapped key schedules in the avx code path. */
-	aes_key_t *ks = (aes_key_t *)gcm_ctx->gcm_keysched;
-	if (ks->ops->needs_byteswap == B_TRUE) {
-		gcm_ctx->gcm_use_avx = B_FALSE;
-	}
-	/* Allocate Htab memory as needed. */
-	if (gcm_ctx->gcm_use_avx == B_TRUE) {
-		size_t htab_len = gcm_simd_get_htab_size(gcm_ctx->gcm_use_avx);
-
-		if (htab_len == 0) {
-			return (CRYPTO_MECHANISM_PARAM_INVALID);
-		}
-		gcm_ctx->gcm_htab_len = htab_len;
-		gcm_ctx->gcm_Htable =
-		    (uint64_t *)kmem_alloc(htab_len, KM_SLEEP);
-
-		if (gcm_ctx->gcm_Htable == NULL) {
-			return (CRYPTO_HOST_MEMORY);
-		}
-	}
-
-	/* Avx and non avx context initialization differs from here on. */
-	if (gcm_ctx->gcm_use_avx == B_FALSE) {
-#endif	/* ifdef CAN_USE_GCM_ASM */
-		if (gcm_init(gcm_ctx, gmac_param->pIv, AES_GMAC_IV_LEN,
-		    gmac_param->pAAD, gmac_param->ulAADLen, block_size,
-		    encrypt_block, copy_block, xor_block) != 0) {
-			rv = CRYPTO_MECHANISM_PARAM_INVALID;
-		}
-#ifdef CAN_USE_GCM_ASM
-	} else {
-		if (gcm_init_avx(gcm_ctx, gmac_param->pIv, AES_GMAC_IV_LEN,
-		    gmac_param->pAAD, gmac_param->ulAADLen, block_size) != 0) {
-			rv = CRYPTO_MECHANISM_PARAM_INVALID;
-		}
-	}
-#endif /* ifdef CAN_USE_GCM_ASM */
-
-	return (rv);
-}
-
 void *
 gcm_alloc_ctx(int kmflag)
 {
@@ -764,18 +688,6 @@ gcm_alloc_ctx(int kmflag)
 		return (NULL);
 
 	gcm_ctx->gcm_flags = GCM_MODE;
-	return (gcm_ctx);
-}
-
-void *
-gmac_alloc_ctx(int kmflag)
-{
-	gcm_ctx_t *gcm_ctx;
-
-	if ((gcm_ctx = kmem_zalloc(sizeof (gcm_ctx_t), kmflag)) == NULL)
-		return (NULL);
-
-	gcm_ctx->gcm_flags = GMAC_MODE;
 	return (gcm_ctx);
 }
 

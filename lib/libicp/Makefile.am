@@ -19,13 +19,10 @@ nodist_libicp_la_SOURCES = \
 	module/icp/algs/blake3/blake3_x86-64.c \
 	module/icp/algs/edonr/edonr.c \
 	module/icp/algs/modes/modes.c \
-	module/icp/algs/modes/cbc.c \
 	module/icp/algs/modes/gcm_generic.c \
 	module/icp/algs/modes/gcm_pclmulqdq.c \
 	module/icp/algs/modes/gcm.c \
-	module/icp/algs/modes/ctr.c \
 	module/icp/algs/modes/ccm.c \
-	module/icp/algs/modes/ecb.c \
 	module/icp/algs/sha2/sha2.c \
 	module/icp/algs/skein/skein.c \
 	module/icp/algs/skein/skein_block.c \
