@@ -46,15 +46,15 @@
 #define	IMPL_AVX	(UINT32_MAX-2)
 #endif
 #define	GCM_IMPL_READ(i) (*(volatile uint32_t *) &(i))
-static uint32_t icp_gcm_impl = IMPL_FASTEST;
-static uint32_t user_sel_impl = IMPL_FASTEST;
+static uint32_t icp_gcm_impl_idx = IMPL_FASTEST;
+static uint32_t user_sel_impl_idx = IMPL_FASTEST;
 
 #ifdef CAN_USE_GCM_ASM
 /* Does the architecture we run on support the MOVBE instruction? */
 boolean_t gcm_avx_can_use_movbe = B_FALSE;
 /*
  * Whether to use the optimized openssl gcm and ghash implementations.
- * Set to true if module parameter icp_gcm_impl == "avx".
+ * Set to true if module parameter icp_gcm_impl_idx == "avx".
  */
 static boolean_t gcm_use_avx = B_FALSE;
 #define	GCM_IMPL_USE_AVX	(*(volatile boolean_t *)&gcm_use_avx)
@@ -621,7 +621,7 @@ gcm_init_ctx(gcm_ctx_t *gcm_ctx, char *param, size_t block_size,
 	}
 
 #ifdef CAN_USE_GCM_ASM
-	if (GCM_IMPL_READ(icp_gcm_impl) != IMPL_CYCLE) {
+	if (GCM_IMPL_READ(icp_gcm_impl_idx) != IMPL_CYCLE) {
 		gcm_ctx->gcm_use_avx = GCM_IMPL_USE_AVX;
 	} else {
 		/*
@@ -691,25 +691,14 @@ gcm_alloc_ctx(int kmflag)
 	return (gcm_ctx);
 }
 
-/* GCM implementation that contains the fastest methods */
-static gcm_impl_ops_t gcm_fastest_impl = {
-	.name = "fastest"
-};
-
-/* All compiled in implementations */
-static const gcm_impl_ops_t *gcm_all_impl[] = {
-	&gcm_generic_impl,
+static zfs_impl_selector_t gcm_impl_selector = {
+	.all_impl = {
+		(zfs_impl_base_t *)&gcm_generic_impl,
 #if defined(__x86_64) && defined(HAVE_PCLMULQDQ)
-	&gcm_pclmulqdq_impl,
+		(zfs_impl_base_t *)&gcm_pclmulqdq_impl,
 #endif
+	},
 };
-
-/* Indicate that benchmark has been completed */
-static boolean_t gcm_impl_initialized = B_FALSE;
-
-/* Hold all supported implementations */
-static size_t gcm_supp_impl_cnt = 0;
-static gcm_impl_ops_t *gcm_supp_impl[ARRAY_SIZE(gcm_all_impl)];
 
 /*
  * Returns the GCM operations for encrypt/decrypt/key setup.  When a
@@ -722,21 +711,20 @@ gcm_impl_get_ops(void)
 	if (!kfpu_allowed())
 		return (&gcm_generic_impl);
 
-	const gcm_impl_ops_t *ops = NULL;
-	const uint32_t impl = GCM_IMPL_READ(icp_gcm_impl);
+	const zfs_impl_base_t *impl = NULL;
+	const uint32_t impl_idx = GCM_IMPL_READ(icp_gcm_impl_idx);
 
-	switch (impl) {
+	switch (impl_idx) {
 	case IMPL_FASTEST:
-		ASSERT(gcm_impl_initialized);
-		ops = &gcm_fastest_impl;
+		ASSERT(gcm_impl_selector.initialized);
+		impl = gcm_impl_selector.fastest_impl;
 		break;
 	case IMPL_CYCLE:
 		/* Cycle through supported implementations */
-		ASSERT(gcm_impl_initialized);
-		ASSERT3U(gcm_supp_impl_cnt, >, 0);
-		static size_t cycle_impl_idx = 0;
-		size_t idx = (++cycle_impl_idx) % gcm_supp_impl_cnt;
-		ops = gcm_supp_impl[idx];
+		ASSERT(gcm_impl_selector.initialized);
+		ASSERT3U(gcm_impl_selector.supp_cnt, >, 0);
+		size_t idx = (++gcm_impl_selector.cycle_impl_idx) % gcm_impl_selector.supp_cnt;
+		impl = gcm_impl_selector.supp_impl[idx];
 		break;
 #ifdef CAN_USE_GCM_ASM
 	case IMPL_AVX:
@@ -745,20 +733,20 @@ gcm_impl_get_ops(void)
 		 * switching to the avx implementation since there still
 		 * may be unfinished non-avx contexts around.
 		 */
-		ops = &gcm_generic_impl;
+		impl = (zfs_impl_base_t *)&gcm_generic_impl;
 		break;
 #endif
 	default:
-		ASSERT3U(impl, <, gcm_supp_impl_cnt);
-		ASSERT3U(gcm_supp_impl_cnt, >, 0);
-		if (impl < ARRAY_SIZE(gcm_all_impl))
-			ops = gcm_supp_impl[impl];
+		ASSERT3U(impl_idx, <, gcm_impl_selector.supp_cnt);
+		ASSERT3U(gcm_impl_selector.supp_cnt, >, 0);
+		if (impl_idx < MAX_IMPLS)
+			impl = gcm_impl_selector.supp_impl[impl_idx];
 		break;
 	}
 
-	ASSERT3P(ops, !=, NULL);
+	ASSERT3P(impl, !=, NULL);
 
-	return (ops);
+	return ((gcm_impl_ops_t *)impl);
 }
 
 /*
@@ -771,13 +759,13 @@ gcm_impl_init(void)
 	int i, c;
 
 	/* Move supported implementations into gcm_supp_impls */
-	for (i = 0, c = 0; i < ARRAY_SIZE(gcm_all_impl); i++) {
-		curr_impl = (gcm_impl_ops_t *)gcm_all_impl[i];
+	for (i = 0, c = 0; i < MAX_IMPLS; i++) {
+		curr_impl = (gcm_impl_ops_t *)gcm_impl_selector.all_impl[i];
 
-		if (curr_impl->is_supported())
-			gcm_supp_impl[c++] = (gcm_impl_ops_t *)curr_impl;
+		if (curr_impl && curr_impl->is_supported())
+			gcm_impl_selector.supp_impl[c++] = (zfs_impl_base_t *)curr_impl;
 	}
-	gcm_supp_impl_cnt = c;
+	gcm_impl_selector.supp_cnt = c;
 
 	/*
 	 * Set the fastest implementation given the assumption that the
@@ -785,16 +773,12 @@ gcm_impl_init(void)
 	 */
 #if defined(__x86_64) && defined(HAVE_PCLMULQDQ)
 	if (gcm_pclmulqdq_impl.is_supported()) {
-		memcpy(&gcm_fastest_impl, &gcm_pclmulqdq_impl,
-		    sizeof (gcm_fastest_impl));
+		gcm_impl_selector.fastest_impl = (zfs_impl_base_t *)&gcm_pclmulqdq_impl;
 	} else
 #endif
 	{
-		memcpy(&gcm_fastest_impl, &gcm_generic_impl,
-		    sizeof (gcm_fastest_impl));
+		gcm_impl_selector.fastest_impl = (zfs_impl_base_t *)&gcm_generic_impl;
 	}
-
-	strlcpy(gcm_fastest_impl.name, "fastest", GCM_IMPL_NAME_MAX);
 
 #ifdef CAN_USE_GCM_ASM
 	/*
@@ -807,14 +791,14 @@ gcm_impl_init(void)
 			atomic_swap_32(&gcm_avx_can_use_movbe, B_TRUE);
 		}
 #endif
-		if (GCM_IMPL_READ(user_sel_impl) == IMPL_FASTEST) {
+		if (GCM_IMPL_READ(user_sel_impl_idx) == IMPL_FASTEST) {
 			gcm_set_avx(B_TRUE);
 		}
 	}
 #endif
 	/* Finish initialization */
-	atomic_swap_32(&icp_gcm_impl, user_sel_impl);
-	gcm_impl_initialized = B_TRUE;
+	atomic_swap_32(&icp_gcm_impl_idx, user_sel_impl_idx);
+	gcm_impl_selector.initialized = B_TRUE;
 }
 
 static const struct {
@@ -832,9 +816,9 @@ static const struct {
  * Function sets desired gcm implementation.
  *
  * If we are called before init(), user preference will be saved in
- * user_sel_impl, and applied in later init() call. This occurs when module
+ * user_sel_impl_idx, and applied in later init() call. This occurs when module
  * parameter is specified on module load. Otherwise, directly update
- * icp_gcm_impl.
+ * icp_gcm_impl_idx.
  *
  * @val		Name of gcm implementation to use
  * @param	Unused.
@@ -843,16 +827,16 @@ int
 gcm_impl_set(const char *val)
 {
 	int err = -EINVAL;
-	char req_name[GCM_IMPL_NAME_MAX];
-	uint32_t impl = GCM_IMPL_READ(user_sel_impl);
+	char req_name[IMPL_NAME_MAX];
+	uint32_t impl = GCM_IMPL_READ(user_sel_impl_idx);
 	size_t i;
 
 	/* sanitize input */
-	i = strnlen(val, GCM_IMPL_NAME_MAX);
-	if (i == 0 || i >= GCM_IMPL_NAME_MAX)
+	i = strnlen(val, IMPL_NAME_MAX);
+	if (i == 0 || i >= IMPL_NAME_MAX)
 		return (err);
 
-	strlcpy(req_name, val, GCM_IMPL_NAME_MAX);
+	strlcpy(req_name, val, IMPL_NAME_MAX);
 	while (i > 0 && isspace(req_name[i-1]))
 		i--;
 	req_name[i] = '\0';
@@ -873,10 +857,10 @@ gcm_impl_set(const char *val)
 	}
 
 	/* check all supported impl if init() was already called */
-	if (err != 0 && gcm_impl_initialized) {
+	if (err != 0 && gcm_impl_selector.initialized) {
 		/* check all supported implementations */
-		for (i = 0; i < gcm_supp_impl_cnt; i++) {
-			if (strcmp(req_name, gcm_supp_impl[i]->name) == 0) {
+		for (i = 0; i < gcm_impl_selector.supp_cnt; i++) {
+			if (strcmp(req_name, gcm_impl_selector.supp_impl[i]->name) == 0) {
 				impl = i;
 				err = 0;
 				break;
@@ -897,10 +881,10 @@ gcm_impl_set(const char *val)
 #endif
 
 	if (err == 0) {
-		if (gcm_impl_initialized)
-			atomic_swap_32(&icp_gcm_impl, impl);
+		if (gcm_impl_selector.initialized)
+			atomic_swap_32(&icp_gcm_impl_idx, impl);
 		else
-			atomic_swap_32(&user_sel_impl, impl);
+			atomic_swap_32(&user_sel_impl_idx, impl);
 	}
 
 	return (err);
@@ -909,19 +893,19 @@ gcm_impl_set(const char *val)
 #if defined(_KERNEL) && defined(__linux__)
 
 static int
-icp_gcm_impl_set(const char *val, zfs_kernel_param_t *kp)
+icp_gcm_impl_idx_set(const char *val, zfs_kernel_param_t *kp)
 {
 	return (gcm_impl_set(val));
 }
 
 static int
-icp_gcm_impl_get(char *buffer, zfs_kernel_param_t *kp)
+icp_gcm_impl_idx_get(char *buffer, zfs_kernel_param_t *kp)
 {
 	int i, cnt = 0;
 	char *fmt;
-	const uint32_t impl = GCM_IMPL_READ(icp_gcm_impl);
+	const uint32_t impl = GCM_IMPL_READ(icp_gcm_impl_idx);
 
-	ASSERT(gcm_impl_initialized);
+	ASSERT(gcm_impl_selector.initialized);
 
 	/* list mandatory options */
 	for (i = 0; i < ARRAY_SIZE(gcm_impl_opts); i++) {
@@ -937,18 +921,18 @@ icp_gcm_impl_get(char *buffer, zfs_kernel_param_t *kp)
 	}
 
 	/* list all supported implementations */
-	for (i = 0; i < gcm_supp_impl_cnt; i++) {
+	for (i = 0; i < gcm_impl_selector.supp_cnt; i++) {
 		fmt = (i == impl) ? "[%s] " : "%s ";
 		cnt += kmem_scnprintf(buffer + cnt, PAGE_SIZE - cnt, fmt,
-		    gcm_supp_impl[i]->name);
+		    gcm_impl_selector.supp_impl[i]->name);
 	}
 
 	return (cnt);
 }
 
-module_param_call(icp_gcm_impl, icp_gcm_impl_set, icp_gcm_impl_get,
+module_param_call(icp_gcm_impl_idx, icp_gcm_impl_idx_set, icp_gcm_impl_idx_get,
     NULL, 0644);
-MODULE_PARM_DESC(icp_gcm_impl, "Select gcm implementation.");
+MODULE_PARM_DESC(icp_gcm_impl_idx, "Select gcm implementation.");
 #endif /* defined(__KERNEL) */
 
 #ifdef CAN_USE_GCM_ASM

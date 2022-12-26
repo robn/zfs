@@ -123,6 +123,7 @@ COMMON_H = \
 	sys/zfs_delay.h \
 	sys/zfs_file.h \
 	sys/zfs_fuid.h \
+	sys/zfs_impl_selector.h \
 	sys/zfs_project.h \
 	sys/zfs_quota.h \
 	sys/zfs_racct.h \

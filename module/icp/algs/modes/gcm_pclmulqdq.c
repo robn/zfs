@@ -56,9 +56,11 @@ gcm_pclmulqdq_will_work(void)
 }
 
 const gcm_impl_ops_t gcm_pclmulqdq_impl = {
+	.base = {
+		.name = "pclmulqdq",
+	},
 	.mul = &gcm_pclmulqdq_mul,
 	.is_supported = &gcm_pclmulqdq_will_work,
-	.name = "pclmulqdq"
 };
 
 #endif /* defined(__x86_64) && defined(HAVE_PCLMULQDQ) */

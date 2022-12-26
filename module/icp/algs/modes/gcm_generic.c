@@ -77,7 +77,9 @@ gcm_generic_will_work(void)
 }
 
 const gcm_impl_ops_t gcm_generic_impl = {
+	.base = {
+		.name = "generic"
+	},
 	.mul = &gcm_generic_mul,
 	.is_supported = &gcm_generic_will_work,
-	.name = "generic"
 };

@@ -34,6 +34,7 @@ extern "C" {
 #endif
 
 #include <sys/zfs_context.h>
+#include <sys/zfs_impl_selector.h>
 #include <sys/crypto/common.h>
 
 /*
@@ -45,12 +46,10 @@ extern "C" {
 typedef void		(*gcm_mul_f)(uint64_t *, uint64_t *, uint64_t *);
 typedef boolean_t	(*gcm_will_work_f)(void);
 
-#define	GCM_IMPL_NAME_MAX (16)
-
 typedef struct gcm_impl_ops {
-	gcm_mul_f mul;
-	gcm_will_work_f is_supported;
-	char name[GCM_IMPL_NAME_MAX];
+	zfs_impl_base_t		base;
+	gcm_mul_f		mul;
+	gcm_will_work_f		is_supported;
 } gcm_impl_ops_t;
 
 extern const gcm_impl_ops_t gcm_generic_impl;
