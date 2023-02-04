@@ -630,11 +630,13 @@ zfs_unmount(zfs_handle_t *zhp, const char *mountpoint, int flags)
 	}
 
 	/*
-	 * If the MS_CRYPT flag is provided we must ensure we attempt to
-	 * unload the dataset's key regardless of whether we did any work
-	 * to unmount it. We only do this for encryption roots.
+	 * If the MS_CRYPT flag is provided or the dataset has
+	 * unloadkeyonunmount=on we must ensure we attempt to unload the
+	 * dataset's key regardless of whether we did any work to unmount it.
+	 * We only do this for encryption roots.
 	 */
-	if ((flags & MS_CRYPT) != 0 &&
+	if (((flags & MS_CRYPT) != 0 ||
+	    zfs_prop_get_int(zhp, ZFS_PROP_UNLOAD_KEY_ON_UNMOUNT) != 0) &&
 	    zfs_prop_get_int(zhp, ZFS_PROP_ENCRYPTION) != ZIO_CRYPT_OFF) {
 		zfs_refresh_properties(zhp);
 

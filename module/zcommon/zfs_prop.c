@@ -544,6 +544,9 @@ zfs_prop_init(void)
 	zprop_register_index(ZFS_PROP_UTF8ONLY, "utf8only", 0, PROP_ONETIME,
 	    ZFS_TYPE_FILESYSTEM | ZFS_TYPE_SNAPSHOT,
 	    "on | off", "UTF8ONLY", boolean_table, sfeatures);
+	zprop_register_index(ZFS_PROP_UNLOAD_KEY_ON_UNMOUNT,
+	    "unloadkeyonunmount", 0, PROP_ONETIME, ZFS_TYPE_DATASET,
+	    "on | off", "UNLOAD_KEY_ON_UNMOUNT", boolean_table, sfeatures);
 
 	/* string properties */
 	zprop_register_string(ZFS_PROP_ORIGIN, "origin", NULL, PROP_READONLY,
