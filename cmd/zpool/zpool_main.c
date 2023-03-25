@@ -9559,6 +9559,7 @@ typedef struct ev_opts {
 	int scripted;
 	int follow;
 	int clear;
+	int human;
 	char poolname[ZFS_MAX_DATASET_NAME_LEN];
 } ev_opts_t;
 
@@ -9586,8 +9587,73 @@ zpool_do_events_short(nvlist_t *nvl, ev_opts_t *opts)
 	(void) printf(gettext("%s\n"), ptr);
 }
 
+const char *_zio_flag_str[] = {
+	"DONT_AGGREGATE",
+	"IO_REPAIR",
+	"SELF_HEAL",
+	"RESILVER",
+	"SCRUB",
+	"SCAN_THREAD",
+	"PHYSICAL",
+	"CANFAIL",
+	"SPECULATIVE",
+	"CONFIG_WRITER",
+	"DONT_RETRY",
+	"DONT_CACHE",
+	"NODATA",
+	"INDUCE_DAMAGE",
+	"IO_ALLOCATING",
+	"IO_RETRY",
+	"PROBE",
+	"TRYHARD",
+	"OPTIONAL",
+	"DONT_QUEUE",
+	"DONT_PROPAGATE",
+	"IO_BYPASS",
+	"IO_REWRITE",
+	"RAW_COMPRESS",
+	"RAW_ENCRYPT",
+	"GANG_CHILD",
+	"DDT_CHILD",
+	"GODFATHER",
+	"NOPWRITE",
+	"REEXECUTED",
+	"DELEGATED",
+	"FASTWRITE",
+};
+
 static void
-zpool_do_events_nvprint(nvlist_t *nvl, int depth)
+zpool_do_events_print_u64(const char *name, uint64_t i64, int human) {
+	if (!human || i64 == 0) {
+		printf(gettext("0x%llx"), (u_longlong_t)i64);
+		return;
+	}
+
+	if (strcmp(name, FM_EREPORT_PAYLOAD_ZFS_ZIO_FLAGS) == 0) {
+		/*
+		 * right now DONT_PROPAGATE is the longest flag name at 14
+		 * chars, so max 32 per flag should be plenty.
+		 */
+		static char flagbuf[32*64];
+		char *p = flagbuf;
+		for (int b = 0; b < /* ZIO_FLAG_MAX */ 32; b++) {
+			uint64_t mask = 1ULL << b;
+			if (i64 & mask) {
+				strcpy(p, _zio_flag_str[b]);
+				p += strlen(_zio_flag_str[b]);
+				*p++ = ' ';
+			}
+		}
+		*--p = '\0';
+		printf(gettext("0x%llx [%s]"), (u_longlong_t)i64, flagbuf);
+	}
+
+	else
+		zpool_do_events_print_u64(name, i64, 0);
+}
+
+static void
+zpool_do_events_nvprint(nvlist_t *nvl, int depth, int human)
 {
 	nvpair_t *nvp;
 
@@ -9671,7 +9737,7 @@ zpool_do_events_nvprint(nvlist_t *nvl, int depth)
 				    zpool_state_to_name(i64, VDEV_AUX_NONE),
 				    (u_longlong_t)i64);
 			} else {
-				printf(gettext("0x%llx"), (u_longlong_t)i64);
+				zpool_do_events_print_u64(name, i64, human);
 			}
 			break;
 
@@ -9688,7 +9754,7 @@ zpool_do_events_nvprint(nvlist_t *nvl, int depth)
 		case DATA_TYPE_NVLIST:
 			printf(gettext("(embedded nvlist)\n"));
 			(void) nvpair_value_nvlist(nvp, &cnv);
-			zpool_do_events_nvprint(cnv, depth + 8);
+			zpool_do_events_nvprint(cnv, depth + 8, human);
 			printf(gettext("%*s(end %s)"), depth, "", name);
 			break;
 
@@ -9701,7 +9767,7 @@ zpool_do_events_nvprint(nvlist_t *nvl, int depth)
 			for (i = 0; i < nelem; i++) {
 				printf(gettext("%*s%s[%d] = %s\n"),
 				    depth, "", name, i, "(embedded nvlist)");
-				zpool_do_events_nvprint(val[i], depth + 8);
+				zpool_do_events_nvprint(val[i], depth + 8, human);
 				printf(gettext("%*s(end %s[%i])\n"),
 				    depth, "", name, i);
 			}
@@ -9854,7 +9920,7 @@ zpool_do_events_next(ev_opts_t *opts)
 		zpool_do_events_short(nvl, opts);
 
 		if (opts->verbose) {
-			zpool_do_events_nvprint(nvl, 8);
+			zpool_do_events_nvprint(nvl, 8, opts->human);
 			printf(gettext("\n"));
 		}
 		(void) fflush(stdout);
@@ -9892,7 +9958,7 @@ zpool_do_events(int argc, char **argv)
 	int c;
 
 	/* check options */
-	while ((c = getopt(argc, argv, "vHfc")) != -1) {
+	while ((c = getopt(argc, argv, "vHfch")) != -1) {
 		switch (c) {
 		case 'v':
 			opts.verbose = 1;
@@ -9905,6 +9971,9 @@ zpool_do_events(int argc, char **argv)
 			break;
 		case 'c':
 			opts.clear = 1;
+			break;
+		case 'h':
+			opts.human = 1;
 			break;
 		case '?':
 			(void) fprintf(stderr, gettext("invalid option '%c'\n"),
