@@ -1127,7 +1127,16 @@ dmu_tx_assign(dmu_tx_t *tx, dmu_tx_assign_flag_t flags)
 		if (err != ERESTART || !(flags & DMU_TX_ASSIGN_WAIT))
 			return (err);
 
-		dmu_tx_wait_flags(tx, flags);
+		/*
+		 * Wait until there's room in this txg, or until its been
+		 * synced out and a new one is available. We pass the NOSUSPEND
+		 * flag down if its set; if the pool suspends while we're
+		 * waiting for the txg, this will return and we'll loop and end
+		 * up back in dmu_tx_try_assign, which will deal with the
+		 * suspension appropriately.
+		 */
+		dmu_tx_wait_flags(tx, (flags & DMU_TX_ASSIGN_NOSUSPEND)
+		    ? TXG_WAIT_F_NOSUSPEND : 0);
 	}
 
 	txg_rele_to_quiesce(&tx->tx_txgh);
@@ -1136,7 +1145,7 @@ dmu_tx_assign(dmu_tx_t *tx, dmu_tx_assign_flag_t flags)
 }
 
 static void
-dmu_tx_wait_flags(dmu_tx_t *tx, txg_wait_flag_t how)
+dmu_tx_wait_flags(dmu_tx_t *tx, txg_wait_flag_t flags)
 {
 	spa_t *spa = tx->tx_pool->dp_spa;
 	dsl_pool_t *dp = tx->tx_pool;
@@ -1185,7 +1194,7 @@ dmu_tx_wait_flags(dmu_tx_t *tx, txg_wait_flag_t how)
 		 * It's also possible the pool will be force exported, in
 		 * which case we'll try again and notice this fact, and exit.
 		 */
-		txg_wait_synced_tx(dp, spa_last_synced_txg(spa) + 1, tx, how);
+		txg_wait_synced_tx(dp, spa_last_synced_txg(spa) + 1, tx, flags);
 	} else if (tx->tx_needassign_txh) {
 		dnode_t *dn = tx->tx_needassign_txh->txh_dnode;
 
@@ -1203,7 +1212,7 @@ dmu_tx_wait_flags(dmu_tx_t *tx, txg_wait_flag_t how)
 		 * It's also possible the pool will be force exported, in
 		 * which case we'll try again and notice this fact, and exit.
 		 */
-		txg_wait_synced_tx(dp, spa_last_synced_txg(spa) + 1, tx, how);
+		txg_wait_synced_tx(dp, spa_last_synced_txg(spa) + 1, tx, flags);
 	}
 
 	spa_tx_assign_add_nsecs(spa, gethrtime() - before);
