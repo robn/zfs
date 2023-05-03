@@ -2594,7 +2594,8 @@ zil_commit_writer_stall(zilog_t *zilog)
 	 */
 	ASSERT(MUTEX_HELD(&zilog->zl_issuer_lock));
 	txg_wait_synced(zilog->zl_dmu_pool, 0);
-	ASSERT3P(list_tail(&zilog->zl_lwb_list), ==, NULL);
+	ASSERT(list_is_empty(&zilog->zl_lwb_list) ||
+	    spa_exiting(zilog->zl_spa));
 }
 
 /*
@@ -3413,7 +3414,7 @@ zil_commit_impl(zilog_t *zilog, uint64_t foid)
 	zil_commit_writer(zilog, zcw);
 	zil_commit_waiter(zilog, zcw);
 
-	if (zcw->zcw_zio_error != 0) {
+	if (zcw->zcw_zio_error != 0 && !dmu_objset_exiting(zilog->zl_os)) {
 		/*
 		 * If there was an error writing out the ZIL blocks that
 		 * this thread is waiting on, then we fallback to
