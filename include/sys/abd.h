@@ -211,14 +211,6 @@ abd_get_size(abd_t *abd)
 void abd_init(void);
 void abd_fini(void);
 
-/*
- * Linux ABD bio functions
- */
-#if defined(__linux__) && defined(_KERNEL)
-unsigned int abd_bio_map_off(struct bio *, abd_t *, unsigned int, size_t);
-unsigned long abd_nr_pages_off(abd_t *, unsigned int, size_t);
-#endif
-
 #ifdef __cplusplus
 }
 #endif
