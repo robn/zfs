@@ -347,7 +347,7 @@ vdev_file_fini(void)
 /*
  * From userland we access disks just like files.
  */
-#ifndef _KERNEL
+#if !defined(_KERNEL) && !defined(HAVE_LIBBLKIO)
 
 vdev_ops_t vdev_disk_ops = {
 	.vdev_op_init = NULL,

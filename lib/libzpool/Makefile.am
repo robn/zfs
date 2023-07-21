@@ -1,5 +1,5 @@
 libzpool_la_CFLAGS  = $(AM_CFLAGS) $(KERNEL_CFLAGS) $(LIBRARY_CFLAGS)
-libzpool_la_CFLAGS += $(ZLIB_CFLAGS)
+libzpool_la_CFLAGS += $(LIBBLKIO_CFLAGS) $(ZLIB_CFLAGS)
 
 libzpool_la_CPPFLAGS  = $(AM_CPPFLAGS) $(FORCEDEBUG_CPPFLAGS)
 libzpool_la_CPPFLAGS += -I$(srcdir)/include/os/@ac_system_l@/zfs
@@ -186,6 +186,10 @@ nodist_libzpool_la_SOURCES = \
 	module/zfs/zrlock.c \
 	module/zfs/zthr.c
 
+if HAVE_LIBBLKIO
+nodist_libzpool_la_SOURCES += module/os/linux/zfs/vdev_blkio.c
+endif
+
 libzpool_la_LIBADD = \
 	libicp.la \
 	libunicode.la \
@@ -193,7 +197,7 @@ libzpool_la_LIBADD = \
 	libzstd.la \
 	libzutil.la
 
-libzpool_la_LIBADD += $(LIBCLOCK_GETTIME) $(ZLIB_LIBS) -ldl -lm
+libzpool_la_LIBADD += $(LIBCLOCK_GETTIME) $(LIBBLKIO_LIBS) $(ZLIB_LIBS) -ldl -lm
 
 libzpool_la_LDFLAGS = -pthread
 
