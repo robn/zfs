@@ -1649,6 +1649,7 @@ typedef struct sync_objset_arg {
 	objset_t *soa_os;
 	dmu_tx_t *soa_tx;
 	zio_t *soa_zio;
+	taskq_ent_t soa_tq_ent;
 } sync_objset_arg_t;
 
 static void
@@ -1688,8 +1689,8 @@ dmu_objset_sync_sublists_done(zio_t *zio)
 	}
 
 	/* sync_dnodes_finsh_task calls zil_sync on our behalf. */
-	(void) taskq_dispatch(dmu_objset_pool(os)->dp_sync_taskq,
-	    sync_dnodes_finish_task, soa, TQ_FRONT);
+	taskq_dispatch_ent(dmu_objset_pool(os)->dp_sync_taskq,
+	    sync_dnodes_finish_task, soa, TQ_FRONT, &soa->soa_tq_ent);
 }
 
 /* Nonblocking objset sync. Called from dsl. */
@@ -1795,6 +1796,7 @@ dmu_objset_sync(objset_t *os, zio_t *rio, dmu_tx_t *tx)
 	soa->soa_os = os;
 	soa->soa_tx = tx;
 	soa->soa_zio = zio;
+	taskq_init_ent(&soa->soa_tq_ent);
 
 	/* sio is a child of the arc_write zio and parent of the sda_cio(s). */
 	zio_t *sio = zio_null(zio, os->os_spa, NULL,

@@ -494,6 +494,8 @@ extern taskq_t *system_taskq;
 extern taskq_t *system_delay_taskq;
 
 extern taskq_t	*taskq_create(const char *, int, pri_t, int, int, uint_t);
+extern taskq_t	*taskq_create_synced(const char *, int, pri_t, int, int, uint_t,
+    kthread_t ***);
 #define	taskq_create_proc(a, b, c, d, e, p, f) \
 	    (taskq_create(a, b, c, d, e, f))
 #define	taskq_create_sysdc(a, b, d, e, p, dc, f) \
@@ -506,6 +508,7 @@ extern void	taskq_dispatch_ent(taskq_t *, task_func_t, void *, uint_t,
 extern int	taskq_empty_ent(taskq_ent_t *);
 extern void	taskq_init_ent(taskq_ent_t *);
 extern void	taskq_destroy(taskq_t *);
+extern void	taskq_destroy_synced(taskq_t *, kthread_t **);
 extern void	taskq_wait(taskq_t *);
 extern void	taskq_wait_id(taskq_t *, taskqid_t);
 extern void	taskq_wait_outstanding(taskq_t *, taskqid_t);
