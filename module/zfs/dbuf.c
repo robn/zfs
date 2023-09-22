@@ -2922,7 +2922,8 @@ dbuf_assign_arcbuf(dmu_buf_impl_t *db, arc_buf_t *buf, dmu_tx_t *tx)
 	while (db->db_state == DB_READ || db->db_state == DB_FILL)
 		cv_wait(&db->db_changed, &db->db_mtx);
 
-	ASSERT(db->db_state == DB_CACHED || db->db_state == DB_UNCACHED);
+	ASSERT(db->db_state == DB_CACHED || db->db_state == DB_UNCACHED ||
+	    db->db_state == DB_NOFILL);
 
 	if (db->db_state == DB_CACHED &&
 	    zfs_refcount_count(&db->db_holds) - 1 > db->db_dirtycnt) {
@@ -2960,6 +2961,35 @@ dbuf_assign_arcbuf(dmu_buf_impl_t *db, arc_buf_t *buf, dmu_tx_t *tx)
 		}
 		db->db_buf = NULL;
 	}
+
+	if (db->db_state == DB_NOFILL) {
+		/*
+		 * The only valid way for this dbuf to be DB_NOFILL at this
+		 * point is for this sequence to happen:
+		 *
+		 * 1. zfs_clone_range() clones into this dbuf. This leaves the
+		 *    dbuf as DB_NOFILL with a dirty record with brtwrite set.
+		 *
+		 * 2. dmu_free_long_range() (via zfs_trunc() or
+		 *    zfs_free_range()) frees the block under this dbuf to the
+		 *    end of the object, such that z_size is now behind the
+		 *    start of this dbuf.
+		 *
+		 * 3. zfs_write() attempts to write a full block to this
+		 *    offset. The write is past z_size and for a full block,
+		 *    so it ends up on this path; it calls dmu_request_arcbuf(),
+		 *    fills the buffer, and then dmu_assign_arcbuf_by_dbuf(),
+		 *    which loads the NOFILL dbuf and ends up here.
+		 *
+		 * It shouldn't be possible for a NOFILL dbuf to arrive here
+		 * any other way, so we assert that there's also a dirty
+		 * brtwrite record attached.
+		 */
+		dbuf_dirty_record_t *dr = list_head(&db->db_dirty_records);
+		ASSERT(dr && dr->dt.dl.dr_brtwrite &&
+		    dr->dt.dl.dr_override_state == DR_OVERRIDDEN);
+	}
+
 	ASSERT(db->db_buf == NULL);
 	dbuf_set_data(db, buf);
 	db->db_state = DB_FILL;
