@@ -4721,7 +4721,7 @@ print_iostat_default(vdev_stat_t *vs, iostat_cbdata_t *cb, double scale)
 		na = '0';
 	} else {
 		format_num = ZFS_NICENUM_1024;
-		format_bytes = ZFS_NICENUM_BYTES;
+		format_bytes = zfs_nicebytes_get_format();
 		na = '-';
 	}
 
@@ -6209,7 +6209,7 @@ print_list_stats(zpool_handle_t *zhp, const char *name, nvlist_t *nv,
 			format_bytes = ZFS_NICENUM_RAW;
 		} else {
 			format_num = ZFS_NICENUM_1024;
-			format_bytes = ZFS_NICENUM_BYTES;
+			format_bytes = zfs_nicebytes_get_format();
 		}
 
 		if (strcmp(name, VDEV_TYPE_INDIRECT) == 0)

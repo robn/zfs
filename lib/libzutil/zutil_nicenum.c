@@ -21,6 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, Rob Norris <robn@despairlabs.com>
  */
 
 #include <ctype.h>
@@ -28,6 +29,50 @@
 #include <stdio.h>
 #include <libzutil.h>
 #include <string.h>
+#include <stdlib.h>
+
+static boolean_t zfs_nicebytes_format_set = B_FALSE;
+static enum zfs_nicenum_format zfs_nicebytes_format = 0;
+
+void
+zfs_nicebytes_set_format_trad(void)
+{
+	zfs_nicebytes_format = ZFS_NICENUM_BYTES;
+	zfs_nicebytes_format_set = B_TRUE;
+}
+
+void
+zfs_nicebytes_set_format_iec(void)
+{
+	zfs_nicebytes_format = ZFS_NICENUM_BYTES_IEC;
+	zfs_nicebytes_format_set = B_TRUE;
+}
+
+void
+zfs_nicebytes_set_format_si(void)
+{
+	zfs_nicebytes_format = ZFS_NICENUM_BYTES_SI;
+	zfs_nicebytes_format_set = B_TRUE;
+}
+
+enum zfs_nicenum_format
+zfs_nicebytes_get_format(void)
+{
+	if (!zfs_nicebytes_format_set) {
+		const char *fmtname = getenv("ZFS_BYTE_PREFIX");
+		if (fmtname != NULL) {
+			if (strcmp(fmtname, "trad") == 0)
+				zfs_nicebytes_set_format_trad();
+			else if (strcmp(fmtname, "iec") == 0)
+				zfs_nicebytes_set_format_iec();
+			else if (strcmp(fmtname, "si") == 0)
+				zfs_nicebytes_set_format_si();
+		}
+		if (!zfs_nicebytes_format_set)
+			zfs_nicebytes_set_format_trad();
+	}
+	return (zfs_nicebytes_format);
+}
 
 /*
  * Return B_TRUE if "str" is a number string, B_FALSE otherwise.
@@ -64,19 +109,29 @@ zfs_nicenum_format(uint64_t num, char *buf, size_t buflen,
 	uint64_t n = num;
 	int index = 0;
 	const char *u;
-	const char *units[3][7] = {
+	const char *units[][7] = {
 	    [ZFS_NICENUM_1024] = {"", "K", "M", "G", "T", "P", "E"},
 	    [ZFS_NICENUM_BYTES] = {"B", "K", "M", "G", "T", "P", "E"},
-	    [ZFS_NICENUM_TIME] = {"ns", "us", "ms", "s", "?", "?", "?"}
+	    [ZFS_NICENUM_TIME] = {"ns", "us", "ms", "s", "?", "?", "?"},
+	    [ZFS_NICENUM_BYTES_IEC] = {"B", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei"},
+	    [ZFS_NICENUM_BYTES_SI] = {"B", "K", "M", "G", "T", "P", "E"},
 	};
 
-	const int units_len[] = {[ZFS_NICENUM_1024] = 6,
+	const int units_len[] = {
+	    [ZFS_NICENUM_1024] = 6,
 	    [ZFS_NICENUM_BYTES] = 6,
-	    [ZFS_NICENUM_TIME] = 4};
+	    [ZFS_NICENUM_TIME] = 4,
+	    [ZFS_NICENUM_BYTES_IEC] = 6,
+	    [ZFS_NICENUM_BYTES_SI] = 6,
+	};
 
-	const int k_unit[] = {	[ZFS_NICENUM_1024] = 1024,
+	const int k_unit[] = {
+	    [ZFS_NICENUM_1024] = 1024,
 	    [ZFS_NICENUM_BYTES] = 1024,
-	    [ZFS_NICENUM_TIME] = 1000};
+	    [ZFS_NICENUM_TIME] = 1000,
+	    [ZFS_NICENUM_BYTES_IEC] = 1024,
+	    [ZFS_NICENUM_BYTES_SI] = 1000,
+	};
 
 	double val;
 
@@ -180,5 +235,5 @@ zfs_niceraw(uint64_t num, char *buf, size_t buflen)
 void
 zfs_nicebytes(uint64_t num, char *buf, size_t buflen)
 {
-	zfs_nicenum_format(num, buf, buflen, ZFS_NICENUM_BYTES);
+	zfs_nicenum_format(num, buf, buflen, zfs_nicebytes_get_format());
 }

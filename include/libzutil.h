@@ -21,6 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2018 by Delphix. All rights reserved.
+ * Copyright (c) 2023, Rob Norris <robn@despairlabs.com>
  */
 
 #ifndef	_LIBZUTIL_H
@@ -134,18 +135,22 @@ _LIBZUTIL_H boolean_t zfs_isnumber(const char *);
 /*
  * Formats for iostat numbers.  Examples: "12K", "30ms", "4B", "2321234", "-".
  *
- * ZFS_NICENUM_1024:	Print kilo, mega, tera, peta, exa..
- * ZFS_NICENUM_BYTES:	Print single bytes ("13B"), kilo, mega, tera...
- * ZFS_NICENUM_TIME:	Print nanosecs, microsecs, millisecs, seconds...
- * ZFS_NICENUM_RAW:	Print the raw number without any formatting
- * ZFS_NICENUM_RAWTIME:	Same as RAW, but print dashes ('-') for zero.
+ * ZFS_NICENUM_1024:		Print kilo, mega, tera, peta, exa..
+ * ZFS_NICENUM_BYTES:		Bytes, powers of 1024, SI prefixes (K, M, T)
+ * ZFS_NICENUM_TIME:		Print nanosecs, microsecs, millisecs, seconds...
+ * ZFS_NICENUM_RAW:		Print the raw number without any formatting
+ * ZFS_NICENUM_RAWTIME:		Same as RAW, but print dashes ('-') for zero.
+ * ZFS_NICENUM_BYTES_IEC:	Bytes, powers of 1024, IEC prefixes (Ki, Mi, Ti)
+ * ZFS_NICENUM_BYTES_SI:	Bytes, powers of 1000, SI prefixes (K, M, T)
  */
 enum zfs_nicenum_format {
 	ZFS_NICENUM_1024 = 0,
 	ZFS_NICENUM_BYTES = 1,
 	ZFS_NICENUM_TIME = 2,
 	ZFS_NICENUM_RAW = 3,
-	ZFS_NICENUM_RAWTIME = 4
+	ZFS_NICENUM_RAWTIME = 4,
+	ZFS_NICENUM_BYTES_IEC = 5,
+	ZFS_NICENUM_BYTES_SI = 6
 };
 
 /*
@@ -157,6 +162,11 @@ _LIBZUTIL_H void zfs_nicenum_format(uint64_t, char *, size_t,
     enum zfs_nicenum_format);
 _LIBZUTIL_H void zfs_nicetime(uint64_t, char *, size_t);
 _LIBZUTIL_H void zfs_niceraw(uint64_t, char *, size_t);
+
+_LIBZUTIL_H void zfs_nicebytes_set_format_trad(void);
+_LIBZUTIL_H void zfs_nicebytes_set_format_iec(void);
+_LIBZUTIL_H void zfs_nicebytes_set_format_si(void);
+_LIBZUTIL_H enum zfs_nicenum_format zfs_nicebytes_get_format(void);
 
 _LIBZUTIL_H void zpool_dump_ddt(const ddt_stat_t *, const ddt_histogram_t *);
 _LIBZUTIL_H int zpool_history_unpack(char *, uint64_t, uint64_t *, nvlist_t ***,
