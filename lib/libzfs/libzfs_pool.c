@@ -337,11 +337,18 @@ zpool_get_prop(zpool_handle_t *zhp, zpool_prop_t prop, char *buf,
 		case ZPOOL_PROP_FREE:
 		case ZPOOL_PROP_FREEING:
 		case ZPOOL_PROP_LEAKED:
-		case ZPOOL_PROP_ASHIFT:
 		case ZPOOL_PROP_MAXBLOCKSIZE:
 		case ZPOOL_PROP_MAXDNODESIZE:
 		case ZPOOL_PROP_BCLONESAVED:
 		case ZPOOL_PROP_BCLONEUSED:
+			if (literal)
+				(void) snprintf(buf, len, "%llu",
+				    (u_longlong_t)intval);
+			else
+				(void) zfs_nicebytes(intval, buf, len);
+			break;
+
+		case ZPOOL_PROP_ASHIFT:
 			if (literal)
 				(void) snprintf(buf, len, "%llu",
 				    (u_longlong_t)intval);
@@ -5133,12 +5140,6 @@ zpool_get_vdev_prop_value(nvlist_t *nvprop, vdev_prop_t prop, char *prop_name,
 		}
 
 		switch (prop) {
-		case VDEV_PROP_ASIZE:
-		case VDEV_PROP_PSIZE:
-		case VDEV_PROP_SIZE:
-		case VDEV_PROP_BOOTSIZE:
-		case VDEV_PROP_ALLOCATED:
-		case VDEV_PROP_FREE:
 		case VDEV_PROP_READ_ERRORS:
 		case VDEV_PROP_WRITE_ERRORS:
 		case VDEV_PROP_CHECKSUM_ERRORS:
@@ -5149,6 +5150,19 @@ zpool_get_vdev_prop_value(nvlist_t *nvprop, vdev_prop_t prop, char *prop_name,
 		case VDEV_PROP_OPS_FREE:
 		case VDEV_PROP_OPS_CLAIM:
 		case VDEV_PROP_OPS_TRIM:
+			if (literal) {
+				(void) snprintf(buf, len, "%llu",
+				    (u_longlong_t)intval);
+			} else {
+				(void) zfs_nicenum(intval, buf, len);
+			}
+			break;
+		case VDEV_PROP_ASIZE:
+		case VDEV_PROP_PSIZE:
+		case VDEV_PROP_SIZE:
+		case VDEV_PROP_BOOTSIZE:
+		case VDEV_PROP_ALLOCATED:
+		case VDEV_PROP_FREE:
 		case VDEV_PROP_BYTES_NULL:
 		case VDEV_PROP_BYTES_READ:
 		case VDEV_PROP_BYTES_WRITE:
@@ -5159,7 +5173,7 @@ zpool_get_vdev_prop_value(nvlist_t *nvprop, vdev_prop_t prop, char *prop_name,
 				(void) snprintf(buf, len, "%llu",
 				    (u_longlong_t)intval);
 			} else {
-				(void) zfs_nicenum(intval, buf, len);
+				(void) zfs_nicebytes(intval, buf, len);
 			}
 			break;
 		case VDEV_PROP_EXPANDSZ:
@@ -5169,7 +5183,7 @@ zpool_get_vdev_prop_value(nvlist_t *nvprop, vdev_prop_t prop, char *prop_name,
 				(void) snprintf(buf, len, "%llu",
 				    (u_longlong_t)intval);
 			} else {
-				(void) zfs_nicenum(intval, buf, len);
+				(void) zfs_nicebytes(intval, buf, len);
 			}
 			break;
 		case VDEV_PROP_CAPACITY:

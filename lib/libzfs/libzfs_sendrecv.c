@@ -1021,8 +1021,8 @@ send_progress_thread(void *arg)
 			char buf_bytes[16];
 			char buf_size[16];
 			int pct;
-			zfs_nicenum(bytes, buf_bytes, sizeof (buf_bytes));
-			zfs_nicenum(pa->pa_size, buf_size, sizeof (buf_size));
+			zfs_nicebytes(bytes, buf_bytes, sizeof (buf_bytes));
+			zfs_nicebytes(pa->pa_size, buf_size, sizeof (buf_size));
 			pct = (total > 0) ? bytes / total : 100;
 			zfs_setproctitle("sending %s (%d%%: %s/%s)",
 			    zhp->zfs_name, MIN(pct, 100), buf_bytes, buf_size);
@@ -1035,7 +1035,7 @@ send_progress_thread(void *arg)
 			    (u_longlong_t)bytes, (u_longlong_t)blocks,
 			    zhp->zfs_name);
 		} else if (pa->pa_verbosity >= 2) {
-			zfs_nicenum(bytes, buf, sizeof (buf));
+			zfs_nicebytes(bytes, buf, sizeof (buf));
 			(void) fprintf(stderr,
 			    "%02d:%02d:%02d   %5s    %8llu    %s\n",
 			    tm.tm_hour, tm.tm_min, tm.tm_sec,
@@ -1662,7 +1662,7 @@ estimate_size(zfs_handle_t *zhp, const char *from, int fd, sendflags_t *flags,
 		(void) fprintf(fout, "size\t%llu\n", (longlong_t)size);
 	} else {
 		char buf[16];
-		zfs_nicenum(size, buf, sizeof (buf));
+		zfs_nicebytes(size, buf, sizeof (buf));
 		(void) fprintf(fout, dgettext(TEXT_DOMAIN,
 		    "total estimated size is %s\n"), buf);
 	}

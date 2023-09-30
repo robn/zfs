@@ -85,13 +85,13 @@ show_vdev_stats(const char *desc, const char *ctype, nvlist_t *nv, int indent)
 
 		sec = MAX(1, vs->vs_timestamp / NANOSEC);
 
-		zfs_nicenum(vs->vs_alloc, used, sizeof (used));
-		zfs_nicenum(vs->vs_space - vs->vs_alloc, avail, sizeof (avail));
+		zfs_nicebytes(vs->vs_alloc, used, sizeof (used));
+		zfs_nicebytes(vs->vs_space - vs->vs_alloc, avail, sizeof (avail));
 		zfs_nicenum(vs->vs_ops[ZIO_TYPE_READ] / sec, rops, sizeof (rops));
 		zfs_nicenum(vs->vs_ops[ZIO_TYPE_WRITE] / sec, wops, sizeof (wops));
-		zfs_nicenum(vs->vs_bytes[ZIO_TYPE_READ] / sec, rbytes,
+		zfs_nicebytes(vs->vs_bytes[ZIO_TYPE_READ] / sec, rbytes,
 		    sizeof (rbytes));
-		zfs_nicenum(vs->vs_bytes[ZIO_TYPE_WRITE] / sec, wbytes,
+		zfs_nicebytes(vs->vs_bytes[ZIO_TYPE_WRITE] / sec, wbytes,
 		    sizeof (wbytes));
 		zfs_nicenum(vs->vs_read_errors, rerr, sizeof (rerr));
 		zfs_nicenum(vs->vs_write_errors, werr, sizeof (werr));

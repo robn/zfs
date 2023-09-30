@@ -1252,7 +1252,7 @@ zpool_do_remove(int argc, char **argv)
 					    argv[i], (unsigned long long)size);
 				} else {
 					char valstr[32];
-					zfs_nicenum(size, valstr,
+					zfs_nicebytes(size, valstr,
 					    sizeof (valstr));
 					(void) printf("Memory that will be "
 					    "used after removing %s: %s\n",
@@ -4513,7 +4513,7 @@ print_iostat_histo(struct stat_array *nva, unsigned int len,
 		} else {
 			/* Request size (starting range of bucket) */
 			val = (1UL << j);
-			zfs_nicenum(val, buf, sizeof (buf));
+			zfs_nicebytes(val, buf, sizeof (buf));
 		}
 
 		if (cb->cb_scripted)
@@ -4712,14 +4712,16 @@ static void
 print_iostat_default(vdev_stat_t *vs, iostat_cbdata_t *cb, double scale)
 {
 	unsigned int column_width = default_column_width(cb, IOS_DEFAULT);
-	enum zfs_nicenum_format format;
+	enum zfs_nicenum_format format_num, format_bytes;
 	char na;	/* char to print for "not applicable" values */
 
 	if (cb->cb_literal) {
-		format = ZFS_NICENUM_RAW;
+		format_num = ZFS_NICENUM_RAW;
+		format_bytes = ZFS_NICENUM_RAW;
 		na = '0';
 	} else {
-		format = ZFS_NICENUM_1024;
+		format_num = ZFS_NICENUM_1024;
+		format_bytes = ZFS_NICENUM_BYTES;
 		na = '-';
 	}
 
@@ -4731,20 +4733,20 @@ print_iostat_default(vdev_stat_t *vs, iostat_cbdata_t *cb, double scale)
 			printf("  %*c  %*c", column_width, na, column_width,
 			    na);
 	} else {
-		print_one_stat(vs->vs_alloc, format, column_width,
+		print_one_stat(vs->vs_alloc, format_bytes, column_width,
 		    cb->cb_scripted);
-		print_one_stat(vs->vs_space - vs->vs_alloc, format,
+		print_one_stat(vs->vs_space - vs->vs_alloc, format_bytes,
 		    column_width, cb->cb_scripted);
 	}
 
 	print_one_stat((uint64_t)(vs->vs_ops[ZIO_TYPE_READ] * scale),
-	    format, column_width, cb->cb_scripted);
+	    format_num, column_width, cb->cb_scripted);
 	print_one_stat((uint64_t)(vs->vs_ops[ZIO_TYPE_WRITE] * scale),
-	    format, column_width, cb->cb_scripted);
+	    format_num, column_width, cb->cb_scripted);
 	print_one_stat((uint64_t)(vs->vs_bytes[ZIO_TYPE_READ] * scale),
-	    format, column_width, cb->cb_scripted);
+	    format_bytes, column_width, cb->cb_scripted);
 	print_one_stat((uint64_t)(vs->vs_bytes[ZIO_TYPE_WRITE] * scale),
-	    format, column_width, cb->cb_scripted);
+	    format_bytes, column_width, cb->cb_scripted);
 }
 
 static const char *const class_name[] = {
@@ -6199,13 +6201,16 @@ print_list_stats(zpool_handle_t *zhp, const char *name, nvlist_t *nv,
 	if (name != NULL) {
 		boolean_t toplevel = (vs->vs_space != 0);
 		uint64_t cap;
-		enum zfs_nicenum_format format;
+		enum zfs_nicenum_format format_num, format_bytes;
 		const char *state;
 
-		if (cb->cb_literal)
-			format = ZFS_NICENUM_RAW;
-		else
-			format = ZFS_NICENUM_1024;
+		if (cb->cb_literal) {
+			format_num = ZFS_NICENUM_RAW;
+			format_bytes = ZFS_NICENUM_RAW;
+		} else {
+			format_num = ZFS_NICENUM_1024;
+			format_bytes = ZFS_NICENUM_BYTES;
+		}
 
 		if (strcmp(name, VDEV_TYPE_INDIRECT) == 0)
 			return;
@@ -6226,28 +6231,28 @@ print_list_stats(zpool_handle_t *zhp, const char *name, nvlist_t *nv,
 		 */
 		if (VDEV_STAT_VALID(vs_pspace, c) && vs->vs_pspace)
 			print_one_column(ZPOOL_PROP_SIZE, vs->vs_pspace, NULL,
-			    scripted, B_TRUE, format);
+			    scripted, B_TRUE, format_bytes);
 		else
 			print_one_column(ZPOOL_PROP_SIZE, vs->vs_space, NULL,
-			    scripted, toplevel, format);
+			    scripted, toplevel, format_bytes);
 		print_one_column(ZPOOL_PROP_ALLOCATED, vs->vs_alloc, NULL,
-		    scripted, toplevel, format);
+		    scripted, toplevel, format_bytes);
 		print_one_column(ZPOOL_PROP_FREE, vs->vs_space - vs->vs_alloc,
-		    NULL, scripted, toplevel, format);
+		    NULL, scripted, toplevel, format_bytes);
 		print_one_column(ZPOOL_PROP_CHECKPOINT,
-		    vs->vs_checkpoint_space, NULL, scripted, toplevel, format);
+		    vs->vs_checkpoint_space, NULL, scripted, toplevel, format_bytes);
 		print_one_column(ZPOOL_PROP_EXPANDSZ, vs->vs_esize, NULL,
-		    scripted, B_TRUE, format);
+		    scripted, B_TRUE, format_bytes);
 		print_one_column(ZPOOL_PROP_FRAGMENTATION,
 		    vs->vs_fragmentation, NULL, scripted,
 		    (vs->vs_fragmentation != ZFS_FRAG_INVALID && toplevel),
-		    format);
+		    format_num);
 		cap = (vs->vs_space == 0) ? 0 :
 		    (vs->vs_alloc * 10000 / vs->vs_space);
 		print_one_column(ZPOOL_PROP_CAPACITY, cap, NULL,
-		    scripted, toplevel, format);
+		    scripted, toplevel, format_num);
 		print_one_column(ZPOOL_PROP_DEDUPRATIO, 0, NULL,
-		    scripted, toplevel, format);
+		    scripted, toplevel, format_num);
 		state = zpool_state_to_name(vs->vs_state, vs->vs_aux);
 		if (isspare) {
 			if (vs->vs_aux == VDEV_AUX_SPARED)
@@ -6256,7 +6261,7 @@ print_list_stats(zpool_handle_t *zhp, const char *name, nvlist_t *nv,
 				state = "AVAIL";
 		}
 		print_one_column(ZPOOL_PROP_HEALTH, 0, state, scripted,
-		    B_TRUE, format);
+		    B_TRUE, format_num);
 		(void) fputc('\n', stdout);
 	}
 
@@ -8106,7 +8111,7 @@ print_removal_status(zpool_handle_t *zhp, pool_removal_stat_t *prs)
 
 	start = prs->prs_start_time;
 	end = prs->prs_end_time;
-	zfs_nicenum(prs->prs_copied, copied_buf, sizeof (copied_buf));
+	zfs_nicebytes(prs->prs_copied, copied_buf, sizeof (copied_buf));
 
 	/*
 	 * Removal is finished or canceled.
@@ -8150,9 +8155,9 @@ print_removal_status(zpool_handle_t *zhp, pool_removal_stat_t *prs)
 		mins_left = ((total - copied) / rate) / 60;
 		hours_left = mins_left / 60;
 
-		zfs_nicenum(copied, examined_buf, sizeof (examined_buf));
-		zfs_nicenum(total, total_buf, sizeof (total_buf));
-		zfs_nicenum(rate, rate_buf, sizeof (rate_buf));
+		zfs_nicebytes(copied, examined_buf, sizeof (examined_buf));
+		zfs_nicebytes(total, total_buf, sizeof (total_buf));
+		zfs_nicebytes(rate, rate_buf, sizeof (rate_buf));
 
 		/*
 		 * do not print estimated time if hours_left is more than
@@ -8173,7 +8178,7 @@ print_removal_status(zpool_handle_t *zhp, pool_removal_stat_t *prs)
 
 	if (prs->prs_mapping_memory > 0) {
 		char mem_buf[7];
-		zfs_nicenum(prs->prs_mapping_memory, mem_buf, sizeof (mem_buf));
+		zfs_nicebytes(prs->prs_mapping_memory, mem_buf, sizeof (mem_buf));
 		(void) printf(gettext(
 		    "\t%s memory used for removed device mappings\n"),
 		    mem_buf);
@@ -8192,7 +8197,7 @@ print_checkpoint_status(pool_checkpoint_stat_t *pcs)
 	(void) printf(gettext("checkpoint: "));
 
 	start = pcs->pcs_start_time;
-	zfs_nicenum(pcs->pcs_space, space_buf, sizeof (space_buf));
+	zfs_nicebytes(pcs->pcs_space, space_buf, sizeof (space_buf));
 
 	if (pcs->pcs_state == CS_CHECKPOINT_EXISTS) {
 		char *date = ctime(&start);
@@ -10816,7 +10821,7 @@ print_wait_status_row(wait_data_t *wd, zpool_handle_t *zhp, int row)
 			(void) snprintf(buf, sizeof (buf), "%" PRIi64,
 			    bytes_rem[i]);
 		else
-			zfs_nicenum(bytes_rem[i], buf, sizeof (buf));
+			zfs_nicebytes(bytes_rem[i], buf, sizeof (buf));
 
 		if (wd->wd_scripted)
 			(void) printf(i == 0 ? "%s" : "\t%s", buf);

@@ -2974,6 +2974,9 @@ zfs_prop_get(zfs_handle_t *zhp, zfs_prop_t prop, char *propbuf, size_t proplen,
 	case ZFS_PROP_USEDDS:
 	case ZFS_PROP_USEDREFRESERV:
 	case ZFS_PROP_USEDCHILD:
+	case ZFS_PROP_LOGICALUSED:
+	case ZFS_PROP_LOGICALREFERENCED:
+	case ZFS_PROP_WRITTEN:
 		if (get_numeric_property(zhp, prop, src, &source, &val) != 0)
 			return (-1);
 		if (literal) {

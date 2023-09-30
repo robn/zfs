@@ -422,10 +422,10 @@ zfs_redup_stream(int infd, int outfd, boolean_t verbose)
 
 	if (verbose) {
 		char mem_str[16];
-		zfs_nicenum(rdt.ddt_count * sizeof (redup_entry_t),
+		zfs_nicebytes(rdt.ddt_count * sizeof (redup_entry_t),
 		    mem_str, sizeof (mem_str));
 		fprintf(stderr, "converted stream with %llu total records, "
-		    "including %llu dedup records, using %sB memory.\n",
+		    "including %llu dedup records, using %s memory.\n",
 		    (long long)num_records,
 		    (long long)num_write_byref_records,
 		    mem_str);
