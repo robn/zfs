@@ -4143,8 +4143,8 @@ ztest_vdev_LUN_growth(ztest_ds_t *zd, uint64_t id)
 	if (ztest_opts.zo_verbose >= 5) {
 		char oldnumbuf[NN_NUMBUF_SZ], newnumbuf[NN_NUMBUF_SZ];
 
-		nicenum(old_class_space, oldnumbuf, sizeof (oldnumbuf));
-		nicenum(new_class_space, newnumbuf, sizeof (newnumbuf));
+		zfs_nicenum(old_class_space, oldnumbuf, sizeof (oldnumbuf));
+		zfs_nicenum(new_class_space, newnumbuf, sizeof (newnumbuf));
 		(void) printf("%s grew from %s to %s\n",
 		    spa->spa_name, oldnumbuf, newnumbuf);
 	}
@@ -8275,7 +8275,7 @@ main(int argc, char **argv)
 
 			now = MIN(now, zs->zs_proc_stop);
 			print_time(zs->zs_proc_stop - now, timebuf);
-			nicenum(zs->zs_space, numbuf, sizeof (numbuf));
+			zfs_nicenum(zs->zs_space, numbuf, sizeof (numbuf));
 
 			(void) printf("Pass %3d, %8s, %3"PRIu64" ENOSPC, "
 			    "%4.1f%% of %5s used, %3.0f%% done, %8s to go\n",

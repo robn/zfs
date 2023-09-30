@@ -996,7 +996,7 @@ zdb_nicenum(uint64_t num, char *buf, size_t buflen)
 	if (dump_opt['P'])
 		(void) snprintf(buf, buflen, "%llu", (longlong_t)num);
 	else
-		nicenum(num, buf, buflen);
+		zfs_nicenum(num, buf, buflen);
 }
 
 static const char histo_stars[] = "****************************************";
