@@ -9637,7 +9637,6 @@ taskq_t *
 spa_sync_tq_create(spa_t *spa, const char *name)
 {
 	ASSERT(spa->spa_sync_tq == NULL);
-	ASSERT(spa->spa_kthreads == NULL);
 	ASSERT3S(spa->spa_alloc_count, <=, boot_ncpus);
 
 	/*
@@ -9650,16 +9649,15 @@ spa_sync_tq_create(spa_t *spa, const char *name)
 	    nthreads, KM_SLEEP);
 
 	spa->spa_sync_tq = taskq_create_synced(name, nthreads, minclsyspri,
-	    nthreads, INT_MAX, TASKQ_PREPOPULATE, &spa->spa_kthreads);
+	    nthreads, INT_MAX, TASKQ_PREPOPULATE);
 	VERIFY(spa->spa_sync_tq != NULL);
-	VERIFY(spa->spa_kthreads != NULL);
 
 	spa_taskqs_t *tqs =
 	    &spa->spa_zio_taskq[ZIO_TYPE_WRITE][ZIO_TASKQ_ISSUE];
 
 	spa_syncthread_info_t *ti = spa->spa_syncthreads;
 	for (int i = 0, w = 0; i < nthreads; i++, w++, ti++) {
-		ti->sti_thread = spa->spa_kthreads[i];
+		ti->sti_thread = taskq_get_syncthread(spa->spa_sync_tq, i);
 		if (w == tqs->stqs_count) {
 			w = 0;
 		}
@@ -9673,14 +9671,12 @@ void
 spa_sync_tq_destroy(spa_t *spa)
 {
 	ASSERT(spa->spa_sync_tq != NULL);
-	ASSERT(spa->spa_kthreads != NULL);
 
 	taskq_wait(spa->spa_sync_tq);
-	taskq_destroy_synced(spa->spa_sync_tq, spa->spa_kthreads);
+	taskq_destroy_synced(spa->spa_sync_tq);
 	kmem_free(spa->spa_syncthreads,
 	    sizeof (spa_syncthread_info_t) * spa->spa_alloc_count);
 	spa->spa_sync_tq = NULL;
-	spa->spa_kthreads = NULL;
 }
 
 void

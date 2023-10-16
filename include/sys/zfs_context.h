@@ -473,6 +473,7 @@ typedef struct taskq {
 	int		tq_maxalloc_wait;
 	taskq_ent_t	*tq_freelist;
 	taskq_ent_t	tq_task;
+	kthread_t 	**tq_syncthreads;
 } taskq_t;
 
 #define	TQENT_FLAG_PREALLOC	0x1	/* taskq_dispatch_ent used */
@@ -494,8 +495,8 @@ extern taskq_t *system_taskq;
 extern taskq_t *system_delay_taskq;
 
 extern taskq_t	*taskq_create(const char *, int, pri_t, int, int, uint_t);
-extern taskq_t	*taskq_create_synced(const char *, int, pri_t, int, int, uint_t,
-    kthread_t ***);
+extern taskq_t	*taskq_create_synced(const char *, int, pri_t, int, int,
+    uint_t);
 #define	taskq_create_proc(a, b, c, d, e, p, f) \
 	    (taskq_create(a, b, c, d, e, f))
 #define	taskq_create_sysdc(a, b, d, e, p, dc, f) \
@@ -508,12 +509,13 @@ extern void	taskq_dispatch_ent(taskq_t *, task_func_t, void *, uint_t,
 extern int	taskq_empty_ent(taskq_ent_t *);
 extern void	taskq_init_ent(taskq_ent_t *);
 extern void	taskq_destroy(taskq_t *);
-extern void	taskq_destroy_synced(taskq_t *, kthread_t **);
+extern void	taskq_destroy_synced(taskq_t *);
 extern void	taskq_wait(taskq_t *);
 extern void	taskq_wait_id(taskq_t *, taskqid_t);
 extern void	taskq_wait_outstanding(taskq_t *, taskqid_t);
 extern int	taskq_member(taskq_t *, kthread_t *);
 extern taskq_t	*taskq_of_curthread(void);
+#define	taskq_get_syncthread(tq, i)	((tq)->tq_syncthreads[i])
 extern int	taskq_cancel_id(taskq_t *, taskqid_t);
 extern void	system_taskq_init(void);
 extern void	system_taskq_fini(void);

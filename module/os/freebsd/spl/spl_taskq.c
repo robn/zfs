@@ -291,12 +291,10 @@ taskq_sync_assign(void *arg)
  */
 taskq_t *
 taskq_create_synced(const char *name, int nthreads, pri_t pri,
-    int minalloc, int maxalloc, uint_t flags, kthread_t ***ktpp)
+    int minalloc, int maxalloc, uint_t flags)
 {
 	taskq_t *tq;
 	taskq_sync_arg_t *tqs = kmem_zalloc(sizeof (*tqs) * nthreads, KM_SLEEP);
-	kthread_t **kthreads = kmem_zalloc(sizeof (*kthreads) * nthreads,
-	    KM_SLEEP);
 
 	flags &= ~(TASKQ_DYNAMIC | TASKQ_THREADS_CPU_PCT | TASKQ_DC_BATCH);
 
@@ -304,6 +302,8 @@ taskq_create_synced(const char *name, int nthreads, pri_t pri,
 	    flags | TASKQ_PREPOPULATE);
 	VERIFY(tq != NULL);
 	VERIFY(tq->tq_nthreads == nthreads);
+	tq->tq_syncthreads =
+	    kmem_zalloc(sizeof (kthread_t *) * nthreads, KM_SLEEP);
 
 	/* spawn all syncthreads */
 	for (int i = 0; i < nthreads; i++) {
@@ -331,13 +331,12 @@ taskq_create_synced(const char *name, int nthreads, pri_t pri,
 	taskq_wait(tq);
 
 	for (int i = 0; i < nthreads; i++) {
-		kthreads[i] = tqs[i].tqa_thread;
+		tq->tq_syncthreads[i] = tqs[i].tqa_thread;
 		mutex_destroy(&tqs[i].tqa_lock);
 		cv_destroy(&tqs[i].tqa_cv);
 	}
 	kmem_free(tqs, sizeof (*tqs) * nthreads);
 
-	*ktpp = kthreads;
 	return (tq);
 }
 
@@ -346,12 +345,13 @@ taskq_create_synced(const char *name, int nthreads, pri_t pri,
  * must be the same one that was created by taskq_create_synced().
  */
 void
-taskq_destroy_synced(taskq_t *tq, kthread_t **ktp)
+taskq_destroy_synced(taskq_t *tq)
 {
 	ASSERT(tq != NULL);
+	ASSERT(tq->tq_syncthreads != NULL);
 
 	taskq_wait(tq);
-	kmem_free(ktp, sizeof (*ktp) * tq->tq_nthreads);
+	kmem_free(tq->tq_syncthreads, sizeof (kthread_t *) * tq->tq_nthreads);
 	taskq_destroy(tq);
 }
 
