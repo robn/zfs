@@ -1969,7 +1969,8 @@ dmu_offset_next(objset_t *os, uint64_t object, boolean_t hole, uint64_t *off)
 	 * we go trundling through the block pointers.
 	 */
 	for (i = 0; i < TXG_SIZE; i++) {
-		if (list_link_active(&dn->dn_dirty_link[i]))
+		if (list_link_active(&dn->dn_dirty_link[i]) ||
+		    !list_is_empty(&dn->dn_dirty_records[i]))
 			break;
 	}
 	if (i != TXG_SIZE) {
