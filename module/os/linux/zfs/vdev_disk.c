@@ -756,27 +756,6 @@ vbio_submit(vbio_t *vbio, int flags)
 }
 
 static void
-vbio_return_abd(vbio_t *vbio)
-{
-	zio_t *zio = vbio->vbio_zio;
-	if (vbio->vbio_abd == NULL || vbio->vbio_abd == zio->io_abd)
-		return;
-
-	/*
-	 * If we copied the ABD before issuing it, clean up and return the copy
-	 * to the ADB, with changes if appropriate.
-	 */
-	void *buf = abd_to_buf(vbio->vbio_abd);
-	abd_free(vbio->vbio_abd);
-	vbio->vbio_abd = NULL;
-
-	if (zio->io_type == ZIO_TYPE_READ)
-		abd_return_buf_copy(zio->io_abd, buf, zio->io_size);
-	else
-		abd_return_buf(zio->io_abd, buf, zio->io_size);
-}
-
-static void
 vbio_free(vbio_t *vbio)
 {
 	VERIFY0(atomic_read(&vbio->vbio_ref));
@@ -784,7 +763,21 @@ vbio_free(vbio_t *vbio)
 	for (int i = 0; i < vbio->vbio_nbios; i++)
 		bio_put(vbio->vbio_bio[i]);
 
-	vbio_return_abd(vbio);
+	zio_t *zio = vbio->vbio_zio;
+	if (vbio->vbio_abd != NULL && vbio->vbio_abd != zio->io_abd) {
+		/*
+		 * We copied the ABD before issuing it, so return the copy to
+		 * the ABD, with changes if appropriate.
+		 */
+		void *buf = abd_to_buf(vbio->vbio_abd);
+		abd_free(vbio->vbio_abd);
+		vbio->vbio_abd = NULL;
+
+		if (zio->io_type == ZIO_TYPE_READ)
+			abd_return_buf_copy(zio->io_abd, buf, zio->io_size);
+		else
+			abd_return_buf(zio->io_abd, buf, zio->io_size);
+	}
 
 	kmem_free(vbio, sizeof (vbio_t) +
 	    sizeof (struct bio *) * vbio->vbio_max_bios);
@@ -800,14 +793,6 @@ vbio_put(vbio_t *vbio)
 	 * This was the last reference, so the entire IO is completed. Clean
 	 * up and submit it for processing.
 	 */
-
-	/*
-	 * Get any data buf back to the original ABD, if necessary. We do this
-	 * now so we can get the ZIO into the pipeline as quickly as possible,
-	 * and then do the remaining cleanup after.
-	 */
-	vbio_return_abd(vbio);
-
 	zio_t *zio = vbio->vbio_zio;
 
 	/*
@@ -818,14 +803,16 @@ vbio_put(vbio_t *vbio)
 	 * there's no real risk.
 	 */
 	zio->io_error = vbio->vbio_error;
+
+	/* Return any data buf back to the original ABD, and clean up */
+	vbio_free(vbio);
+
+	/* Do any additional error reporting */
 	if (zio->io_error)
 		vdev_disk_error(zio);
 
 	/* All done, submit for processing */
 	zio_delay_interrupt(zio);
-
-	/* Finish cleanup */
-	vbio_free(vbio);
 }
 
 BIO_END_IO_PROTO(vdev_disk_io_rw_completion, bio, error)
