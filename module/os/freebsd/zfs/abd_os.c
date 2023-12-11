@@ -40,6 +40,8 @@ typedef struct abd_stats {
 	kstat_named_t abdstat_scatter_chunk_waste;
 	kstat_named_t abdstat_linear_cnt;
 	kstat_named_t abdstat_linear_data_size;
+	kstat_named_t abdstat_borrow_copy_total;
+	kstat_named_t abdstat_borrow_copy_size_total;
 } abd_stats_t;
 
 static abd_stats_t abd_stats = {
@@ -67,6 +69,16 @@ static abd_stats_t abd_stats = {
 	{ "linear_cnt",				KSTAT_DATA_UINT64 },
 	/* Amount of data stored in all linear ABDs tracked by linear_cnt */
 	{ "linear_data_size",			KSTAT_DATA_UINT64 },
+	/*
+	 * The total number of times an ABD had to be converted to a linear
+	 * buffer when borrowed.
+	 */
+	{ "borrow_copy_total",			KSTAT_DATA_UINT64 },
+	/*
+	 * The total data copied when converting ABDs to linear buffers when
+	 * borrowed.
+	 */
+	{ "borrow_copy_size_total",		KSTAT_DATA_UINT64 },
 };
 
 struct {
@@ -76,6 +88,8 @@ struct {
 	wmsum_t abdstat_scatter_chunk_waste;
 	wmsum_t abdstat_linear_cnt;
 	wmsum_t abdstat_linear_data_size;
+	wmsum_t abdstat_borrow_copy_total;
+	wmsum_t abdstat_borrow_copy_size_total;
 } abd_sums;
 
 /*
@@ -164,6 +178,13 @@ abd_update_linear_stats(abd_t *abd, abd_stats_op_t op)
 		ABDSTAT_BUMPDOWN(abdstat_linear_cnt);
 		ABDSTAT_INCR(abdstat_linear_data_size, -(int)abd->abd_size);
 	}
+}
+
+void
+abd_update_borrow_stats(abd_t *abd)
+{
+	ABDSTAT_BUMP(abdstat_borrow_copy_total);
+	ABDSTAT_INCR(abdstat_borrow_copy_size_total, abd->abd_size);
 }
 
 void
@@ -293,6 +314,10 @@ abd_kstats_update(kstat_t *ksp, int rw)
 	    wmsum_value(&abd_sums.abdstat_linear_cnt);
 	as->abdstat_linear_data_size.value.ui64 =
 	    wmsum_value(&abd_sums.abdstat_linear_data_size);
+	as->abdstat_borrow_copy_total.value.ui64 =
+	    wmsum_value(&abd_sums.abdstat_borrow_copy_total);
+	as->abdstat_borrow_copy_size_total.value.ui64 =
+	    wmsum_value(&abd_sums.abdstat_borrow_copy_size_total);
 	return (0);
 }
 
@@ -308,6 +333,8 @@ abd_init(void)
 	wmsum_init(&abd_sums.abdstat_scatter_chunk_waste, 0);
 	wmsum_init(&abd_sums.abdstat_linear_cnt, 0);
 	wmsum_init(&abd_sums.abdstat_linear_data_size, 0);
+	wmsum_init(&abd_sums.abdstat_borrow_copy_total, 0);
+	wmsum_init(&abd_sums.abdstat_borrow_copy_size_total, 0);
 
 	abd_ksp = kstat_create("zfs", 0, "abdstats", "misc", KSTAT_TYPE_NAMED,
 	    sizeof (abd_stats) / sizeof (kstat_named_t), KSTAT_FLAG_VIRTUAL);
@@ -336,6 +363,8 @@ abd_fini(void)
 	wmsum_fini(&abd_sums.abdstat_scatter_chunk_waste);
 	wmsum_fini(&abd_sums.abdstat_linear_cnt);
 	wmsum_fini(&abd_sums.abdstat_linear_data_size);
+	wmsum_fini(&abd_sums.abdstat_borrow_copy_total);
+	wmsum_fini(&abd_sums.abdstat_borrow_copy_size_total);
 
 	kmem_cache_destroy(abd_chunk_cache);
 	abd_chunk_cache = NULL;

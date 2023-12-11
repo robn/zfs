@@ -70,6 +70,7 @@ void abd_alloc_chunks(abd_t *, size_t);
 void abd_free_chunks(abd_t *);
 void abd_update_scatter_stats(abd_t *, abd_stats_op_t);
 void abd_update_linear_stats(abd_t *, abd_stats_op_t);
+void abd_update_borrow_stats(abd_t *);
 void abd_verify_scatter(abd_t *);
 void abd_free_linear_page(abd_t *);
 /* OS specific abd_iter functions */

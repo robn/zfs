@@ -665,6 +665,7 @@ abd_borrow_buf_copy(abd_t *abd, size_t n)
 	void *buf = abd_borrow_buf(abd, n);
 	if (!abd_is_linear(abd)) {
 		abd_copy_to_buf(buf, abd, n);
+		abd_update_borrow_stats(abd);
 	}
 	return (buf);
 }
@@ -696,6 +697,7 @@ abd_return_buf_copy(abd_t *abd, void *buf, size_t n)
 {
 	if (!abd_is_linear(abd)) {
 		abd_copy_from_buf(abd, buf, n);
+		abd_update_borrow_stats(abd);
 	}
 	abd_return_buf(abd, buf, n);
 }
