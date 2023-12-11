@@ -38,7 +38,9 @@ typedef enum abd_stats_op {
 	ABDSTAT_DECR  /* Decrease abdstat values */
 } abd_stats_op_t;
 
-struct scatterlist; /* forward declaration */
+/* forward declarations */
+struct scatterlist;
+struct page;
 
 struct abd_iter {
 	/* public interface */
@@ -51,6 +53,10 @@ struct abd_iter {
 	size_t		iter_offset;	/* offset in current sg/abd_buf, */
 					/* abd_offset included */
 	struct scatterlist *iter_sg;	/* current sg */
+
+	struct page	*iter_page;		/* current page */
+	size_t		iter_page_dsize;	/* size of data in page */
+	size_t		iter_page_doff;		/* offset of data in page */
 };
 
 extern abd_t *abd_zero_scatter;
@@ -79,6 +85,7 @@ boolean_t abd_iter_at_end(struct abd_iter *);
 void abd_iter_advance(struct abd_iter *, size_t);
 void abd_iter_map(struct abd_iter *);
 void abd_iter_unmap(struct abd_iter *);
+void abd_iter_page(struct abd_iter *);
 
 /*
  * Helper macros

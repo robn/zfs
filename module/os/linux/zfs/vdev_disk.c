@@ -38,7 +38,6 @@
 #include <linux/blkpg.h>
 #include <linux/msdos_fs.h>
 #include <linux/vfs_compat.h>
-#include <linux/mm_compat.h>
 #ifdef HAVE_LINUX_BLK_CGROUP_HEADER
 #include <linux/blk-cgroup.h>
 #endif
@@ -847,45 +846,6 @@ BIO_END_IO_PROTO(vdev_disk_io_rw_completion, bio, error)
 	vbio_put(vbio);
 }
 
-static inline void
-_buf_to_page_and_offset(const void *buf, struct page **pagep, uint_t *offp)
-{
-	struct page *page = is_vmalloc_addr(buf) ?
-	    vmalloc_to_page(buf) : virt_to_page(buf);
-
-	if (!PageCompound(page)) {
-		/* Single boring page, nothing more to see */
-		*pagep = page;
-		*offp = offset_in_page(buf);
-		return;
-	}
-
-	/*
-	 * This page is part of a "compound page", which is a group of pages
-	 * that can be referenced from a single struct page *. Its organised as
-	 * a "head" page, followed by a series of "tail" pages.
-	 *
-	 * In OpenZFS, compound pages are allocated using the __GFP_COMP flag,
-	 * which we get from scatter ABDs and SPL vmalloc slabs (ie >16K
-	 * allocations). So a great many of the IO buffers we get are going to
-	 * be of this type.
-	 *
-	 * The tail pages are just regular PAGE_SIZE pages, and we can just
-	 * load them into the BIO the same as we would for non-compound pages
-	 * above, and it all works just fine. However, the head page has length
-	 * covering itself and all the tail pages. If our buffer spans multiple
-	 * pages, then we can load the head page and a >PAGE_SIZE length into
-	 * the BIO, which is far more efficient.
-	 *
-	 * To do this, we need to calculate the offset of the buffer from the
-	 * head page (offset_in_page() is the offset within its PAGE_SIZE'd
-	 * page ie just a simple ~(PAGE_SIZE-1) mask).
-	 */
-
-	*pagep = compound_head(page);
-	*offp = (uint_t)((uintptr_t)(buf) & (page_size(*pagep)-1));
-}
-
 /*
  * Iterator callback to count ABD pages and check their size & alignment.
  *
@@ -902,12 +862,9 @@ typedef struct {
 } vdev_disk_check_pages_t;
 
 static int
-vdev_disk_check_pages_cb(void *buf, size_t len, void *priv)
+vdev_disk_check_pages_cb(struct page *page, size_t off, size_t len, void *priv)
 {
 	vdev_disk_check_pages_t *s = priv;
-
-	struct page *page;
-	uint_t off;
 
 	/*
 	 * If we didn't finish on a block size boundary last time, then there
@@ -922,24 +879,11 @@ vdev_disk_check_pages_cb(void *buf, size_t len, void *priv)
 	 */
 	s->end = len & s->bmask;
 
-	while (len > 0) {
-		_buf_to_page_and_offset(buf, &page, &off);
+	/* All blocks after the first must start on a block size boundary. */
+	if (s->npages != 0 && (off & s->bmask) != 0)
+		return (1);
 
-		/*
-		 * All blocks after the first must start on a block size
-		 * boundary.
-		 */
-		if (s->npages != 0 && (off & s->bmask) != 0)
-			return (1);
-
-		uint_t take = MIN(len, page_size(page)-off);
-
-		buf += take;
-		len -= take;
-
-		s->npages++;
-	}
-
+	s->npages++;
 	return (0);
 }
 
@@ -956,7 +900,7 @@ vdev_disk_check_pages(abd_t *abd, uint64_t size, uint_t lbs)
 	    .end = 0
 	};
 
-	if (abd_iterate_func(abd, 0, size, vdev_disk_check_pages_cb, &s))
+	if (abd_iterate_page_func(abd, 0, size, vdev_disk_check_pages_cb, &s))
 		return (0);
 
 	return (s.npages);
@@ -964,28 +908,10 @@ vdev_disk_check_pages(abd_t *abd, uint64_t size, uint_t lbs)
 
 /* Iterator callback to submit ABD pages to the vbio. */
 static int
-vdev_disk_fill_vbio_cb(void *buf, size_t len, void *priv)
+vdev_disk_fill_vbio_cb(struct page *page, size_t off, size_t len, void *priv)
 {
 	vbio_t *vbio = priv;
-	int err;
-
-	struct page *page;
-	uint_t off;
-
-	while (len > 0) {
-		_buf_to_page_and_offset(buf, &page, &off);
-
-		uint_t take = MIN(len, page_size(page)-off);
-
-		err = vbio_add_page(vbio, page, take, off);
-		if (err != 0)
-			return (err);
-
-		buf += take;
-		len -= take;
-	}
-
-	return (0);
+	return (vbio_add_page(vbio, page, len, off));
 }
 
 static int
@@ -1063,7 +989,7 @@ vdev_disk_io_rw(zio_t *zio)
 		vbio->vbio_abd = abd;
 
 	/* Fill it with pages */
-	error = abd_iterate_func(abd, 0, zio->io_size,
+	error = abd_iterate_page_func(abd, 0, zio->io_size,
 	    vdev_disk_fill_vbio_cb, vbio);
 	if (error != 0) {
 		vbio_free(vbio);
