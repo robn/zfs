@@ -1030,6 +1030,11 @@ abd_cache_reap_now(void)
 
 #if defined(_KERNEL)
 /*
+ * Note: ABD BIO functions only needed to support vdev_classic. See comments in
+ * vdev_disk.c.
+ */
+
+/*
  * bio_nr_pages for ABD.
  * @off is the offset in @abd
  */
