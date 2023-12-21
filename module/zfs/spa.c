@@ -1453,6 +1453,9 @@ spa_taskq_write_param_get(char *buf, zfs_kernel_param_t *kp)
  */
 #define	SPA_TASKQ_PARAM_MAX	(128)
 
+/* define me! */
+#undef MAKE_FREEBSD_CRASH 
+
 static int
 spa_taskq_read_param(ZFS_MODULE_PARAM_ARGS)
 {
@@ -1471,7 +1474,15 @@ spa_taskq_read_param(ZFS_MODULE_PARAM_ARGS)
 	err = sysctl_handle_string(oidp, buf, sizeof (buf), req);
 	if (err)
 		return (err);
+
+#ifdef MAKE_FREEBSD_CRASH
+	char *mbuf = kmem_strdup(buf);
+	err = spa_taskq_param_set(ZIO_TYPE_READ, mbuf);
+	kmem_free(mbuf, strlen(buf)+1);
+	return (err);
+#else
 	return (spa_taskq_param_set(ZIO_TYPE_READ, buf));
+#endif
 }
 
 static int
@@ -1492,7 +1503,15 @@ spa_taskq_write_param(ZFS_MODULE_PARAM_ARGS)
 	err = sysctl_handle_string(oidp, buf, sizeof (buf), req);
 	if (err)
 		return (err);
+
+#ifdef MAKE_FREEBSD_CRASH
+	char *mbuf = kmem_strdup(buf);
+	err = spa_taskq_param_set(ZIO_TYPE_WRITE, mbuf);
+	kmem_free(mbuf, strlen(buf)+1);
+	return (err);
+#else
 	return (spa_taskq_param_set(ZIO_TYPE_WRITE, buf));
+#endif
 }
 #endif
 #endif /* _KERNEL */
