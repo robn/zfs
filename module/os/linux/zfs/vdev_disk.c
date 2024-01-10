@@ -646,7 +646,6 @@ typedef struct {
 	int		vbio_error;	/* error from failed bio */
 
 	uint_t		vbio_max_segs;	/* max segs per bio */
-	uint_t		vbio_max_bios;	/* max bios (size of vbio_bio) */
 
 	uint_t		vbio_rem_segs;	/* total segs remaining */
 	uint_t		vbio_cur_segs;	/* segs added to this bio */
@@ -656,9 +655,8 @@ typedef struct {
 
 	uint64_t	vbio_offset;	/* start offset of next bio */
 
-	uint_t		vbio_nbios;	/* allocated bios */
-	uint_t		vbio_cur;	/* current bio */
-	struct bio	*vbio_bio[];	/* attached bios */
+	struct bio	*vbio_bio;	/* pointer to the current bio */
+	struct bio	*vbio_bios;	/* list of all bios */
 } vbio_t;
 
 static vbio_t *
@@ -667,23 +665,16 @@ vbio_alloc(zio_t *zio, struct block_device *bdev, uint_t segs)
 	/* Max segments we need in each BIO to take all pages */
 	uint_t max_segs = MIN(segs, vdev_bio_max_segs(bdev));
 
-	/* Number of BIOs we need, at max_segs segments each */
-	uint_t max_bios = (segs + max_segs - 1) / max_segs;
-
-	vbio_t *vbio = kmem_zalloc(sizeof (vbio_t) +
-	    sizeof (struct bio *) * max_bios, KM_SLEEP);
+	vbio_t *vbio = kmem_zalloc(sizeof (vbio_t), KM_SLEEP);
 
 	vbio->vbio_zio = zio;
 	vbio->vbio_bdev = bdev;
 	atomic_set(&vbio->vbio_ref, 0);
 	vbio->vbio_max_segs = max_segs;
-	vbio->vbio_max_bios = max_bios;
 	vbio->vbio_rem_segs = segs;
-	vbio->vbio_cur_segs = 0;
 	vbio->vbio_max_bytes = vdev_bio_max_bytes(bdev);
 	vbio->vbio_lbs_mask = bdev_logical_block_size(bdev)-1;
 	vbio->vbio_offset = zio->io_offset;
-	vbio->vbio_cur = 0;
 
 	return (vbio);
 }
@@ -695,58 +686,38 @@ vbio_add_page(vbio_t *vbio, struct page *page, uint_t size, uint_t offset)
 	uint_t ssize, soffset;
 
 	while (size > 0) {
-		/*
-		 * Weird housekeeping error; shouldn't happen, but try and save
-		 * the furniture if it happens in production.
-		 */
-		ASSERT3U(vbio->vbio_rem_segs, >, 0);
-		if (unlikely(vbio->vbio_rem_segs == 0))
-			return (SET_ERROR(ENOMEM));
+		bio = vbio->vbio_bio;
+		if (bio == NULL) {
+			/* New BIO, allocate and set up */
+			bio = vdev_bio_alloc(vbio->vbio_bdev, GFP_NOIO,
+			    vbio->vbio_max_segs);
+			if (unlikely(bio == NULL))
+				return (SET_ERROR(ENOMEM));
+			BIO_BI_SECTOR(bio) = vbio->vbio_offset >> 9;
 
-		for (;;) {
-			bio = vbio->vbio_bio[vbio->vbio_cur];
-			if (bio == NULL) {
-				/* New BIO, allocate and set up */
-				bio = vdev_bio_alloc(vbio->vbio_bdev, GFP_NOIO,
-				    MIN(vbio->vbio_rem_segs,
-				    vbio->vbio_max_segs));
-				if (unlikely(bio == NULL))
-					return (SET_ERROR(ENOMEM));
-				BIO_BI_SECTOR(bio) = vbio->vbio_offset >> 9;
-				vbio->vbio_bio[vbio->vbio_cur] = bio;
-				vbio->vbio_nbios++;
-			}
-
-			ssize = size;
-			soffset = offset;
-
-			if (ssize > vbio->vbio_max_bytes)
-				ssize =
-				    (vbio->vbio_max_bytes - BIO_BI_SIZE(bio)) &
-				    ~(vbio->vbio_lbs_mask);
-
-			if (bio_add_page(bio, page, ssize, soffset) == ssize) {
-				vbio->vbio_rem_segs--;
-				vbio->vbio_cur_segs++;
-
-				size -= ssize;
-				offset += ssize;
-
-				break;
-			}
-
-			/* No room, set up for a new BIO and loop */
-			vbio->vbio_offset += BIO_BI_SIZE(bio);
-			vbio->vbio_cur++;
-
-			VERIFY3U(vbio->vbio_cur, <, vbio->vbio_max_bios);
-
-			/* If we didn't fill the BIO, skip to the next */
-			if (vbio->vbio_cur_segs < vbio->vbio_max_segs)
-				vbio->vbio_rem_segs -=
-				    (vbio->vbio_max_segs - vbio->vbio_cur_segs);
-			vbio->vbio_cur_segs = 0;
+			bio->bi_next = vbio->vbio_bios;
+			vbio->vbio_bios = vbio->vbio_bio = bio;
 		}
+
+		ssize = size;
+		soffset = offset;
+
+		if (ssize > vbio->vbio_max_bytes)
+			ssize =
+			    (vbio->vbio_max_bytes - BIO_BI_SIZE(bio)) &
+			    ~(vbio->vbio_lbs_mask);
+
+		if (bio_add_page(bio, page, ssize, soffset) == ssize) {
+			size -= ssize;
+			offset += ssize;
+			break;
+		}
+
+		/* No room, set up for a new BIO and loop */
+		vbio->vbio_offset += BIO_BI_SIZE(bio);
+
+		/* Signal new BIO allocation wanted */
+		vbio->vbio_bio = NULL;
 	}
 
 	return (0);
@@ -758,42 +729,53 @@ static void vbio_put(vbio_t *vbio);
 static void
 vbio_submit(vbio_t *vbio, int flags)
 {
-	struct blk_plug plug;
+	ASSERT(vbio->vbio_bios);
 
 	/*
-	 * Take a reference for each BIO we're about to submit, plus one to
+	 * We take a reference for each BIO as we submit it, plus one to
 	 * protect us from BIOs completing before we're done submitting them
 	 * all, causing vbio_put() to free vbio out from under us and/or the
 	 * zio to be returned before all its IO has completed.
 	 */
-	atomic_set(&vbio->vbio_ref, vbio->vbio_nbios + 1);
+	atomic_set(&vbio->vbio_ref, 1);
+
+	struct bio *bio = vbio->vbio_bios;
 
 	/*
 	 * If we're submitting more than one BIO, inform the block layer so
 	 * it can batch them if it wants.
 	 */
-	if (vbio->vbio_nbios > 1)
+	struct blk_plug plug;
+	boolean_t do_plug = (bio->bi_next != NULL);
+	if (do_plug)
 		blk_start_plug(&plug);
 
 	/* Submit all the BIOs */
-	for (int i = 0; i < vbio->vbio_nbios; i++) {
-		struct bio *bio = vbio->vbio_bio[i];
-		ASSERT3P(bio, !=, NULL);
+	while (bio != NULL) {
+		atomic_inc(&vbio->vbio_ref);
+
+		struct bio *next = bio->bi_next;
+		bio->bi_next = NULL;
 
 		bio->bi_end_io = vdev_disk_io_rw_completion;
 		bio->bi_private = vbio;
 		bio_set_op_attrs(bio,
 		    vbio->vbio_zio->io_type == ZIO_TYPE_WRITE ?
 		    WRITE : READ, flags);
+
 		vdev_submit_bio(bio);
+
+		bio = next;
 	}
 
 	/* Finish the batch */
-	if (vbio->vbio_nbios > 1)
+	if (do_plug)
 		blk_finish_plug(&plug);
 
 	/* Release the extra reference */
 	vbio_put(vbio);
+
+	vbio->vbio_bio = vbio->vbio_bios = NULL;
 }
 
 static void
@@ -822,13 +804,9 @@ vbio_free(vbio_t *vbio)
 {
 	VERIFY0(atomic_read(&vbio->vbio_ref));
 
-	for (int i = 0; i < vbio->vbio_nbios; i++)
-		bio_put(vbio->vbio_bio[i]);
-
 	vbio_return_abd(vbio);
 
-	kmem_free(vbio, sizeof (vbio_t) +
-	    sizeof (struct bio *) * vbio->vbio_max_bios);
+	kmem_free(vbio, sizeof (vbio_t));
 }
 
 static void
@@ -883,6 +861,9 @@ BIO_END_IO_PROTO(vdev_disk_io_rw_completion, bio, error)
 			vbio->vbio_error = EIO;
 #endif
 	}
+
+	/* Destroy the bio */
+	bio_put(bio);
 
 	/* Drop this BIOs reference acquired by vbio_submit() */
 	vbio_put(vbio);
