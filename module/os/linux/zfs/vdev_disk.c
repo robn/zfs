@@ -647,9 +647,6 @@ typedef struct {
 
 	uint_t		vbio_max_segs;	/* max segs per bio */
 
-	uint_t		vbio_rem_segs;	/* total segs remaining */
-	uint_t		vbio_cur_segs;	/* segs added to this bio */
-
 	uint_t		vbio_max_bytes;	/* max bytes per bio */
 	uint_t		vbio_lbs_mask;	/* logical block size mask */
 
@@ -660,18 +657,14 @@ typedef struct {
 } vbio_t;
 
 static vbio_t *
-vbio_alloc(zio_t *zio, struct block_device *bdev, uint_t segs)
+vbio_alloc(zio_t *zio, struct block_device *bdev)
 {
-	/* Max segments we need in each BIO to take all pages */
-	uint_t max_segs = MIN(segs, vdev_bio_max_segs(bdev));
-
 	vbio_t *vbio = kmem_zalloc(sizeof (vbio_t), KM_SLEEP);
 
 	vbio->vbio_zio = zio;
 	vbio->vbio_bdev = bdev;
 	atomic_set(&vbio->vbio_ref, 0);
-	vbio->vbio_max_segs = max_segs;
-	vbio->vbio_rem_segs = segs;
+	vbio->vbio_max_segs = vdev_bio_max_segs(bdev);
 	vbio->vbio_max_bytes = vdev_bio_max_bytes(bdev);
 	vbio->vbio_lbs_mask = bdev_logical_block_size(bdev)-1;
 	vbio->vbio_offset = zio->io_offset;
@@ -710,7 +703,7 @@ vbio_add_page(vbio_t *vbio, struct page *page, uint_t size, uint_t offset)
 		if (bio_add_page(bio, page, ssize, soffset) == ssize) {
 			size -= ssize;
 			offset += ssize;
-			break;
+			continue;
 		}
 
 		/* No room, set up for a new BIO and loop */
@@ -870,119 +863,63 @@ BIO_END_IO_PROTO(vdev_disk_io_rw_completion, bio, error)
 }
 
 /*
- * Iterator callback to count ABD pages and check their size & alignment, and
- * work out the number of BIOs required.
+ * Iterator callback to count ABD pages and check their size & alignment.
  *
  * On Linux, each BIO segment can take a page pointer, and an offset+length of
  * the data within that page. A page can be arbitrarily large ("compound"
  * pages) but we still have to ensure the data portion is correctly sized and
  * aligned to the logical block size, to ensure that if the kernel wants to
  * split the BIO, the two halves will still be properly aligned.
- *
- * BIOs also have a maximum byte size limit, after which they will refuse to
- * accept more pages, even if they are not full. To handle this, we keep a
- * count of bytes and segments used, and if the page under consideration
- * wouldn't fit in a BIO with the same characteristics, we pad the number of
- * required segments to the end of the BIO.
  */
 typedef struct {
-	uint_t	bmask;		/* lbs alignment mask */
-	uint_t	max_segs;	/* max segs per bio */
-	uint_t	max_bytes;	/* max bytes per bio */
-	uint_t	cur_segs;	/* segs used on current bio */
-	uint_t	cur_bytes;	/* bytes used on current bio */
-	uint_t	end;		/* amount remaining from last chunk */
-	uint_t	nsegs;		/* total segments to allocate for */
-} vdev_disk_count_segs_t;
+	uint_t  bmask;
+	uint_t  npages;
+	uint_t  end;
+} vdev_disk_check_pages_t;
 
 static int
-vdev_disk_count_segs_cb(struct page *page, size_t off, size_t len, void *priv)
+vdev_disk_check_pages_cb(struct page *page, size_t off, size_t len, void *priv)
 {
-	vdev_disk_count_segs_t *s = priv;
+	vdev_disk_check_pages_t *s = priv;
 
-	while (len > 0) {
-		uint_t slen = len;
-		uint_t soff = off;
+	/*
+	 * If we didn't finish on a block size boundary last time, then there
+	 * would be a gap if we tried to use this ABD as-is, so abort.
+	 */
+	if (s->end != 0)
+		return (1);
 
-		/*
-		 * If this page is too large for a single BIO, then we need to
-		 * split it ourselves. To do that we take as much as we can
-		 * that will still fit into this BIO, respecting lbs alignment.
-		 *
-		 * If it could fit, then we take it as-is, even if there's too
-		 * much for the rest of this BIO. In that case, we'll end up
-		 * padding the current BIO below and entering this as the first
-		 * (and perhaps only) in the next BIO. That is, we prefer to
-		 * not split a page unless we absolutely have to.
-		 */
-		if (slen > s->max_bytes)
-			slen = (s->max_bytes - s->cur_bytes) & ~(s->bmask);
+	/*
+	 * Note if we're taking less than a full block, so we can check it
+	 * above on the next call.
+	 */
+	s->end = len & s->bmask;
 
-		/*
-		 * If we didn't finish on a block size boundary last time, then
-		 * there would be a gap if we tried to use this ABD as-is, so
-		 * abort.
-		 */
-		if (s->end != 0)
-			return (1);
+	/* All blocks after the first must start on a block size boundary. */
+	if (s->npages != 0 && (off & s->bmask) != 0)
+		return (1);
 
-		/*
-		 * All blocks after the first must start on a block size
-		 * boundary.
-		 */
-		if (s->nsegs != 0 && (soff & s->bmask) != 0)
-			return (1);
-
-		/*
-		 * If adding this page to the BIO would overfill it, simulating
-		 * skipping the rest of the segments in the BIO and starting a
-		 * new one.
-		 */
-		if (s->cur_bytes + slen > s->max_bytes) {
-			s->nsegs += s->max_segs - s->cur_segs;
-			s->cur_bytes = s->cur_segs = 0;
-		}
-
-		/* Take the page for the current BIO */
-		s->nsegs++;
-		s->cur_bytes += slen;
-		s->cur_segs++;
-
-		/*
-		 * Note if we're taking less than a full block, so we can check
-		 * it when we process the next segment above.
-		 */
-		s->end = slen & s->bmask;
-
-		len -= slen;
-		off += slen;
-		ASSERT3U(off & s->bmask, ==, 0);
-	}
-
+	s->npages++;
 	return (0);
 }
 
 /*
  * Check if we can submit the pages in this ABD to the kernel as-is. Returns
- * the number of BIO segments needed, or 0 if it can't be submitted like this.
+ * the number of pages, or 0 if it can't be submitted like this.
  */
-static uint_t
-vdev_disk_count_segs(abd_t *abd, uint64_t size, struct block_device *bdev)
+static boolean_t
+vdev_disk_check_pages(abd_t *abd, uint64_t size, struct block_device *bdev)
 {
-	vdev_disk_count_segs_t s = {
+	vdev_disk_check_pages_t s = {
 	    .bmask = bdev_logical_block_size(bdev)-1,
-	    .max_segs = vdev_bio_max_segs(bdev),
-	    .max_bytes = vdev_bio_max_bytes(bdev),
-	    .cur_segs = 0,
-	    .cur_bytes = 0,
+	    .npages = 0,
 	    .end = 0,
-	    .nsegs = 0,
 	};
 
-	if (abd_iterate_page_func(abd, 0, size, vdev_disk_count_segs_cb, &s))
-		return (0);
+	if (abd_iterate_page_func(abd, 0, size, vdev_disk_check_pages_cb, &s))
+		return (B_FALSE);
 
-	return (s.nsegs);
+	return (B_TRUE);
 }
 
 /* Iterator callback to submit ABD pages to the vbio. */
@@ -1020,15 +957,15 @@ vdev_disk_io_rw(zio_t *zio)
 	}
 
 	/*
-	 * Work out how many segments we need to submit the incoming ABD. This
-	 * will check it against limitations imposed by the block device,
-	 * including block alignment and request size. If we get zero back,
-	 * then the ABD is not structured appropriately for submission to the
-	 * kernel, and we take a linear copy and submit that instead.
+	 * Check alignment of the incoming ABD. If any part of it would require
+	 * submitting a page that is not aligned to the logical block size,
+	 * then we take a copy into a linear buffer and submit that instead.
+	 * This should be impossible on a 512b LBS, and fairly rare on 4K,
+	 * usually requiring abnormally-small data blocks (eg gang blocks)
+	 * mixed into the same ABD as larger ones (eg aggregated).
 	 */
 	abd_t *abd = zio->io_abd;
-	uint_t nsegs = vdev_disk_count_segs(abd, zio->io_size, bdev);
-	if (nsegs == 0) {
+	if (!vdev_disk_check_pages(abd, zio->io_size, bdev)) {
 		void *buf;
 		if (zio->io_type == ZIO_TYPE_READ)
 			buf = abd_borrow_buf(zio->io_abd, zio->io_size);
@@ -1040,24 +977,24 @@ vdev_disk_io_rw(zio_t *zio)
 		 * to count and fill the vbio later.
 		 */
 		abd = abd_get_from_buf(buf, zio->io_size);
-		nsegs = vdev_disk_count_segs(abd, zio->io_size, bdev);
 
 		/*
-		 * Zero here would mean the borrowed copy has an invalid
+		 * False here would mean the borrowed copy has an invalid
 		 * alignment too, which would mean we've somehow been passed a
 		 * linear ABD with an interior page that has a non-zero offset
 		 * or a size not a multiple of PAGE_SIZE. This is not possible.
 		 * It would mean either zio_buf_alloc() or its underlying
 		 * allocators have done something extremely strange, or our
-		 * math in vdev_disk_count_segs() is wrong. In either case,
+		 * math in vdev_disk_check_pages() is wrong. In either case,
 		 * something in seriously wrong and its not safe to continue.
 		 */
-		VERIFY(nsegs);
+		VERIFY(vdev_disk_check_pages(abd, zio->io_size, bdev));
+
 	}
 
 	/* Allocate vbio, with a pointer to the borrowed ABD if necessary */
 	int error = 0;
-	vbio_t *vbio = vbio_alloc(zio, bdev, nsegs);
+	vbio_t *vbio = vbio_alloc(zio, bdev);
 	if (abd != zio->io_abd)
 		vbio->vbio_abd = abd;
 
