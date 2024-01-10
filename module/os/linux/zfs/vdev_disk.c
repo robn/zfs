@@ -648,7 +648,8 @@ typedef struct {
 	uint_t		vbio_max_segs;	/* max segs per bio */
 	uint_t		vbio_max_bios;	/* max bios (size of vbio_bio) */
 
-	uint_t		vbio_nsegs;	/* segs remaining */
+	uint_t		vbio_rem_segs;	/* total segs remaining */
+	uint_t		vbio_cur_segs;	/* segs added to this bio */
 
 	uint64_t	vbio_offset;	/* start offset of next bio */
 
@@ -674,9 +675,10 @@ vbio_alloc(zio_t *zio, struct block_device *bdev, uint_t segs)
 	atomic_set(&vbio->vbio_ref, 0);
 	vbio->vbio_max_segs = max_segs;
 	vbio->vbio_max_bios = max_bios;
-	vbio->vbio_nsegs = segs;
-	vbio->vbio_cur = 0;
+	vbio->vbio_rem_segs = segs;
+	vbio->vbio_cur_segs = 0;
 	vbio->vbio_offset = zio->io_offset;
+	vbio->vbio_cur = 0;
 
 	return (vbio);
 }
@@ -690,8 +692,8 @@ vbio_add_page(vbio_t *vbio, struct page *page, uint_t size, uint_t offset)
 	 * Weird housekeeping error; shouldn't happen, but try and save the
 	 * furniture if it happens in production.
 	 */
-	ASSERT3U(vbio->vbio_nsegs, >, 0);
-	if (vbio->vbio_nsegs == 0)
+	ASSERT3U(vbio->vbio_rem_segs, >, 0);
+	if (vbio->vbio_rem_segs == 0)
 		return (SET_ERROR(ENOMEM));
 
 	for (;;) {
@@ -699,7 +701,7 @@ vbio_add_page(vbio_t *vbio, struct page *page, uint_t size, uint_t offset)
 		if (bio == NULL) {
 			/* New BIO, allocate and set up */
 			bio = vdev_bio_alloc(vbio->vbio_bdev, GFP_NOIO,
-			    MIN(vbio->vbio_nsegs, vbio->vbio_max_segs));
+			    MIN(vbio->vbio_rem_segs, vbio->vbio_max_segs));
 			if (unlikely(bio == NULL))
 				return (SET_ERROR(ENOMEM));
 			BIO_BI_SECTOR(bio) = vbio->vbio_offset >> 9;
@@ -708,7 +710,8 @@ vbio_add_page(vbio_t *vbio, struct page *page, uint_t size, uint_t offset)
 		}
 
 		if (bio_add_page(bio, page, size, offset) == size) {
-			vbio->vbio_nsegs--;
+			vbio->vbio_rem_segs--;
+			vbio->vbio_cur_segs++;
 			return (0);
 		}
 
@@ -719,9 +722,10 @@ vbio_add_page(vbio_t *vbio, struct page *page, uint_t size, uint_t offset)
 		VERIFY3U(vbio->vbio_cur, <, vbio->vbio_max_bios);
 
 		/* If we didn't fill the BIO, note that we skipped the rest */
-		if (bio->bi_vcnt < vbio->vbio_max_segs)
-			vbio->vbio_nsegs -=
-			    (vbio->vbio_max_segs - bio->bi_vcnt);
+		if (vbio->vbio_cur_segs < vbio->vbio_max_segs)
+			vbio->vbio_rem_segs -=
+			    (vbio->vbio_max_segs - vbio->vbio_cur_segs);
+		vbio->vbio_cur_segs = 0;
 	}
 }
 
