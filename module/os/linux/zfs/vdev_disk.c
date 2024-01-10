@@ -676,7 +676,7 @@ static int
 vbio_add_page(vbio_t *vbio, struct page *page, uint_t size, uint_t offset)
 {
 	struct bio *bio;
-	uint_t ssize, soffset;
+	uint_t ssize;
 
 	while (size > 0) {
 		bio = vbio->vbio_bio;
@@ -692,15 +692,21 @@ vbio_add_page(vbio_t *vbio, struct page *page, uint_t size, uint_t offset)
 			vbio->vbio_bios = vbio->vbio_bio = bio;
 		}
 
-		ssize = size;
-		soffset = offset;
+		/*
+		 * Only load as much of the current page data as will fit in
+		 * the space left in the BIO, respecting lbs alignment. Older
+		 * kernels will error if we try to overfill the BIO, while
+		 * newer ones will accept it and split the BIO. This ensures
+		 * everything works on older kernels, and avoids an additional
+		 * overhead on the new.
+		 */
+		ssize = MIN(size, (vbio->vbio_max_bytes - BIO_BI_SIZE(bio)) &
+		    ~(vbio->vbio_lbs_mask));
+		if (ssize == 0)
+			continue;
 
-		if (ssize > vbio->vbio_max_bytes)
-			ssize =
-			    (vbio->vbio_max_bytes - BIO_BI_SIZE(bio)) &
-			    ~(vbio->vbio_lbs_mask);
-
-		if (bio_add_page(bio, page, ssize, soffset) == ssize) {
+		if (bio_add_page(bio, page, ssize, offset) == ssize) {
+			/* Accepted, adjust and load any remaining. */
 			size -= ssize;
 			offset += ssize;
 			continue;
@@ -855,7 +861,10 @@ BIO_END_IO_PROTO(vdev_disk_io_rw_completion, bio, error)
 #endif
 	}
 
-	/* Destroy the bio */
+	/*
+	 * Destroy the BIO. This is safe to do; the vbio owns its data and the
+	 * kernel won't touch it again after the completion function runs.
+	 */
 	bio_put(bio);
 
 	/* Drop this BIOs reference acquired by vbio_submit() */
