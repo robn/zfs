@@ -651,6 +651,9 @@ typedef struct {
 	uint_t		vbio_rem_segs;	/* total segs remaining */
 	uint_t		vbio_cur_segs;	/* segs added to this bio */
 
+	uint_t		vbio_max_bytes;	/* max bytes per bio */
+	uint_t		vbio_lbs_mask;	/* logical block size mask */
+
 	uint64_t	vbio_offset;	/* start offset of next bio */
 
 	uint_t		vbio_nbios;	/* allocated bios */
@@ -665,7 +668,7 @@ vbio_alloc(zio_t *zio, struct block_device *bdev, uint_t segs)
 	uint_t max_segs = MIN(segs, vdev_bio_max_segs(bdev));
 
 	/* Number of BIOs we need, at max_segs segments each */
-	int max_bios = (segs + max_segs - 1) / max_segs;
+	uint_t max_bios = (segs + max_segs - 1) / max_segs;
 
 	vbio_t *vbio = kmem_zalloc(sizeof (vbio_t) +
 	    sizeof (struct bio *) * max_bios, KM_SLEEP);
@@ -677,6 +680,8 @@ vbio_alloc(zio_t *zio, struct block_device *bdev, uint_t segs)
 	vbio->vbio_max_bios = max_bios;
 	vbio->vbio_rem_segs = segs;
 	vbio->vbio_cur_segs = 0;
+	vbio->vbio_max_bytes = vdev_bio_max_bytes(bdev);
+	vbio->vbio_lbs_mask = bdev_logical_block_size(bdev)-1;
 	vbio->vbio_offset = zio->io_offset;
 	vbio->vbio_cur = 0;
 
@@ -687,46 +692,64 @@ static int
 vbio_add_page(vbio_t *vbio, struct page *page, uint_t size, uint_t offset)
 {
 	struct bio *bio;
+	uint_t ssize, soffset;
 
-	/*
-	 * Weird housekeeping error; shouldn't happen, but try and save the
-	 * furniture if it happens in production.
-	 */
-	ASSERT3U(vbio->vbio_rem_segs, >, 0);
-	if (vbio->vbio_rem_segs == 0)
-		return (SET_ERROR(ENOMEM));
+	while (size > 0) {
+		/*
+		 * Weird housekeeping error; shouldn't happen, but try and save
+		 * the furniture if it happens in production.
+		 */
+		ASSERT3U(vbio->vbio_rem_segs, >, 0);
+		if (unlikely(vbio->vbio_rem_segs == 0))
+			return (SET_ERROR(ENOMEM));
 
-	for (;;) {
-		bio = vbio->vbio_bio[vbio->vbio_cur];
-		if (bio == NULL) {
-			/* New BIO, allocate and set up */
-			bio = vdev_bio_alloc(vbio->vbio_bdev, GFP_NOIO,
-			    MIN(vbio->vbio_rem_segs, vbio->vbio_max_segs));
-			if (unlikely(bio == NULL))
-				return (SET_ERROR(ENOMEM));
-			BIO_BI_SECTOR(bio) = vbio->vbio_offset >> 9;
-			vbio->vbio_bio[vbio->vbio_cur] = bio;
-			vbio->vbio_nbios++;
+		for (;;) {
+			bio = vbio->vbio_bio[vbio->vbio_cur];
+			if (bio == NULL) {
+				/* New BIO, allocate and set up */
+				bio = vdev_bio_alloc(vbio->vbio_bdev, GFP_NOIO,
+				    MIN(vbio->vbio_rem_segs,
+				    vbio->vbio_max_segs));
+				if (unlikely(bio == NULL))
+					return (SET_ERROR(ENOMEM));
+				BIO_BI_SECTOR(bio) = vbio->vbio_offset >> 9;
+				vbio->vbio_bio[vbio->vbio_cur] = bio;
+				vbio->vbio_nbios++;
+			}
+
+			ssize = size;
+			soffset = offset;
+
+			if (ssize > vbio->vbio_max_bytes)
+				ssize =
+				    (vbio->vbio_max_bytes - BIO_BI_SIZE(bio)) &
+				    ~(vbio->vbio_lbs_mask);
+
+			if (bio_add_page(bio, page, ssize, soffset) == ssize) {
+				vbio->vbio_rem_segs--;
+				vbio->vbio_cur_segs++;
+
+				size -= ssize;
+				offset += ssize;
+
+				break;
+			}
+
+			/* No room, set up for a new BIO and loop */
+			vbio->vbio_offset += BIO_BI_SIZE(bio);
+			vbio->vbio_cur++;
+
+			VERIFY3U(vbio->vbio_cur, <, vbio->vbio_max_bios);
+
+			/* If we didn't fill the BIO, skip to the next */
+			if (vbio->vbio_cur_segs < vbio->vbio_max_segs)
+				vbio->vbio_rem_segs -=
+				    (vbio->vbio_max_segs - vbio->vbio_cur_segs);
+			vbio->vbio_cur_segs = 0;
 		}
-
-		if (bio_add_page(bio, page, size, offset) == size) {
-			vbio->vbio_rem_segs--;
-			vbio->vbio_cur_segs++;
-			return (0);
-		}
-
-		/* No room, set up for a new BIO and loop */
-		vbio->vbio_offset += BIO_BI_SIZE(bio);
-		vbio->vbio_cur++;
-
-		VERIFY3U(vbio->vbio_cur, <, vbio->vbio_max_bios);
-
-		/* If we didn't fill the BIO, note that we skipped the rest */
-		if (vbio->vbio_cur_segs < vbio->vbio_max_segs)
-			vbio->vbio_rem_segs -=
-			    (vbio->vbio_max_segs - vbio->vbio_cur_segs);
-		vbio->vbio_cur_segs = 0;
 	}
+
+	return (0);
 }
 
 BIO_END_IO_PROTO(vdev_disk_io_rw_completion, bio, error);
@@ -896,36 +919,64 @@ vdev_disk_count_segs_cb(struct page *page, size_t off, size_t len, void *priv)
 {
 	vdev_disk_count_segs_t *s = priv;
 
-	/*
-	 * If we didn't finish on a block size boundary last time, then there
-	 * would be a gap if we tried to use this ABD as-is, so abort.
-	 */
-	if (s->end != 0)
-		return (1);
+	while (len > 0) {
+		uint_t slen = len;
+		uint_t soff = off;
 
-	/* All blocks after the first must start on a block size boundary. */
-	if (s->nsegs != 0 && (off & s->bmask) != 0)
-		return (1);
+		/*
+		 * If this page is too large for a single BIO, then we need to
+		 * split it ourselves. To do that we take as much as we can
+		 * that will still fit into this BIO, respecting lbs alignment.
+		 *
+		 * If it could fit, then we take it as-is, even if there's too
+		 * much for the rest of this BIO. In that case, we'll end up
+		 * padding the current BIO below and entering this as the first
+		 * (and perhaps only) in the next BIO. That is, we prefer to
+		 * not split a page unless we absolutely have to.
+		 */
+		if (slen > s->max_bytes)
+			slen = (s->max_bytes - s->cur_bytes) & ~(s->bmask);
 
-	/*
-	 * If adding this page to the BIO would overfill it, simulating
-	 * skipping the rest of the segments in the BIO and starting a new one.
-	 */
-	if (s->cur_bytes + len > s->max_bytes) {
-		s->nsegs += s->max_segs - s->cur_segs;
-		s->cur_bytes = s->cur_segs = 0;
+		/*
+		 * If we didn't finish on a block size boundary last time, then
+		 * there would be a gap if we tried to use this ABD as-is, so
+		 * abort.
+		 */
+		if (s->end != 0)
+			return (1);
+
+		/*
+		 * All blocks after the first must start on a block size
+		 * boundary.
+		 */
+		if (s->nsegs != 0 && (soff & s->bmask) != 0)
+			return (1);
+
+		/*
+		 * If adding this page to the BIO would overfill it, simulating
+		 * skipping the rest of the segments in the BIO and starting a
+		 * new one.
+		 */
+		if (s->cur_bytes + slen > s->max_bytes) {
+			s->nsegs += s->max_segs - s->cur_segs;
+			s->cur_bytes = s->cur_segs = 0;
+		}
+
+		/* Take the page for the current BIO */
+		s->nsegs++;
+		s->cur_bytes += slen;
+		s->cur_segs++;
+
+		/*
+		 * Note if we're taking less than a full block, so we can check
+		 * it when we process the next segment above.
+		 */
+		s->end = slen & s->bmask;
+
+		len -= slen;
+		off += slen;
+		ASSERT3U(off & s->bmask, ==, 0);
 	}
-
-	/* Take the page for the current BIO */
-	s->nsegs++;
-	s->cur_bytes += len;
-	s->cur_segs++;
-
-	/*
-	 * Note if we're taking less than a full block, so we can check it
-	 * above on the next call.
-	 */
-	s->end = len & s->bmask;
 
 	return (0);
 }
