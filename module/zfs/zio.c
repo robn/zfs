@@ -144,6 +144,8 @@ static const int zio_buf_debug_limit = 16384;
 static const int zio_buf_debug_limit = 0;
 #endif
 
+static taskq_t *zio_checksum_taskq;
+
 static inline void __zio_execute(zio_t *zio);
 
 static void zio_taskq_dispatch(zio_t *, zio_taskq_type_t, boolean_t);
@@ -230,11 +232,17 @@ zio_init(void)
 	zio_inject_init();
 
 	lz4_init();
+
+	zio_checksum_taskq = taskq_create("zio_checksum", 64, maxclsyspri,
+		64, INT_MAX, TASKQ_PREPOPULATE | TASKQ_DYNAMIC);
+	VERIFY(zio_checksum_taskq);
 }
 
 void
 zio_fini(void)
 {
+	taskq_destroy(zio_checksum_taskq);
+
 	size_t n = SPA_MAXBLOCKSIZE >> SPA_MINBLOCKSHIFT;
 
 #if defined(ZFS_DEBUG) && !defined(_KERNEL)
@@ -971,6 +979,7 @@ zio_create(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
 	}
 
 	taskq_init_ent(&zio->io_tqent);
+	zio->io_checksum_tqid = TASKQID_INVALID;
 
 	return (zio);
 }
@@ -4434,6 +4443,13 @@ zio_encrypt(zio_t *zio)
  * Generate and verify checksums
  * ==========================================================================
  */
+static void
+zio_checksum_task(void *arg)
+{
+	zio_t *zio = (zio_t *)arg;
+	zio_checksum_compute(zio, zio->io_checksum, zio->io_abd, zio->io_size);
+}
+
 static zio_t *
 zio_checksum_generate(zio_t *zio)
 {
@@ -4460,7 +4476,11 @@ zio_checksum_generate(zio_t *zio)
 		}
 	}
 
-	zio_checksum_compute(zio, checksum, zio->io_abd, zio->io_size);
+	zio->io_checksum = checksum;
+	ASSERT(zio->io_checksum_tqid == TASKQID_INVALID);
+	zio->io_checksum_tqid = taskq_dispatch(zio_checksum_taskq,
+	    zio_checksum_task, zio, TQ_SLEEP);
+	ASSERT(zio->io_checksum_tqid != TASKQID_INVALID);
 
 	return (zio);
 }
@@ -4551,6 +4571,11 @@ zio_ready(zio_t *zio)
 	if (zio_wait_for_children(zio, ZIO_CHILD_LOGICAL_BIT |
 	    ZIO_CHILD_GANG_BIT | ZIO_CHILD_DDT_BIT, ZIO_WAIT_READY)) {
 		return (NULL);
+	}
+
+	if (zio->io_checksum_tqid != TASKQID_INVALID) {
+		taskq_wait_id(zio_checksum_taskq, zio->io_checksum_tqid);
+		zio->io_checksum_tqid = TASKQID_INVALID;
 	}
 
 	if (zio->io_ready) {

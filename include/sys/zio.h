@@ -502,6 +502,9 @@ struct zio {
 					/* file). */
 	zio_alloc_list_t 	io_alloc_list;
 
+	enum zio_checksum io_checksum;
+	taskqid_t	io_checksum_tqid;
+
 	/* Internal pipeline state */
 	zio_flag_t	io_flags;
 	enum zio_stage	io_stage;
