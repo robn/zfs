@@ -31,7 +31,7 @@ zpool_LDADD = \
 	libuutil.la \
 	libzutil.la
 
-zpool_LDADD += $(LTLIBINTL)
+zpool_LDADD += $(LTLIBINTL) $(JEMALLOC_LIBS)
 
 if BUILD_FREEBSD
 zpool_LDADD += -lgeom

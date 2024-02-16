@@ -8,3 +8,5 @@ zpool_influxdb_LDADD = \
 	libspl.la \
 	libnvpair.la \
 	libzfs.la
+
+zpool_influxdb_LDADD += $(JEMALLOC_LIBS)

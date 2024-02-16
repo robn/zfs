@@ -16,6 +16,8 @@ zstream_LDADD = \
 	libzpool.la \
 	libnvpair.la
 
+zstream_LDADD += $(JEMALLOC_LIBS)
+
 PHONY += install-exec-hook
 install-exec-hook:
 	cd $(DESTDIR)$(sbindir) && $(LN_S) -f zstream zstreamdump

@@ -22,6 +22,11 @@ libspl_la_SOURCES = \
 	%D%/include/sys/list.h \
 	%D%/include/sys/list_impl.h
 
+if WANT_JEMALLOC
+libspl_la_SOURCES += \
+	%D%/umem-jemalloc.c
+endif
+
 if BUILD_LINUX
 libspl_la_SOURCES += \
 	%D%/os/linux/getexecname.c \
@@ -43,3 +48,7 @@ libspl_la_LIBADD = \
 	libspl_assert.la
 
 libspl_la_LIBADD += $(LIBATOMIC_LIBS) $(LIBCLOCK_GETTIME)
+
+if WANT_JEMALLOC
+libspl_la_LIBADD += $(JEMALLOC_LIBS)
+endif
