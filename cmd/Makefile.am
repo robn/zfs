@@ -24,6 +24,8 @@ zfs_ids_to_path_SOURCES = \
 zfs_ids_to_path_LDADD = \
 	libzfs.la
 
+zfs_ids_to_path_LDADD += $(JEMALLOC_LIBS)
+
 
 zhack_CPPFLAGS = $(AM_CPPFLAGS) $(LIBZPOOL_CPPFLAGS)
 
@@ -53,7 +55,7 @@ ztest_LDADD = \
 	libzfs_core.la \
 	libnvpair.la
 
-ztest_LDADD += -lm
+ztest_LDADD += -lm $(JEMALLOC_LIBS)
 
 
 include $(srcdir)/%D%/raidz_test/Makefile.am
@@ -77,7 +79,7 @@ mount_zfs_LDADD = \
 	libzfs_core.la \
 	libnvpair.la
 
-mount_zfs_LDADD += $(LTLIBINTL)
+mount_zfs_LDADD += $(LTLIBINTL) $(JEMALLOC_LIBS)
 
 CPPCHECKTARGETS += raidz_test
 

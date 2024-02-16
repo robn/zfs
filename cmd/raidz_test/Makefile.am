@@ -14,4 +14,4 @@ raidz_test_LDADD = \
 	libzpool.la \
 	libzfs_core.la
 
-raidz_test_LDADD += -lm
+raidz_test_LDADD += -lm $(JEMALLOC_LIBS)

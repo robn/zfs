@@ -18,4 +18,4 @@ zdb_LDADD = \
 	libbtree.la \
 	librange_tree.la
 
-zdb_LDADD += $(LIBCRYPTO_LIBS)
+zdb_LDADD += $(LIBCRYPTO_LIBS) $(JEMALLOC_LIBS)
