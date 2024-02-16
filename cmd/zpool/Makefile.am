@@ -31,7 +31,7 @@ zpool_LDADD = \
 	libnvpair.la \
 	libzutil.la
 
-zpool_LDADD += $(LTLIBINTL)
+zpool_LDADD += $(LTLIBINTL) $(MIMALLOC_LIBS)
 
 if BUILD_FREEBSD
 zpool_LDADD += -lgeom

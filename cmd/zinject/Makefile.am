@@ -11,3 +11,5 @@ zinject_LDADD = \
 	libzfs.la \
 	libzfs_core.la \
 	libnvpair.la
+
+zinject_LDADD += $(MIMALLOC_LIBS)
