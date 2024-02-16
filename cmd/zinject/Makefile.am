@@ -10,3 +10,5 @@ zinject_LDADD = \
 	libzfs.la \
 	libzfs_core.la \
 	libnvpair.la
+
+zinject_LDADD += $(JEMALLOC_LIBS)

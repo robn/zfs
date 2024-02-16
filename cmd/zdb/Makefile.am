@@ -15,4 +15,4 @@ zdb_LDADD = \
 	libzfs_core.la \
 	libnvpair.la
 
-zdb_LDADD += $(LIBCRYPTO_LIBS)
+zdb_LDADD += $(LIBCRYPTO_LIBS) $(JEMALLOC_LIBS)
