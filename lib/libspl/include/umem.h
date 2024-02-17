@@ -66,6 +66,46 @@ typedef int umem_constructor_t(void *, void *, int);
 typedef void umem_destructor_t(void *, void *);
 typedef void umem_reclaim_t(void *);
 
+/* Prototypes for functions to provide defaults for umem envvars */
+const char *_umem_debug_init(void);
+const char *_umem_options_init(void);
+const char *_umem_logging_init(void);
+
+#ifdef HAVE_JEMALLOC
+
+/* jemalloc-backed implementation. Caches are mapped to arenas. */
+typedef struct umem_cache umem_cache_t;
+
+__attribute__((malloc, alloc_size(1)))
+extern void *umem_alloc(size_t size, int flags);
+
+__attribute__((malloc, alloc_size(1)))
+extern void *umem_alloc_aligned(size_t size, size_t align, int flags);
+
+__attribute__((malloc, alloc_size(1)))
+extern void *umem_zalloc(size_t size, int flags);
+
+extern void umem_free(const void *ptr, size_t size);
+extern void umem_free_aligned(void *ptr, size_t size);
+extern void umem_nofail_callback(umem_nofail_callback_t *cb);
+
+extern umem_cache_t *umem_cache_create(const char *name,
+    size_t bufsize, size_t align,
+    umem_constructor_t *constructor,
+    umem_destructor_t *destructor,
+    umem_reclaim_t *reclaim,
+    void *priv, void *vmp, int cflags);
+extern void umem_cache_destroy(umem_cache_t *uc);
+
+__attribute__((malloc))
+extern void *umem_cache_alloc(umem_cache_t *uc, int flags);
+extern void umem_cache_free(umem_cache_t *uc, void *ptr);
+
+extern void umem_cache_reap_now(umem_cache_t *uc);
+
+#else
+
+/* Simple malloc-backed implementation. */
 typedef struct umem_cache {
 	char			cache_name[UMEM_CACHE_NAMELEN + 1];
 	size_t			cache_bufsize;
@@ -77,11 +117,6 @@ typedef struct umem_cache {
 	void			*cache_arena;
 	int			cache_cflags;
 } umem_cache_t;
-
-/* Prototypes for functions to provide defaults for umem envvars */
-const char *_umem_debug_init(void);
-const char *_umem_options_init(void);
-const char *_umem_logging_init(void);
 
 __attribute__((malloc, alloc_size(1)))
 static inline void *
@@ -222,6 +257,8 @@ static inline void
 umem_cache_reap_now(umem_cache_t *cp __maybe_unused)
 {
 }
+
+#endif	/* HAVE_JEMALLOC */
 
 #ifdef  __cplusplus
 }
