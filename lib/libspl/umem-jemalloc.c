@@ -26,6 +26,11 @@
 
 #include <umem.h>
 
+#include <stddef.h>
+#include <pthread.h>
+#include <sys/list.h>
+#include <atomic.h>
+
 #include <jemalloc/jemalloc.h>
 
 struct umem_cache {
@@ -38,7 +43,14 @@ struct umem_cache {
 	void			*uc_private;
 	unsigned		uc_je_arena;
 	int			uc_je_flags;
+	list_node_t		uc_node;
+
+	uint64_t		uc_alloc_objs;
+	uint64_t		uc_alloc_bytes;
 };
+
+list_t umem_cache_list;
+pthread_mutex_t umem_cache_lock = PTHREAD_MUTEX_INITIALIZER;
 
 
 umem_cache_t *
@@ -77,6 +89,13 @@ umem_cache_create(
 	    MALLOCX_ARENA(arena) | MALLOCX_TCACHE_NONE |
 	    ((align > 0) ? MALLOCX_ALIGN(align) : (0));
 
+	atomic_store_64(&uc->uc_alloc_objs, 0);
+	atomic_store_64(&uc->uc_alloc_bytes, 0);
+
+	pthread_mutex_lock(&umem_cache_lock);
+	list_insert_tail(&umem_cache_list, uc);
+	pthread_mutex_unlock(&umem_cache_lock);
+
 	return (uc);
 }
 
@@ -86,6 +105,11 @@ umem_cache_destroy(umem_cache_t *uc)
 	char mib[256] = {0};
 	snprintf(mib, sizeof (mib), "arena.%d.destroy", uc->uc_je_arena);
 	VERIFY0(mallctl(mib, NULL, NULL, NULL, 0));
+
+	pthread_mutex_lock(&umem_cache_lock);
+	list_remove(&umem_cache_list, uc);
+	pthread_mutex_unlock(&umem_cache_lock);
+
 	umem_free(uc, sizeof (umem_cache_t));
 }
 
@@ -101,6 +125,9 @@ umem_cache_alloc(umem_cache_t *uc, int flags)
 	if (ptr != NULL && uc->uc_constructor != NULL)
 		uc->uc_constructor(ptr, uc->uc_private, UMEM_DEFAULT);
 
+	atomic_inc_64(&uc->uc_alloc_objs);
+	atomic_add_64(&uc->uc_alloc_bytes, uc->uc_bufsize);
+
 	return (ptr);
 }
 
@@ -111,12 +138,34 @@ umem_cache_free(umem_cache_t *uc, void *ptr)
 		uc->uc_destructor(ptr, uc->uc_private);
 
 	sdallocx(ptr, uc->uc_bufsize, uc->uc_je_flags);
+
+	atomic_sub_64(&uc->uc_alloc_bytes, uc->uc_bufsize);
+	atomic_dec_64(&uc->uc_alloc_objs);
 }
 
 void
 umem_cache_reap_now(umem_cache_t *uc)
 {
 	(void) uc;
+}
+
+
+void
+umem_cache_dump(void)
+{
+	umem_cache_t *uc;
+
+	fprintf(stderr, "%3s  %-32s  %8s  %8s  %10s\n",
+	    "", "CACHE", "OBJS", "OBJSIZE", "SIZE");
+
+	pthread_mutex_lock(&umem_cache_lock);
+	for (uc = list_head(&umem_cache_list); uc != NULL;
+	    uc = list_next(&umem_cache_list, uc)) {
+		fprintf(stderr, "%3d  %-32s  %8lu  %8lu  %10lu\n",
+		    uc->uc_je_arena, uc->uc_name,
+		    uc->uc_alloc_objs, uc->uc_bufsize, uc->uc_alloc_bytes);
+	}
+	pthread_mutex_unlock(&umem_cache_lock);
 }
 
 
@@ -187,3 +236,38 @@ umem_nofail_callback(umem_nofail_callback_t *cb)
 {
 	(void) cb;
 }
+
+int umem_loaded = 0;
+
+static void
+umem_init(void)
+{
+	if (umem_loaded++)
+		return;
+
+	list_create(&umem_cache_list,
+	    sizeof (umem_cache_t), offsetof(umem_cache_t, uc_node));
+}
+
+static void
+umem_fini(void)
+{
+	if (--umem_loaded)
+		return;
+
+	/* XXX make configurable (envvar? sig handler?) */
+	umem_cache_dump();
+
+	/* XXX will assert because still stuff on list. need a proper cleanup */
+	/* list_destroy(&umem_cache_list); */
+}
+
+#ifdef __GNUC__
+static void
+umem_init(void) __attribute__((constructor));
+static void
+umem_fini(void) __attribute__((destructor));
+#else
+#pragma init(umem_init)
+#pragma fini(umem_fini);
+#endif
