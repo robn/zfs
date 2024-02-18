@@ -103,6 +103,8 @@ extern void umem_cache_free(umem_cache_t *uc, void *ptr);
 
 extern void umem_cache_reap_now(umem_cache_t *uc);
 
+extern void umem_cache_dump(void);
+
 #else
 
 /* Simple malloc-backed implementation. */
