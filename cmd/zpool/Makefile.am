@@ -8,11 +8,40 @@ sbin_PROGRAMS   += zpool
 CPPCHECKTARGETS += zpool
 
 zpool_SOURCES = \
+	%D%/zpool_add.c \
+	%D%/zpool_attach.c \
+	%D%/zpool_checkpoint.c \
+	%D%/zpool_common.c \
+	%D%/zpool_clear.c \
+	%D%/zpool_create.c \
+	%D%/zpool_destroy.c \
+	%D%/zpool_detach.c \
+	%D%/zpool_events.c \
+	%D%/zpool_export.c \
+	%D%/zpool_get.c \
+	%D%/zpool_history.c \
+	%D%/zpool_import.c \
+	%D%/zpool_initialize.c \
+	%D%/zpool_iostat.c \
 	%D%/zpool_iter.c \
+	%D%/zpool_labelclear.c \
+	%D%/zpool_list.c \
 	%D%/zpool_main.c \
+	%D%/zpool_offline.c \
+	%D%/zpool_online.c \
+	%D%/zpool_reguid.c \
+	%D%/zpool_remove.c \
+	%D%/zpool_reopen.c \
+	%D%/zpool_scrub.c \
+	%D%/zpool_set.c \
+	%D%/zpool_split.c \
+	%D%/zpool_status.c \
+	%D%/zpool_sync.c \
+	%D%/zpool_trim.c \
+	%D%/zpool_upgrade.c \
 	%D%/zpool_util.c \
-	%D%/zpool_util.h \
-	%D%/zpool_vdev.c
+	%D%/zpool_vdev.c \
+	%D%/zpool_wait.c
 
 if BUILD_FREEBSD
 zpool_SOURCES += \
