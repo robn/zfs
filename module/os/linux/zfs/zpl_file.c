@@ -1233,11 +1233,7 @@ const struct file_operations zpl_file_operations = {
 	.llseek		= zpl_llseek,
 	.read_iter	= zpl_iter_read,
 	.write_iter	= zpl_iter_write,
-#ifdef HAVE_COPY_SPLICE_READ
-	.splice_read	= copy_splice_read,
-#else
-	.splice_read	= generic_file_splice_read,
-#endif
+	.splice_read	= zpl_splice_read,
 	.splice_write	= iter_file_splice_write,
 	.mmap		= zpl_mmap,
 	.fsync		= zpl_fsync,

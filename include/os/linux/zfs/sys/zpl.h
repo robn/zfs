@@ -125,6 +125,11 @@ extern int zpl_dedupe_file_range(struct file *src_file, loff_t src_off,
     struct file *dst_file, loff_t dst_off, uint64_t len);
 
 
+/* zpl_file_splice.c */
+extern ssize_t zpl_splice_read(struct file *filp, loff_t *ppos,
+    struct pipe_inode_info *pipe, size_t len, unsigned int flags);
+
+
 #if defined(HAVE_INODE_TIMESTAMP_TRUNCATE)
 #define	zpl_inode_timestamp_truncate(ts, ip)	timestamp_truncate(ts, ip)
 #else

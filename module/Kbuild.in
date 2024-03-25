@@ -477,6 +477,7 @@ ZFS_OBJS_OS := \
 	zpl_export.o \
 	zpl_file.o \
 	zpl_file_range.o \
+	zpl_file_splice.o \
 	zpl_inode.o \
 	zpl_super.o \
 	zpl_xattr.o \
