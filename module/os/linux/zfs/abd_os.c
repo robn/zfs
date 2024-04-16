@@ -1015,6 +1015,16 @@ abd_cache_reap_now(void)
 }
 
 #if defined(_KERNEL)
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0)
+#define	ABD_ITER_COMPOUND_PAGES 1
+#define	ABD_PAGE_SIZE(page)	\
+	(PageCompound(page) ? page_size(page) : PAGESIZE)
+#else
+#undef ABD_ITER_COMPOUND_PAGES
+#define	ABD_PAGE_SIZE(page)	(PAGESIZE)
+#endif
+
 /*
  * Yield the next page struct and data offset and size within it, without
  * mapping it into the address space.
@@ -1062,7 +1072,7 @@ abd_iter_page(struct abd_iter *aiter)
 	}
 	ASSERT(page);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0)
+#ifdef ABD_ITER_COMPOUND_PAGES
 	if (PageTail(page)) {
 		/*
 		 * This page is part of a "compound page", which is a group of
@@ -1107,7 +1117,7 @@ abd_iter_page(struct abd_iter *aiter)
 	aiter->iter_page_doff = doff;
 
 	/* amount of data in the chunk, up to the end of the page */
-	aiter->iter_page_dsize = MIN(dsize, page_size(page) - doff);
+	aiter->iter_page_dsize = MIN(dsize, ABD_PAGE_SIZE(page) - doff);
 }
 
 /*
