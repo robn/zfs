@@ -80,11 +80,10 @@ AC_DEFUN([ZFS_AC_CONFIG_ALWAYS_PYZFS], [
 			[AC_MSG_ERROR("Python $PYTHON_VERSION unknown")]
 		)
 
-		AS_IF([test "x$enable_pyzfs" = xyes], [
-			AX_PYTHON_DEVEL([$PYTHON_REQUIRED_VERSION])
-		], [
-			AX_PYTHON_DEVEL([$PYTHON_REQUIRED_VERSION], [true])
-			AS_IF([test "x$ax_python_devel_found" = xno], [
+		AX_PYTHON_DEVEL([$PYTHON_REQUIRED_VERSION], [
+			AS_IF([test "x$enable_pyzfs" = xyes], [
+				AC_MSG_ERROR("Python $PYTHON_REQUIRED_VERSION development library is not installed")
+			], [test "x$enable_pyzfs" != xno], [
 				enable_pyzfs=no
 			])
 		])
