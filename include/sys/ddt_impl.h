@@ -28,6 +28,7 @@
 #define	_SYS_DDT_IMPL_H
 
 #include <sys/ddt.h>
+#include <sys/bitops.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -84,17 +85,31 @@ typedef enum {
 
 /* On-disk log record header. */
 typedef struct {
-	uint16_t	dlr_reclen;	/* length of record header+payload */
-	uint8_t		dlr_type;	/* ddt_log_record_type_t */
-
-	uint8_t		dlr_pad[3];	/* pad header to 64 bits */
-
-	/* DLR_ENTRY: storage type (ddt_type) and class (ddt_class) */
-	uint8_t		dlr_entry_type;
-	uint8_t		dlr_entry_class;
-
+	/*
+	 * dlr_info is a packed u64, use the DLR_GET/DLR_SET macros below to
+	 * access it.
+	 *
+	 * bits 0-7:	record type (ddt_log_record_type_t)
+	 * bits 8-23:	length of record header+payload
+	 * bits 24-31:	reserved, all zero
+	 * bits 32-39:	if type==DLR_ENTRY, storage type (ddt_type)
+	 *		  otherwise all zero
+	 * bits 40-47:	if type==DLR_ENTRY, storage class (ddt_class)
+	 *		  otherwise all zero
+	 * bits 48-63:	reserved, all zero
+	 */
+	uint64_t	dlr_info;
 	uint8_t		dlr_payload[];  /* dlr_length bytes of payload */
 } ddt_log_record_t;
+
+#define	DLR_GET_TYPE(dlr)		BF64_GET((dlr)->dlr_info, 0, 8)
+#define	DLR_SET_TYPE(dlr, v)		BF64_SET((dlr)->dlr_info, 0, 8, v)
+#define	DLR_GET_RECLEN(dlr)		BF64_GET((dlr)->dlr_info, 8, 16)
+#define	DLR_SET_RECLEN(dlr, v)		BF64_SET((dlr)->dlr_info, 8, 16, v)
+#define	DLR_GET_ENTRY_TYPE(dlr)		BF64_GET((dlr)->dlr_info, 32, 8)
+#define	DLR_SET_ENTRY_TYPE(dlr, v)	BF64_SET((dlr)->dlr_info, 32, 8, v)
+#define	DLR_GET_ENTRY_CLASS(dlr)	BF64_GET((dlr)->dlr_info, 40, 8)
+#define	DLR_SET_ENTRY_CLASS(dlr, v)	BF64_SET((dlr)->dlr_info, 40, 8, v)
 
 /* Payload for DLR_ENTRY. */
 typedef struct {
@@ -108,12 +123,25 @@ typedef struct {
 
 /* On-disk log header, stored in the bonus buffer. */
 typedef struct {
-	uint32_t	dlh_version;	/* log version */
-	uint32_t	dlh_flags;	/* log flags */
+	/*
+	 * dlh_info is a packed u64, use the DLH_GET/DLH_SET macros below to
+	 * access it.
+	 *
+	 * bits 0-7:   log version
+	 * bits 8-15:  log flags
+	 * bits 16-63: reserved, all zero
+	 */
+	uint64_t	dlh_info;
+
 	uint64_t	dlh_length;	/* log size in bytes */
 	uint64_t	dlh_first_txg;	/* txg this log went active */
 	ddt_key_t	dlh_checkpoint;	/* last checkpoint */
 } ddt_log_header_t;
+
+#define	DLH_GET_VERSION(dlh)	BF64_GET((dlh)->dlh_info, 0, 8)
+#define	DLH_SET_VERSION(dlh, v)	BF64_SET((dlh)->dlh_info, 0, 8, v)
+#define	DLH_GET_FLAGS(dlh)	BF64_GET((dlh)->dlh_info, 8, 8)
+#define	DLH_SET_FLAGS(dlh, v)	BF64_SET((dlh)->dlh_info, 8, 8, v)
 
 /* DDT log update state */
 typedef struct {

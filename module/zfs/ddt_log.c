@@ -102,8 +102,8 @@ ddt_log_update_header(ddt_t *ddt, ddt_log_t *ddl, dmu_tx_t *tx)
 	dmu_buf_will_dirty(db, tx);
 
 	ddt_log_header_t *hdr = (ddt_log_header_t *)db->db_data;
-	hdr->dlh_version = 1;
-	hdr->dlh_flags = ddl->ddl_flags;
+	DLH_SET_VERSION(hdr, 1);
+	DLH_SET_FLAGS(hdr, ddl->ddl_flags);
 	hdr->dlh_length = ddl->ddl_length;
 	hdr->dlh_first_txg = ddl->ddl_first_txg;
 	hdr->dlh_checkpoint = ddl->ddl_checkpoint;
@@ -301,10 +301,10 @@ ddt_log_entry(ddt_t *ddt, ddt_lightweight_entry_t *ddlwe, ddt_log_update_t *dlu)
 
 	/* Create the log record directly in the buffer */
 	ddt_log_record_t *dlr = (db->db_data + dlu->dlu_offset);
-	dlr->dlr_type = DLR_ENTRY;
-	dlr->dlr_reclen = dlu->dlu_reclen;
-	dlr->dlr_entry_type = ddlwe->ddlwe_type;
-	dlr->dlr_entry_class = ddlwe->ddlwe_class;
+	DLR_SET_TYPE(dlr, DLR_ENTRY);
+	DLR_SET_RECLEN(dlr, dlu->dlu_reclen);
+	DLR_SET_ENTRY_TYPE(dlr, ddlwe->ddlwe_type);
+	DLR_SET_ENTRY_CLASS(dlr, ddlwe->ddlwe_class);
 
 	ddt_log_record_entry_t *dlre =
 	    (ddt_log_record_entry_t *)&dlr->dlr_payload;
@@ -312,7 +312,7 @@ ddt_log_entry(ddt_t *ddt, ddt_lightweight_entry_t *ddlwe, ddt_log_update_t *dlu)
 	memcpy(dlre->dlre_phys, &ddlwe->ddlwe_phys, DDT_PHYS_SIZE(ddt));
 
 	/* Advance offset for next record. */
-	dlu->dlu_offset += dlr->dlr_reclen;
+	dlu->dlu_offset += dlu->dlu_reclen;
 }
 
 void
@@ -491,11 +491,11 @@ ddt_log_swap(ddt_t *ddt, dmu_tx_t *tx)
 static inline void
 ddt_log_load_entry(ddt_t *ddt, ddt_log_t *ddl, ddt_log_record_t *dlr)
 {
-	ASSERT3U(dlr->dlr_type, ==, DLR_ENTRY);
+	ASSERT3U(DLR_GET_TYPE(dlr), ==, DLR_ENTRY);
 
 	ddt_lightweight_entry_t ddlwe;
-	ddlwe.ddlwe_type = dlr->dlr_entry_type;
-	ddlwe.ddlwe_class = dlr->dlr_entry_class;
+	ddlwe.ddlwe_type = DLR_GET_ENTRY_TYPE(dlr);
+	ddlwe.ddlwe_class = DLR_GET_ENTRY_CLASS(dlr);
 
 	ddt_log_record_entry_t *dlre =
 	    (ddt_log_record_entry_t *)dlr->dlr_payload;
@@ -552,6 +552,14 @@ ddt_log_load_one(ddt_t *ddt, uint_t n)
 	memcpy(&hdr, db->db_data, sizeof (ddt_log_header_t));
 	dmu_buf_rele(db, FTAG);
 
+	if (DLH_GET_VERSION(&hdr) != 1) {
+		dnode_rele(dn, FTAG);
+		zfs_dbgmsg("ddt_log_load: spa=%s ddt_log=%s "
+		    "unknown version=%llu", spa_name(ddt->ddt_spa), name,
+		    (u_longlong_t)DLH_GET_VERSION(&hdr));
+		return (SET_ERROR(EINVAL));
+	}
+
 	if (hdr.dlh_length > 0) {
 		dmu_prefetch_by_dnode(dn, 0, 0, hdr.dlh_length,
 		    ZIO_PRIORITY_SYNC_READ);
@@ -572,10 +580,10 @@ ddt_log_load_one(ddt_t *ddt, uint_t n)
 				    (ddt_log_record_t *)(db->db_data + boffset);
 
 				/* Partially-filled block, skip the rest */
-				if (dlr->dlr_type == DLR_INVALID)
+				if (DLR_GET_TYPE(dlr) == DLR_INVALID)
 					break;
 
-				switch (dlr->dlr_type) {
+				switch (DLR_GET_TYPE(dlr)) {
 				case DLR_ENTRY:
 					ddt_log_load_entry(ddt, ddl, dlr);
 					break;
@@ -587,15 +595,15 @@ ddt_log_load_one(ddt_t *ddt, uint_t n)
 					return (SET_ERROR(EINVAL));
 				}
 
-				boffset += dlr->dlr_reclen;
+				boffset += DLR_GET_RECLEN(dlr);
 			}
 
 			dmu_buf_rele(db, FTAG);
 		}
 
-		if (hdr.dlh_flags & DDL_FLAG_CHECKPOINT) {
+		if (DLH_GET_FLAGS(&hdr) & DDL_FLAG_CHECKPOINT) {
 			/* Saw checkpoint, clear out everything before it */
-			ASSERT(hdr.dlh_flags & DDL_FLAG_FLUSHING);
+			ASSERT(DLH_GET_FLAGS(&hdr) & DDL_FLAG_FLUSHING);
 			ddt_log_checkpoint_prune(ddt, ddl, &hdr.dlh_checkpoint);
 		}
 	}
@@ -603,7 +611,7 @@ ddt_log_load_one(ddt_t *ddt, uint_t n)
 	dnode_rele(dn, FTAG);
 
 	ddl->ddl_object = obj;
-	ddl->ddl_flags = hdr.dlh_flags;
+	ddl->ddl_flags = DLH_GET_FLAGS(&hdr);
 	ddl->ddl_length = hdr.dlh_length;
 	ddl->ddl_first_txg = hdr.dlh_first_txg;
 
