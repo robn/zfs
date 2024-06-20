@@ -486,34 +486,28 @@ ddt_log_swap(ddt_t *ddt, dmu_tx_t *tx)
 }
 
 static inline void
-ddt_log_load_entry(ddt_t *ddt, ddt_log_t *ddl, ddt_log_record_t *dlr)
+ddt_log_load_entry(ddt_t *ddt, ddt_log_t *ddl, ddt_log_record_t *dlr,
+    const ddt_key_t *checkpoint)
 {
 	ASSERT3U(DLR_GET_TYPE(dlr), ==, DLR_ENTRY);
+
+	ddt_log_record_entry_t *dlre =
+	    (ddt_log_record_entry_t *)dlr->dlr_payload;
+	if (checkpoint != NULL &&
+	    ddt_key_compare(&dlre->dlre_key, checkpoint) <= 0) {
+		/* Skip pre-checkpoint entries; they're already flushed. */
+		return;
+	}
 
 	ddt_lightweight_entry_t ddlwe;
 	ddlwe.ddlwe_type = DLR_GET_ENTRY_TYPE(dlr);
 	ddlwe.ddlwe_class = DLR_GET_ENTRY_CLASS(dlr);
-
-	ddt_log_record_entry_t *dlre =
-	    (ddt_log_record_entry_t *)dlr->dlr_payload;
 
 	ddlwe.ddlwe_key = dlre->dlre_key;
 	ddlwe.ddlwe_nphys = DDT_NPHYS(ddt);
 	memcpy(&ddlwe.ddlwe_phys, dlre->dlre_phys, DDT_PHYS_SIZE(ddt));
 
 	ddt_log_update_entry(ddt, ddl, &ddlwe);
-}
-
-static inline void
-ddt_log_checkpoint_prune(ddt_t *ddt, ddt_log_t *ddl, const ddt_key_t *key)
-{
-	ddt_log_entry_t *ddle;
-	while (((ddle = avl_first(&ddl->ddl_tree)) != NULL) &&
-	    ddt_key_compare(&ddle->ddle_key, key) <= 0) {
-		avl_remove(&ddl->ddl_tree, ddle);
-		kmem_cache_free(ddt->ddt_flags & DDT_FLAG_FLAT ?
-		    ddt_log_entry_flat_cache : ddt_log_entry_trad_cache, ddle);
-	}
 }
 
 static int
@@ -557,6 +551,16 @@ ddt_log_load_one(ddt_t *ddt, uint_t n)
 		return (SET_ERROR(EINVAL));
 	}
 
+	ddt_key_t *checkpoint = NULL;
+	if (DLH_GET_FLAGS(&hdr) & DDL_FLAG_CHECKPOINT) {
+		/*
+		 * If the log has a checkpoint, then we can ignore any entries
+		 * that have already been flushed.
+		 */
+		ASSERT(DLH_GET_FLAGS(&hdr) & DDL_FLAG_FLUSHING);
+		checkpoint = &hdr.dlh_checkpoint;
+	}
+
 	if (hdr.dlh_length > 0) {
 		dmu_prefetch_by_dnode(dn, 0, 0, hdr.dlh_length,
 		    ZIO_PRIORITY_SYNC_READ);
@@ -582,7 +586,8 @@ ddt_log_load_one(ddt_t *ddt, uint_t n)
 
 				switch (DLR_GET_TYPE(dlr)) {
 				case DLR_ENTRY:
-					ddt_log_load_entry(ddt, ddl, dlr);
+					ddt_log_load_entry(ddt, ddl, dlr,
+					    checkpoint);
 					break;
 
 				default:
@@ -596,12 +601,6 @@ ddt_log_load_one(ddt_t *ddt, uint_t n)
 			}
 
 			dmu_buf_rele(db, FTAG);
-		}
-
-		if (DLH_GET_FLAGS(&hdr) & DDL_FLAG_CHECKPOINT) {
-			/* Saw checkpoint, clear out everything before it */
-			ASSERT(DLH_GET_FLAGS(&hdr) & DDL_FLAG_FLUSHING);
-			ddt_log_checkpoint_prune(ddt, ddl, &hdr.dlh_checkpoint);
 		}
 	}
 
