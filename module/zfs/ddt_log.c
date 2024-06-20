@@ -120,15 +120,8 @@ ddt_log_create_one(ddt_t *ddt, ddt_log_t *ddl, uint_t n, dmu_tx_t *tx)
 	char name[DDT_NAMELEN];
 	ddt_log_name(ddt, name, n);
 
-	/*
-	 * XXX make configurable? where are the _default_ defaults anyway?
-	 *       -- robn, 2024-06-18
-	 */
-	const int bsize = SPA_OLD_MAXBLOCKSIZE;	/* 128K */
-	const int ibs = 1 << 15;		/* 32K */
-
-	ddl->ddl_object = dmu_object_alloc_ibs(ddt->ddt_os,
-	    DMU_OTN_UINT64_METADATA, bsize, ibs,
+	ddl->ddl_object = dmu_object_alloc(ddt->ddt_os,
+	    DMU_OTN_UINT64_METADATA, SPA_OLD_MAXBLOCKSIZE,
 	    DMU_OTN_UINT64_METADATA, sizeof (ddt_log_header_t), tx);
 	VERIFY0(zap_add(ddt->ddt_os, ddt->ddt_dir_object, name,
 	    sizeof (uint64_t), 1, &ddl->ddl_object, tx));
