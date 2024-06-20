@@ -390,13 +390,10 @@ ddt_log_checkpoint(ddt_t *ddt, ddt_lightweight_entry_t *ddlwe, dmu_tx_t *tx)
 	 * There should not be any entries on the log tree before the given
 	 * checkpoint. Assert that this is the case.
 	 */
-	uint64_t count = 0;
-	for (ddt_log_entry_t *ddle = avl_first(&ddl->ddl_tree); ddle != NULL;
-	    ddle = AVL_NEXT(&ddl->ddl_tree, ddle)) {
-		if (ddt_key_compare(&ddle->ddle_key, &ddlwe->ddlwe_key) <= 0)
-			count++;
-	}
-	VERIFY0(count);
+	ddt_log_entry_t *ddle = avl_first(&ddl->ddl_tree);
+	if (ddle != NULL)
+		VERIFY3U(ddt_key_compare(&ddle->ddle_key, &ddlwe->ddlwe_key),
+		    >, 0);
 #endif
 
 	ddl->ddl_flags |= DDL_FLAG_CHECKPOINT;
