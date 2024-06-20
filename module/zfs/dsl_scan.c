@@ -630,7 +630,7 @@ dsl_scan_init(dsl_pool_t *dp, uint64_t txg)
 		zap_cursor_fini(&zc);
 	}
 
-	ddt_walk_init(spa, scn->scn_phys.scn_min_txg);
+	ddt_walk_init(spa, scn->scn_phys.scn_max_txg);
 
 	spa_scan_stat_init(spa);
 	vdev_scan_stat_init(spa->spa_root_vdev);
@@ -953,7 +953,7 @@ dsl_scan_setup_sync(void *arg, dmu_tx_t *tx)
 
 	memcpy(&scn->scn_phys_cached, &scn->scn_phys, sizeof (scn->scn_phys));
 
-	ddt_walk_init(spa, scn->scn_phys.scn_min_txg);
+	ddt_walk_init(spa, scn->scn_phys.scn_max_txg);
 
 	dsl_scan_sync_state(scn, tx, SYNC_MANDATORY);
 

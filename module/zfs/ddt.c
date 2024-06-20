@@ -2019,6 +2019,40 @@ ddt_sync_flush_log_incremental(ddt_t *ddt, dmu_tx_t *tx)
 	return (ddt->ddt_flush_pass == 0);
 }
 
+static inline void
+ddt_flush_force_update_txg(ddt_t *ddt, uint64_t txg)
+{
+	/*
+	 * If we're not forcing flush, and not being asked to start, then
+	 * there's nothing more to do.
+	 */
+	if (txg == 0) {
+		/* Update requested, are we currently forcing flush? */
+		if (ddt->ddt_flush_force_txg == 0)
+			return;
+		txg = ddt->ddt_flush_force_txg;
+	}
+
+	/*
+	 * If either of the logs have entries unflushed entries before
+	 * the wanted txg, set the force txg, otherwise clear it.
+	 */
+
+	if ((!avl_is_empty(&ddt->ddt_log_active->ddl_tree) &&
+	    ddt->ddt_log_active->ddl_first_txg <= txg) ||
+	    (!avl_is_empty(&ddt->ddt_log_flushing->ddl_tree) &&
+	    ddt->ddt_log_flushing->ddl_first_txg <= txg)) {
+		ddt->ddt_flush_force_txg = txg;
+		return;
+	}
+
+	/*
+	 * Nothing to flush behind the given txg, so we can clear force flush
+	 * state.
+	 */
+	ddt->ddt_flush_force_txg = 0;
+}
+
 static void
 ddt_sync_flush_log(ddt_t *ddt, dmu_tx_t *tx)
 {
@@ -2048,11 +2082,8 @@ ddt_sync_flush_log(ddt_t *ddt, dmu_tx_t *tx)
 		}
 	}
 
-	if (ddt->ddt_flush_force_txg > 0 &&
-	    avl_is_empty(&ddt->ddt_log_active->ddl_tree) &&
-	    avl_is_empty(&ddt->ddt_log_flushing->ddl_tree))
-		/* Both logs are empty, so no more force flush */
-		ddt->ddt_flush_force_txg = 0;
+	/* If force flush is no longer necessary, turn it off. */
+	ddt_flush_force_update_txg(ddt, 0);
 
 	/*
 	 * Update flush rate. This is an exponential weighted moving average of
@@ -2254,17 +2285,7 @@ ddt_walk_init(spa_t *spa, uint64_t txg)
 			continue;
 
 		ddt_enter(ddt);
-
-		/*
-		 * If either of the logs have live entries from the past,
-		 * then we need to get flushing.
-		 */
-		if ((!avl_is_empty(&ddt->ddt_log_active->ddl_tree) &&
-		    ddt->ddt_log_active->ddl_first_txg <= txg) ||
-		    (!avl_is_empty(&ddt->ddt_log_flushing->ddl_tree) &&
-		    ddt->ddt_log_flushing->ddl_first_txg <= txg))
-			ddt->ddt_flush_force_txg = txg;
-
+		ddt_flush_force_update_txg(ddt, txg);
 		ddt_exit(ddt);
 	}
 }
