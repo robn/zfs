@@ -21,6 +21,7 @@
 /*
  * Copyright (c) 2014 by Chunwei Chen. All rights reserved.
  * Copyright (c) 2019 by Delphix. All rights reserved.
+ * Copyright (c) 2024, Klara, Inc.
  */
 
 /*
@@ -94,6 +95,18 @@
  *
  * It is possible to make all ABDs linear by setting zfs_abd_scatter_enabled to
  * B_FALSE.
+ *
+ * There is also a "stack" ABD, which allows an abd_t to be created on the
+ * stack, wrapping an existing buffer. This kind of ABD acts exactly like a
+ * linear ABD, and can be borrowed/returned, copied, filled, and iterated over.
+ * This makes it useful for passing an existing buffer to a function that wants
+ * an ABD.  It is cheap to set up because it requires no allocations and is
+ * destroyed automatically along with the stack frame. Because of this, you
+ * must take a permanent reference to it, like adding it to a gang ABD, passing
+ * it to another task, or using it for IO. Note that the buffer wrapped by the
+ * ABD is not affected by any of this; it will live on after the ABD is
+ * destroyed, and you can access the buffer directly even while the ABD is in
+ * scope.
  */
 
 #include <sys/abd_impl.h>
@@ -113,7 +126,12 @@ abd_verify(abd_t *abd)
 	ASSERT3U(abd->abd_flags, ==, abd->abd_flags & (ABD_FLAG_LINEAR |
 	    ABD_FLAG_OWNER | ABD_FLAG_META | ABD_FLAG_MULTI_ZONE |
 	    ABD_FLAG_MULTI_CHUNK | ABD_FLAG_LINEAR_PAGE | ABD_FLAG_GANG |
-	    ABD_FLAG_GANG_FREE | ABD_FLAG_ZEROS | ABD_FLAG_ALLOCD));
+	    ABD_FLAG_GANG_FREE | ABD_FLAG_ZEROS | ABD_FLAG_ALLOCD |
+	    ABD_FLAG_STACK));
+	IMPLY(abd->abd_flags & ABD_FLAG_STACK,
+	    abd->abd_flags & ABD_FLAG_LINEAR);
+	IMPLY(!(abd->abd_flags & ABD_FLAG_LINEAR),
+	    !(abd->abd_flags & ABD_FLAG_STACK));
 	IMPLY(abd->abd_parent != NULL, !(abd->abd_flags & ABD_FLAG_OWNER));
 	IMPLY(abd->abd_flags & ABD_FLAG_META, abd->abd_flags & ABD_FLAG_OWNER);
 	if (abd_is_linear(abd)) {
@@ -171,6 +189,7 @@ abd_alloc_struct(size_t size)
 void
 abd_free_struct(abd_t *abd)
 {
+	ASSERT(!(abd->abd_flags & ABD_FLAG_STACK));
 	abd_fini_struct(abd);
 	abd_free_struct_impl(abd);
 }
@@ -294,6 +313,7 @@ abd_free(abd_t *abd)
 	if (abd == NULL)
 		return;
 
+	ASSERT(!(abd->abd_flags & ABD_FLAG_STACK));
 	abd_verify(abd);
 #ifdef ZFS_DEBUG
 	IMPLY(abd->abd_flags & ABD_FLAG_OWNER, abd->abd_parent == NULL);
@@ -412,6 +432,7 @@ void
 abd_gang_add(abd_t *pabd, abd_t *cabd, boolean_t free_on_free)
 {
 	ASSERT(abd_is_gang(pabd));
+	ASSERT(!(cabd->abd_flags & ABD_FLAG_STACK));
 	abd_t *child_abd = NULL;
 
 	/*
@@ -551,7 +572,9 @@ abd_get_offset_impl(abd_t *abd, abd_t *sabd, size_t off, size_t size)
 	abd->abd_size = size;
 #ifdef ZFS_DEBUG
 	abd->abd_parent = sabd;
-	(void) zfs_refcount_add_many(&sabd->abd_children, abd->abd_size, abd);
+	if (!(sabd->abd_flags & ABD_FLAG_STACK))
+		(void) zfs_refcount_add_many(&sabd->abd_children,
+		    abd->abd_size, abd);
 #endif
 	return (abd);
 }
@@ -654,7 +677,8 @@ abd_borrow_buf(abd_t *abd, size_t n)
 		buf = zio_buf_alloc(n);
 	}
 #ifdef ZFS_DEBUG
-	(void) zfs_refcount_add_many(&abd->abd_children, n, buf);
+	if (!(abd->abd_flags & ABD_FLAG_STACK))
+		zfs_refcount_add_many(&abd->abd_children, n, buf);
 #endif
 	return (buf);
 }
@@ -681,7 +705,8 @@ abd_return_buf(abd_t *abd, void *buf, size_t n)
 	abd_verify(abd);
 	ASSERT3U(abd->abd_size, >=, n);
 #ifdef ZFS_DEBUG
-	(void) zfs_refcount_remove_many(&abd->abd_children, n, buf);
+	if (!(abd->abd_flags & ABD_FLAG_STACK))
+		(void) zfs_refcount_remove_many(&abd->abd_children, n, buf);
 #endif
 	if (abd_is_linear(abd)) {
 		ASSERT3P(buf, ==, abd_to_buf(abd));
@@ -736,6 +761,7 @@ abd_take_ownership_of_buf(abd_t *abd, boolean_t is_metadata)
 {
 	ASSERT(abd_is_linear(abd));
 	ASSERT(!(abd->abd_flags & ABD_FLAG_OWNER));
+	ASSERT(!(abd->abd_flags & ABD_FLAG_STACK));
 	abd_verify(abd);
 
 	abd->abd_flags |= ABD_FLAG_OWNER;

@@ -21,6 +21,7 @@
 /*
  * Copyright (c) 2014 by Chunwei Chen. All rights reserved.
  * Copyright (c) 2016, 2019 by Delphix. All rights reserved.
+ * Copyright (c) 2024, Klara, Inc.
  */
 
 #ifndef _ABD_H
@@ -46,6 +47,7 @@ typedef enum abd_flags {
 	ABD_FLAG_GANG_FREE	= 1 << 7, /* gang ABD is responsible for mem */
 	ABD_FLAG_ZEROS		= 1 << 8, /* ABD for zero-filled buffer */
 	ABD_FLAG_ALLOCD		= 1 << 9, /* we allocated the abd_t */
+	ABD_FLAG_STACK		= 1 << 10, /* on stack, can't be shared */
 } abd_flags_t;
 
 typedef struct abd {
@@ -108,6 +110,17 @@ abd_t *abd_get_offset_struct(abd_t *, abd_t *, size_t, size_t);
 abd_t *abd_get_zeros(size_t);
 abd_t *abd_get_from_buf(void *, size_t);
 void abd_cache_reap_now(void);
+
+/*
+ * Creates a "stack" ABD, wrapping the given buffer. This ABD can be passed to
+ * other functions, but not referenced outside of this stack frame.
+ */
+#define	ABD_STACK_INIT(buf, size) \
+	{							\
+		.abd_flags = ABD_FLAG_LINEAR | ABD_FLAG_STACK,	\
+		.abd_size = (size),				\
+		.abd_u = { .abd_linear = { .abd_buf = (buf) } }	\
+	}
 
 /*
  * Conversion to and from a normal buffer
