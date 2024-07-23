@@ -535,9 +535,8 @@ zfs_zstd_compress_impl(void *s_start, void *d_start, size_t s_len, size_t d_len,
 	return (c_len + sizeof (*hdr));
 }
 
-
-static size_t
-zfs_zstd_compress_buf(void *s_start, void *d_start, size_t s_len, size_t d_len,
+size_t
+zfs_zstd_compress(abd_t *src, abd_t *dst, size_t s_len, size_t d_len,
     int level)
 {
 	int16_t zstd_level;
@@ -545,6 +544,42 @@ zfs_zstd_compress_buf(void *s_start, void *d_start, size_t s_len, size_t d_len,
 		ZSTDSTAT_BUMP(zstd_stat_com_inval);
 		return (s_len);
 	}
+
+	/*
+	 * Our real compression function zfs_zstd_compress_impl() takes
+	 * linear buffers, so we need to linearise the incoming abds. But
+	 * we may also need to call zfs_lz4_compress(), which takes abds, and
+	 * currently internally will also linearise them. This is potentially
+	 * multiple unecessary copies, depending on the original abds.
+	 *
+	 * To handle this, we linearise the incoming abds right now, which
+	 * will take a copy if necessary, and then get their internal buffer
+	 * pointers. lz4_zfs_compress() will take the abds and will borrow
+	 * their buffers in its ZFS_COMPRESS_WRAP_DECL wrapper, but because
+	 * they're already linear it will just use their buffers directly,
+	 * the same ones we use. All together that should avoid additional
+	 * copies.
+	 */
+
+	abd_t *sabd, *dabd;
+	void *s_buf, *d_buf;
+	if (abd_is_linear(src)) {
+		s_buf = abd_to_buf(src);
+		sabd = src;
+	} else {
+		s_buf = abd_borrow_buf_copy(src, s_len);
+		sabd = abd_get_from_buf(s_buf, s_len);
+	}
+	if (abd_is_linear(dst)) {
+		d_buf = abd_to_buf(dst);
+		dabd = dst;
+	} else {
+		d_buf = abd_borrow_buf(dst, d_len);
+		dabd = abd_get_from_buf(d_buf, d_len);
+	}
+
+	size_t ret;
+
 	/*
 	 * A zstd early abort heuristic.
 	 *
@@ -569,23 +604,19 @@ zfs_zstd_compress_buf(void *s_start, void *d_start, size_t s_len, size_t d_len,
 	if (zstd_earlyabort_pass > 0 && zstd_level >= zstd_cutoff_level &&
 	    s_len >= actual_abort_size) {
 		int pass_len = 1;
-		abd_t sabd, dabd;
-		abd_get_from_buf_struct(&sabd, s_start, s_len);
-		abd_get_from_buf_struct(&dabd, d_start, d_len);
-		pass_len = zfs_lz4_compress(&sabd, &dabd, s_len, d_len, 0);
-		abd_free(&dabd);
-		abd_free(&sabd);
+		pass_len = zfs_lz4_compress(sabd, dabd, s_len, d_len, 0);
 		if (pass_len < d_len) {
 			ZSTDSTAT_BUMP(zstd_stat_lz4pass_allowed);
-			goto keep_trying;
+			goto do_real_compress;
 		}
 		ZSTDSTAT_BUMP(zstd_stat_lz4pass_rejected);
 
-		pass_len = zfs_zstd_compress_impl(s_start, d_start, s_len,
-		    d_len, ZIO_ZSTD_LEVEL_1);
+		pass_len = zfs_zstd_compress_impl(s_buf, d_buf, s_len, d_len,
+		    ZIO_ZSTD_LEVEL_1);
 		if (pass_len == s_len || pass_len <= 0 || pass_len > d_len) {
 			ZSTDSTAT_BUMP(zstd_stat_zstdpass_rejected);
-			return (s_len);
+			ret = s_len;
+			goto cleanup_abds;
 		}
 		ZSTDSTAT_BUMP(zstd_stat_zstdpass_allowed);
 	} else {
@@ -594,9 +625,21 @@ zfs_zstd_compress_buf(void *s_start, void *d_start, size_t s_len, size_t d_len,
 			ZSTDSTAT_BUMP(zstd_stat_passignored_size);
 		}
 	}
-keep_trying:
-	return (zfs_zstd_compress_impl(s_start, d_start, s_len, d_len, level));
 
+do_real_compress:
+	ret = zfs_zstd_compress_impl(s_buf, d_buf, s_len, d_len, level);
+
+cleanup_abds:
+	if (sabd != src) {
+		abd_free(sabd);
+		abd_return_buf(src, s_buf, s_len);
+	}
+	if (dabd != dst) {
+		abd_free(dabd);
+		abd_return_buf_copy(dst, d_buf, d_len);
+	}
+
+	return (ret);
 }
 
 /* Decompress block using zstd and return its stored level */
@@ -685,7 +728,6 @@ zfs_zstd_decompress_buf(void *s_start, void *d_start, size_t s_len,
 	    NULL));
 }
 
-ZFS_COMPRESS_WRAP_DECL(zfs_zstd_compress)
 ZFS_DECOMPRESS_WRAP_DECL(zfs_zstd_decompress)
 ZFS_DECOMPRESS_LEVEL_WRAP_DECL(zfs_zstd_decompress_level)
 
