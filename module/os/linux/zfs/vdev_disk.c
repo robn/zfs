@@ -85,6 +85,15 @@ typedef struct vdev_disk {
 uint_t zfs_vdev_disk_max_segs = 0;
 
 /*
+ * BIO fill debugging. 0 disables it (default). If enabled, the BIO fill layout
+ * is record if as its filled. If set to 1, layout is logged to the kernel log
+ * on error. If 2, layout is logged for all IOs.
+ */
+uint_t zfs_vdev_disk_debug_bio_fill = 0;
+
+#define	DEBUG_BIO_FILL_ALLOC_SIZE	(256)
+
+/*
  * Unique identifier for the exclusive vdev holder.
  */
 static void *zfs_vdev_holder = VDEV_HOLDER;
@@ -686,6 +695,11 @@ typedef struct {
 
 	struct bio	*vbio_bio;	/* pointer to the current bio */
 	int		vbio_flags;	/* bio flags */
+
+	/* debugging info, when zfs_vdev_disk_debug_bio_fill > 0 */
+	char		*vbio_debug;
+	size_t		vbio_debug_size;
+	size_t		vbio_debug_pos;
 } vbio_t;
 
 static vbio_t *
@@ -703,16 +717,85 @@ vbio_alloc(zio_t *zio, struct block_device *bdev, int flags)
 	vbio->vbio_bio = NULL;
 	vbio->vbio_flags = flags;
 
+	if (zfs_vdev_disk_debug_bio_fill > 0) {
+		vbio->vbio_debug =
+		    kmem_alloc(DEBUG_BIO_FILL_ALLOC_SIZE, KM_SLEEP);
+		vbio->vbio_debug_size = DEBUG_BIO_FILL_ALLOC_SIZE;
+		vbio->vbio_debug_pos = 0;
+	}
+
 	return (vbio);
+}
+
+static inline void
+vbio_debug_append(vbio_t *vbio, char c)
+{
+	if (vbio->vbio_debug == NULL)
+		return;
+
+	vbio->vbio_debug[vbio->vbio_debug_pos++] = c;
+
+	if (vbio->vbio_debug_pos < vbio->vbio_debug_size)
+		return;
+
+	size_t new_size = vbio->vbio_debug_size * 2;
+	char *new = kmem_alloc(new_size, KM_SLEEP);
+	memcpy(new, vbio->vbio_debug, vbio->vbio_debug_size);
+	kmem_free(vbio->vbio_debug, vbio->vbio_debug_size);
+	vbio->vbio_debug = new;
+	vbio->vbio_debug_size = new_size;
+}
+
+static inline void
+vbio_debug_append_size(vbio_t *vbio, size_t size)
+{
+	if (vbio->vbio_debug == NULL)
+		return;
+
+	const uint_t segs = size >> 9;
+	const uint_t rem = size & 0x1ff;
+
+	if (segs < 16 && rem == 0) {
+		const char csegs =
+		    (segs < 10) ? (segs + 0x30) : (segs + (0x61-10));
+		vbio_debug_append(vbio, csegs);
+	} else {
+		char buf[16];
+		if (rem == 0)
+			snprintf(buf, sizeof (buf), "/%x/", segs);
+		else
+			snprintf(buf, sizeof (buf), "/%x+%x/", segs, rem);
+		for (char *c = buf; *c; c++)
+			vbio_debug_append(vbio, *c);
+	}
+}
+
+static void
+vbio_debug_log(vbio_t *vbio)
+{
+	printk(KERN_INFO "vbio debug: ms=%x mb=%x bs=%x "
+	    "ty=%u sz=%llx bt=%c %.*s\n",
+	    vbio->vbio_max_segs, vbio->vbio_max_bytes, (~vbio->vbio_lbs_mask)+1,
+	    vbio->vbio_zio->io_type, vbio->vbio_zio->io_size,
+	    abd_is_linear(vbio->vbio_zio->io_abd) ? 'L' :
+	    abd_is_gang(vbio->vbio_zio->io_abd) ? 'G' : 'S',
+	    (int)vbio->vbio_debug_pos, vbio->vbio_debug);
 }
 
 BIO_END_IO_PROTO(vbio_completion, bio, error);
 
 static int
-vbio_add_page(vbio_t *vbio, struct page *page, uint_t size, uint_t offset)
+vbio_add_page(vbio_t *vbio, struct page *page, uint_t size, uint_t offset,
+    abd_flags_t abdflags)
 {
 	struct bio *bio = vbio->vbio_bio;
 	uint_t ssize;
+
+	vbio_debug_append_size(vbio, size);
+	vbio_debug_append(vbio, '[');
+
+	if (abdflags & ABD_FLAG_COMPOUND_PAGE)
+		vbio_debug_append(vbio, 'C');
 
 	while (size > 0) {
 		if (bio == NULL) {
@@ -727,10 +810,13 @@ vbio_add_page(vbio_t *vbio, struct page *page, uint_t size, uint_t offset)
 			    WRITE : READ, vbio->vbio_flags);
 
 			if (vbio->vbio_bio) {
+				vbio_debug_append(vbio, '$');
 				bio_chain(vbio->vbio_bio, bio);
 				vdev_submit_bio(vbio->vbio_bio);
 			}
 			vbio->vbio_bio = bio;
+
+			vbio_debug_append(vbio, '^');
 		}
 
 		/*
@@ -745,11 +831,15 @@ vbio_add_page(vbio_t *vbio, struct page *page, uint_t size, uint_t offset)
 		    vbio->vbio_lbs_mask);
 		if (ssize > 0 &&
 		    bio_add_page(bio, page, ssize, offset) == ssize) {
+			vbio_debug_append_size(vbio, ssize);
 			/* Accepted, adjust and load any remaining. */
 			size -= ssize;
 			offset += ssize;
 			continue;
 		}
+
+		vbio_debug_append_size(vbio, ssize);
+		vbio_debug_append(vbio, '!');
 
 		/* No room, set up for a new BIO and loop */
 		vbio->vbio_offset += BIO_BI_SIZE(bio);
@@ -758,15 +848,18 @@ vbio_add_page(vbio_t *vbio, struct page *page, uint_t size, uint_t offset)
 		bio = NULL;
 	}
 
+	vbio_debug_append(vbio, ']');
+
 	return (0);
 }
 
 /* Iterator callback to submit ABD pages to the vbio. */
 static int
-vbio_fill_cb(struct page *page, size_t off, size_t len, void *priv)
+vbio_fill_cb(struct page *page, size_t off, size_t len, abd_flags_t abdflags,
+    void *priv)
 {
 	vbio_t *vbio = priv;
-	return (vbio_add_page(vbio, page, len, off));
+	return (vbio_add_page(vbio, page, len, off, abdflags));
 }
 
 /* Create some BIOs, fill them with data and submit them */
@@ -796,6 +889,7 @@ vbio_submit(vbio_t *vbio, abd_t *abd, uint64_t size)
 	 * called and free the vbio before this task is run again, so we must
 	 * consider it invalid from this point.
 	 */
+	vbio_debug_append(vbio, '$');
 	vdev_submit_bio(vbio->vbio_bio);
 
 	blk_finish_plug(&plug);
@@ -826,6 +920,14 @@ BIO_END_IO_PROTO(vbio_completion, bio, error)
 
 	/* Return the BIO to the kernel */
 	bio_put(bio);
+
+	/* Emit debug output if wanted */
+	if (vbio->vbio_debug != NULL) {
+		if ((zfs_vdev_disk_debug_bio_fill == 1 && zio->io_error != 0) ||
+		    zfs_vdev_disk_debug_bio_fill == 2)
+			vbio_debug_log(vbio);
+		kmem_free(vbio->vbio_debug, vbio->vbio_debug_size);
+	}
 
 	/*
 	 * If we copied the ABD before issuing it, clean up and return the copy
@@ -865,8 +967,11 @@ typedef struct {
 } vdev_disk_check_pages_t;
 
 static int
-vdev_disk_check_pages_cb(struct page *page, size_t off, size_t len, void *priv)
+vdev_disk_check_pages_cb(struct page *page, size_t off, size_t len,
+    abd_flags_t abdflags, void *priv)
 {
+	(void) page;
+	(void) abdflags;
 	vdev_disk_check_pages_t *s = priv;
 
 	/*
@@ -1665,3 +1770,6 @@ ZFS_MODULE_PARAM(zfs_vdev_disk, zfs_vdev_disk_, max_segs, UINT, ZMOD_RW,
 ZFS_MODULE_PARAM_CALL(zfs_vdev_disk, zfs_vdev_disk_, classic,
     vdev_disk_param_set_classic, param_get_uint, ZMOD_RD,
 	"Use classic BIO submission method");
+
+ZFS_MODULE_PARAM(zfs_vdev_disk, zfs_vdev_disk_, debug_bio_fill, UINT, ZMOD_RW,
+	"BIO fill debugging: 0 - disable, 1 - errors only, 2 - everything");

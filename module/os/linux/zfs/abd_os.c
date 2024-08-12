@@ -1059,9 +1059,19 @@ abd_cache_reap_now(void)
 #define	ABD_ITER_PAGE_SIZE(page)	(PAGESIZE)
 #endif
 
+#ifdef ABD_ITER_COMPOUND_PAGES
+/*
+ * Eye of suspicion is upon compound page handling, so lets have a runtime way
+ * to turn it off too.
+ */
+static unsigned zfs_abd_page_iter_disable_compound = 0;
+#endif
+
 void
 abd_iter_page(struct abd_iter *aiter)
 {
+	aiter->iter_abd->abd_flags &= ~ABD_FLAG_COMPOUND_PAGE;
+
 	if (abd_iter_at_end(aiter)) {
 		aiter->iter_page = NULL;
 		aiter->iter_page_doff = 0;
@@ -1102,7 +1112,7 @@ abd_iter_page(struct abd_iter *aiter)
 	}
 
 #ifdef ABD_ITER_COMPOUND_PAGES
-	if (PageTail(page)) {
+	if (PageTail(page) && !zfs_abd_page_iter_disable_compound) {
 		/*
 		 * If this is a compound tail page, move back to the head, and
 		 * adjust the offset to match. This may let us yield a much
@@ -1112,6 +1122,8 @@ abd_iter_page(struct abd_iter *aiter)
 		struct page *head = compound_head(page);
 		doff += ((page - head) * PAGESIZE);
 		page = head;
+
+		aiter->iter_abd->abd_flags |= ABD_FLAG_COMPOUND_PAGE;
 	}
 #endif
 
@@ -1297,5 +1309,11 @@ MODULE_PARM_DESC(zfs_abd_scatter_min_size,
 module_param(zfs_abd_scatter_max_order, uint, 0644);
 MODULE_PARM_DESC(zfs_abd_scatter_max_order,
 	"Maximum order allocation used for a scatter ABD.");
+
+#ifdef ABD_ITER_COMPOUND_PAGES
+module_param(zfs_abd_page_iter_disable_compound, uint, 0644);
+MODULE_PARM_DESC(zfs_abd_page_iter_disable_compound,
+	"Set to 1 to disable special handling of compound pages.");
+#endif
 
 #endif /* _KERNEL */
