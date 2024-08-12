@@ -47,6 +47,7 @@ typedef enum abd_flags {
 	ABD_FLAG_GANG_FREE	= 1 << 7, /* gang ABD is responsible for mem */
 	ABD_FLAG_ALLOCD		= 1 << 8, /* we allocated the abd_t */
 	ABD_FLAG_FROM_PAGES	= 1 << 9, /* does not own pages */
+	ABD_FLAG_COMPOUND_PAGE	= 1 << 10, /* page iter adjusted for compound */
 } abd_flags_t;
 
 typedef struct abd {

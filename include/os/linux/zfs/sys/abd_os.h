@@ -31,6 +31,7 @@ extern "C" {
 #endif
 
 struct abd;
+enum abd_flags;
 
 struct abd_scatter {
 	uint_t		abd_offset;
@@ -43,7 +44,8 @@ struct abd_linear {
 	struct scatterlist *abd_sgl; /* for LINEAR_PAGE */
 };
 
-typedef int abd_iter_page_func_t(struct page *, size_t, size_t, void *);
+typedef int abd_iter_page_func_t(struct page *, size_t, size_t, enum abd_flags,
+    void *);
 int abd_iterate_page_func(struct abd *, size_t, size_t, abd_iter_page_func_t *,
     void *);
 
