@@ -46,6 +46,7 @@ typedef enum abd_flags {
 	ABD_FLAG_GANG_FREE	= 1 << 7, /* gang ABD is responsible for mem */
 	ABD_FLAG_ZEROS		= 1 << 8, /* ABD for zero-filled buffer */
 	ABD_FLAG_ALLOCD		= 1 << 9, /* we allocated the abd_t */
+	ABD_FLAG_COMPOUND_PAGE	= 1 << 10, /* page iter adjusted for compound */
 } abd_flags_t;
 
 typedef struct abd {
@@ -80,7 +81,8 @@ typedef struct abd {
 typedef int abd_iter_func_t(void *buf, size_t len, void *priv);
 typedef int abd_iter_func2_t(void *bufa, void *bufb, size_t len, void *priv);
 #if defined(__linux__) && defined(_KERNEL)
-typedef int abd_iter_page_func_t(struct page *, size_t, size_t, void *);
+typedef int abd_iter_page_func_t(struct page *, size_t, size_t, abd_flags_t,
+    void *);
 #endif
 
 extern int zfs_abd_scatter_enabled;
