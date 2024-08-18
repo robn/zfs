@@ -1544,11 +1544,86 @@ zfs_clone_range_replay(znode_t *zp, uint64_t off, uint64_t len, uint64_t blksz,
 int
 zfs_rewrite_range(znode_t *zp, uint64_t off, uint64_t len, cred_t *cr)
 {
-	(void)zp;
-	(void)off;
-	(void)len;
-	(void)cr;
-	return (EINVAL);
+	zfsvfs_t *zfsvfs = ZTOZSB(zp);
+	zfs_locked_range_t *lr;
+	uint_t blksz;
+	dmu_tx_t *tx;
+	dmu_buf_t **dbp;
+	dmu_buf_impl_t *db;
+	int error, numbufs;
+
+	if ((error = zfs_enter_verify_zp(zfsvfs, zp, FTAG)) != 0)
+		return (error);
+
+	cmn_err(CE_NOTE, "zfs_rewrite_range: obj %llu off %llu len %llu",
+	    zp->z_id, off, len);
+
+	/* XXX there's gonna be permission checks here */
+
+	if (len > zp->z_size - off)
+		len = zp->z_size - off;
+	if (len == 0) {
+		zfs_exit(zfsvfs, FTAG);
+		return (0);
+	}
+
+	/* flush any mmap()'d data to disk */
+	/* XXX not sure if necessary? also maybe too early? */
+	if (zn_has_cached_data(zp, off, off + len - 1))
+		zn_flush_cached_data(zp, B_TRUE);
+
+	/*
+	 * XXX see, does this really need to be a write lock? I guess so,
+	 *     because we're going to dirty it, and we don't want to compete
+	 *     with a legit write and they go in in the wrong order? otoh,
+	 *     a real write will have the effect we want anyway. but maybe
+	 *     do it the dumb obvious way, and then do less work later.
+	 */
+	lr = zfs_rangelock_enter(&zp->z_rangelock, off, len, RL_WRITER);
+
+	/* ensure off an len are on block boundaries */
+	/* XXX obviously won't hold if we're rewriting block size */
+	blksz = zp->z_blksz;
+	if ((off % blksz) != 0) {
+		error = SET_ERROR(EINVAL);
+		goto unlock;
+	}
+	if ((len % blksz) != 0 && (len < zp->z_size - off)) {
+		error = SET_ERROR(EINVAL);
+		goto unlock;
+	}
+
+	/* XXX zil stuff */
+
+	/* XXX I just copied this from zfs_write() and I get it but cmon */
+	tx = dmu_tx_create(zfsvfs->z_os);
+	dmu_tx_hold_sa(tx, zp->z_sa_hdl, B_FALSE);
+	db = (dmu_buf_impl_t *)sa_get_db(zp->z_sa_hdl);
+	DB_DNODE_ENTER(db);
+	dmu_tx_hold_write_by_dnode(tx, DB_DNODE(db), off, len);
+	DB_DNODE_EXIT(db);
+	zfs_sa_upgrade_txholds(tx, zp);
+	error = dmu_tx_assign(tx, TXG_WAIT);
+	if (error != 0) {
+		dmu_tx_abort(tx);
+		goto unlock;
+	}
+
+	VERIFY0(dmu_buf_hold_array(zfsvfs->z_os, zp->z_id, off, len, B_FALSE,
+	    FTAG, &numbufs, &dbp));
+	for (int i = 0; i < numbufs; i++) {
+		db = (dmu_buf_impl_t *)dbp[i];
+		dbuf_dirty(db, tx);
+	}
+	dmu_buf_rele_array(dbp, numbufs, FTAG);
+
+	dmu_tx_commit(tx);
+
+unlock:
+	zfs_rangelock_exit(lr);
+	zfs_exit(zfsvfs, FTAG);
+
+	return (error);
 }
 
 EXPORT_SYMBOL(zfs_access);
