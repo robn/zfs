@@ -1541,6 +1541,16 @@ zfs_clone_range_replay(znode_t *zp, uint64_t off, uint64_t len, uint64_t blksz,
 	return (error);
 }
 
+int
+zfs_rewrite_range(znode_t *zp, uint64_t off, uint64_t len, cred_t *cr)
+{
+	(void)zp;
+	(void)off;
+	(void)len;
+	(void)cr;
+	return (EINVAL);
+}
+
 EXPORT_SYMBOL(zfs_access);
 EXPORT_SYMBOL(zfs_fsync);
 EXPORT_SYMBOL(zfs_holey);

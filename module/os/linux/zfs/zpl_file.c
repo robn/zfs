@@ -1234,6 +1234,31 @@ zpl_ioctl_setdosflags(struct file *filp, void __user *arg)
 	return (err);
 }
 
+static int
+zpl_ioctl_rewrite(struct file *filp, void __user *arg)
+{
+	(void)arg;
+
+	struct inode *fi = file_inode(filp);
+	spl_inode_lock(fi);
+
+	uint64_t off = 0;
+	uint64_t len = (uint64_t)i_size_read(fi);
+
+	cred_t *cr = CRED();
+	crhold(cr);
+	fstrans_cookie_t cookie = spl_fstrans_mark();
+
+	int err = -zfs_rewrite_range(ITOZ(fi), off, len, cr);
+
+	spl_fstrans_unmark(cookie);
+	crfree(cr);
+
+	spl_inode_unlock(fi);
+
+	return (err);
+}
+
 static long
 zpl_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
@@ -1258,6 +1283,8 @@ zpl_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return (zpl_ioctl_ficlonerange(filp, (void *)arg));
 	case ZFS_IOC_COMPAT_FIDEDUPERANGE:
 		return (zpl_ioctl_fideduperange(filp, (void *)arg));
+	case ZFS_IOC_REWRITE:
+		return (zpl_ioctl_rewrite(filp, (void *)arg));
 	default:
 		return (-ENOTTY);
 	}

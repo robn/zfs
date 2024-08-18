@@ -1551,6 +1551,8 @@ typedef enum zfs_ioc {
 #define	ZFS_IOC_GETDOSFLAGS	_IOR(0x83, 1, uint64_t)
 #define	ZFS_IOC_SETDOSFLAGS	_IOW(0x83, 2, uint64_t)
 
+#define	ZFS_IOC_REWRITE		_IOW(0x83, 3, int)
+
 /*
  * Additional file level attributes, that are stored
  * in the upper half of z_pflags
