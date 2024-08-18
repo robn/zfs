@@ -32,6 +32,7 @@
 /readmmap
 /renameat2
 /rename_dir
+/rewritefile
 /rm_lnkcnt_zero_file
 /send_doall
 /stride_dd

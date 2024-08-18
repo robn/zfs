@@ -11,6 +11,7 @@ scripts_zfs_tests_bin_PROGRAMS += %D%/dir_rd_update
 scripts_zfs_tests_bin_PROGRAMS += %D%/dosmode_readonly_write
 scripts_zfs_tests_bin_PROGRAMS += %D%/get_diff
 scripts_zfs_tests_bin_PROGRAMS += %D%/rename_dir
+scripts_zfs_tests_bin_PROGRAMS += %D%/rewritefile
 scripts_zfs_tests_bin_PROGRAMS += %D%/suid_write_to_file
 scripts_zfs_tests_bin_PROGRAMS += %D%/truncate_test
 scripts_zfs_tests_bin_PROGRAMS += %D%/zfs_diff-socket
