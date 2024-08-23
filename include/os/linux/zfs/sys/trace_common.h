@@ -26,7 +26,7 @@
 
 #ifndef	_SYS_TRACE_COMMON_H
 #define	_SYS_TRACE_COMMON_H
-#include <linux/tracepoint.h>
+#include <linux/tracepoint_compat.h>
 
 /* ZIO macros */
 #define	ZIO_TP_STRUCT_ENTRY						\

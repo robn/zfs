@@ -14,6 +14,7 @@ kernel_linux_HEADERS = \
 	%D%/kernel/linux/simd_arm.h \
 	%D%/kernel/linux/simd_powerpc.h \
 	%D%/kernel/linux/simd_x86.h \
+	%D%/kernel/linux/tracepoint_compat.h \
 	%D%/kernel/linux/utsname_compat.h \
 	%D%/kernel/linux/vfs_compat.h \
 	%D%/kernel/linux/xattr_compat.h

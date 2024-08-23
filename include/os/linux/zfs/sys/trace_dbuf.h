@@ -31,7 +31,7 @@
 #if !defined(_TRACE_DBUF_H) || defined(TRACE_HEADER_MULTI_READ)
 #define	_TRACE_DBUF_H
 
-#include <linux/tracepoint.h>
+#include <linux/tracepoint_compat.h>
 #include <sys/types.h>
 
 #ifndef	TRACE_DBUF_MSG_MAX
@@ -61,10 +61,10 @@
 #define	DBUF_TP_FAST_ASSIGN						\
 	if (db != NULL) {						\
 		if (POINTER_IS_VALID(DB_DNODE(db)->dn_objset)) {	\
-			__assign_str(os_spa,				\
+			__zfs_tracepoint_assign_str(os_spa,		\
 			spa_name(DB_DNODE(db)->dn_objset->os_spa));	\
 		} else {						\
-			__assign_str(os_spa, "NULL");			\
+			__zfs_tracepoint_assign_str(os_spa, "NULL");	\
 		}							\
 									\
 		__entry->ds_object = db->db_objset->os_dsl_dataset ?	\

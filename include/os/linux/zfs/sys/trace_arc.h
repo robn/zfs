@@ -33,7 +33,7 @@
 #if !defined(_TRACE_ARC_H) || defined(TRACE_HEADER_MULTI_READ)
 #define	_TRACE_ARC_H
 
-#include <linux/tracepoint.h>
+#include <linux/tracepoint_compat.h>
 #include <sys/types.h>
 #include <sys/trace_common.h> /* For ZIO macros */
 

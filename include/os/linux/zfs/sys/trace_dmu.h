@@ -31,7 +31,7 @@
 #if !defined(_TRACE_DMU_H) || defined(TRACE_HEADER_MULTI_READ)
 #define	_TRACE_DMU_H
 
-#include <linux/tracepoint.h>
+#include <linux/tracepoint_compat.h>
 #include <sys/types.h>
 
 /*
