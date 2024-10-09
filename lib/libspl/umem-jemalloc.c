@@ -67,15 +67,14 @@ umem_cache_create(
 	if (name == NULL || !ISP2(align) || bufsize == 0)
 		return (NULL);
 
-	unsigned arena;
-	size_t len = sizeof (arena);
-	VERIFY0(mallctl("arenas.create", &arena, &len, NULL, 0));
-
 	umem_cache_t *uc;
 	uc = (umem_cache_t *)umem_zalloc(sizeof (umem_cache_t), UMEM_DEFAULT);
 	if (uc == NULL)
-		/* XXX destroy arena */
 		return (NULL);
+
+	unsigned arena;
+	size_t len = sizeof (arena);
+	VERIFY0(mallctl("arenas.create", &arena, &len, NULL, 0));
 
 	strlcpy(uc->uc_name, name, UMEM_CACHE_NAMELEN);
 	uc->uc_bufsize = bufsize;
