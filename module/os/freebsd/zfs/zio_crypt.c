@@ -436,6 +436,7 @@ zio_crypt_key_wrap(crypto_key_t *cwkey, zio_crypt_key_t *key, uint8_t *iv,
 
 	ASSERT3U(crypt, <, ZIO_CRYPT_FUNCTIONS);
 
+	memset(&cuio_s, 0, sizeof (struct uio));
 	zfs_uio_init(&cuio, &cuio_s);
 
 	keydata_len = zio_crypt_table[crypt].ci_keylen;
@@ -518,6 +519,7 @@ zio_crypt_key_unwrap(crypto_key_t *cwkey, uint64_t crypt, uint64_t version,
 	keydata_len = zio_crypt_table[crypt].ci_keylen;
 	rw_init(&key->zk_salt_lock, NULL, RW_DEFAULT, NULL);
 
+	memset(&cuio_s, 0, sizeof (struct uio));
 	zfs_uio_init(&cuio, &cuio_s);
 
 	/*
@@ -1687,10 +1689,10 @@ zio_do_crypt_data(boolean_t encrypt, zio_crypt_key_t *key,
 	uint8_t *authbuf = NULL;
 
 
+	memset(&puio_s, 0, sizeof (struct uio));
+	memset(&cuio_s, 0, sizeof (struct uio));
 	zfs_uio_init(&puio, &puio_s);
 	zfs_uio_init(&cuio, &cuio_s);
-	memset(GET_UIO_STRUCT(&puio), 0, sizeof (struct uio));
-	memset(GET_UIO_STRUCT(&cuio), 0, sizeof (struct uio));
 
 #ifdef FCRYPTO_DEBUG
 	printf("%s(%s, %p, %p, %d, %p, %p, %u, %s, %p, %p, %p)\n",
