@@ -476,6 +476,7 @@ zap_leaf_lookup_closest(zap_leaf_t *l,
 
 	ASSERT3U(zap_leaf_phys(l)->l_hdr.lh_magic, ==, ZAP_LEAF_MAGIC);
 
+	uint_t nseen = 0;
 	for (uint16_t lh = LEAF_HASH(l, h); lh <= bestlh; lh++) {
 		for (uint16_t chunk = zap_leaf_phys(l)->l_hash[lh];
 		    chunk != CHAIN_END; chunk = le->le_next) {
@@ -499,6 +500,17 @@ zap_leaf_lookup_closest(zap_leaf_t *l,
 				zeh->zeh_chunkp = &zeh->zeh_fakechunk;
 				zeh->zeh_leaf = l;
 			}
+
+			/*
+			 * Count chunks we've seen, and eject once we've seen
+			 * more than could possibly exist in the leaf. This
+			 * should never happen, but corruption where le_next
+			 * is _never_ CHAIN_END has been seen before, and its
+			 * better to fail than infinite loop.
+			 */
+			nseen++;
+			if (nseen > ZAP_LEAF_NUMCHUNKS(l))
+				return (SET_ERROR(EIO));
 		}
 	}
 
