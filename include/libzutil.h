@@ -289,6 +289,23 @@ static inline char *zfs_strerror(int errnum) {
 	return (errbuf);
 }
 
+/*
+ * Many commands display output as tables. This is a generic data accumulator
+ * and generator that can format tabular data in a variety of formats.
+ */
+
+/* opaque types */
+typedef struct ztable ztable_t;
+typedef struct ztable_colspec ztable_colspec_t;
+
+ztable_t *ztable_create(void);
+void ztable_add_column(ztable_t *tab, const char *name,
+    const ztable_colspec_t *colspec);
+void ztable_add_cell(ztable_t *tab, const void *data);
+void ztable_add_row(ztable_t *tab, const void *data[]);
+void ztable_print(ztable_t *tab);
+void ztable_destroy(ztable_t *tab);
+
 #ifdef	__cplusplus
 }
 #endif

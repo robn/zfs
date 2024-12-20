@@ -14,7 +14,8 @@ libzutil_la_SOURCES = \
 	%D%/zutil_import.c \
 	%D%/zutil_import.h \
 	%D%/zutil_nicenum.c \
-	%D%/zutil_pool.c
+	%D%/zutil_pool.c \
+	%D%/zutil_ztable.c
 
 if BUILD_LINUX
 libzutil_la_SOURCES += \
