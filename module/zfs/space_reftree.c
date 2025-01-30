@@ -107,7 +107,7 @@ space_reftree_add_seg(avl_tree_t *t, uint64_t start, uint64_t end,
  * Convert (or add) a range tree into a reference tree.
  */
 void
-space_reftree_add_map(avl_tree_t *t, range_tree_t *rt, int64_t refcnt)
+space_reftree_add_map(avl_tree_t *t, zfs_range_tree_t *rt, int64_t refcnt)
 {
 	zfs_btree_index_t where;
 
@@ -123,13 +123,13 @@ space_reftree_add_map(avl_tree_t *t, range_tree_t *rt, int64_t refcnt)
  * all members of the reference tree for which refcnt >= minref.
  */
 void
-space_reftree_generate_map(avl_tree_t *t, range_tree_t *rt, int64_t minref)
+space_reftree_generate_map(avl_tree_t *t, zfs_range_tree_t *rt, int64_t minref)
 {
 	uint64_t start = -1ULL;
 	int64_t refcnt = 0;
 	space_ref_t *sr;
 
-	range_tree_vacate(rt, NULL, NULL);
+	zfs_range_tree_vacate(rt, NULL, NULL);
 
 	for (sr = avl_first(t); sr != NULL; sr = AVL_NEXT(t, sr)) {
 		refcnt += sr->sr_refcnt;
@@ -142,7 +142,8 @@ space_reftree_generate_map(avl_tree_t *t, range_tree_t *rt, int64_t minref)
 				uint64_t end = sr->sr_offset;
 				ASSERT(start <= end);
 				if (end > start)
-					range_tree_add(rt, start, end - start);
+					zfs_range_tree_add(rt, start, end -
+					    start);
 				start = -1ULL;
 			}
 		}

@@ -39,7 +39,7 @@ extern "C" {
 
 #define	RANGE_TREE_HISTOGRAM_SIZE	64
 
-typedef struct range_tree_ops range_tree_ops_t;
+typedef struct zfs_range_tree_ops zfs_range_tree_ops_t;
 
 typedef enum range_seg_type {
 	RANGE_SEG32,
@@ -52,7 +52,7 @@ typedef enum range_seg_type {
  * Note: the range_tree may not be accessed concurrently; consumers
  * must provide external locking if required.
  */
-typedef struct range_tree {
+typedef struct zfs_range_tree {
 	zfs_btree_t	rt_root;	/* offset-ordered segment b-tree */
 	uint64_t	rt_space;	/* sum of all segments in the map */
 	range_seg_type_t rt_type;	/* type of range_seg_t in use */
@@ -63,7 +63,7 @@ typedef struct range_tree {
 	 */
 	uint8_t		rt_shift;
 	uint64_t	rt_start;
-	const range_tree_ops_t *rt_ops;
+	const zfs_range_tree_ops_t *rt_ops;
 	void		*rt_arg;
 	uint64_t	rt_gap;		/* allowable inter-segment gap */
 
@@ -73,7 +73,7 @@ typedef struct range_tree {
 	 * 2^i <= size of range in bytes < 2^(i+1)
 	 */
 	uint64_t	rt_histogram[RANGE_TREE_HISTOGRAM_SIZE];
-} range_tree_t;
+} zfs_range_tree_t;
 
 typedef struct range_seg32 {
 	uint32_t	rs_start;	/* starting offset of this segment */
@@ -108,16 +108,16 @@ typedef range_seg_gap_t range_seg_max_t;
  */
 typedef void range_seg_t;
 
-struct range_tree_ops {
-	void    (*rtop_create)(range_tree_t *rt, void *arg);
-	void    (*rtop_destroy)(range_tree_t *rt, void *arg);
-	void	(*rtop_add)(range_tree_t *rt, void *rs, void *arg);
-	void    (*rtop_remove)(range_tree_t *rt, void *rs, void *arg);
-	void	(*rtop_vacate)(range_tree_t *rt, void *arg);
+struct zfs_range_tree_ops {
+	void    (*rtop_create)(zfs_range_tree_t *rt, void *arg);
+	void    (*rtop_destroy)(zfs_range_tree_t *rt, void *arg);
+	void	(*rtop_add)(zfs_range_tree_t *rt, void *rs, void *arg);
+	void    (*rtop_remove)(zfs_range_tree_t *rt, void *rs, void *arg);
+	void	(*rtop_vacate)(zfs_range_tree_t *rt, void *arg);
 };
 
 static inline uint64_t
-rs_get_start_raw(const range_seg_t *rs, const range_tree_t *rt)
+rs_get_start_raw(const range_seg_t *rs, const zfs_range_tree_t *rt)
 {
 	ASSERT3U(rt->rt_type, <=, RANGE_SEG_NUM_TYPES);
 	switch (rt->rt_type) {
@@ -134,7 +134,7 @@ rs_get_start_raw(const range_seg_t *rs, const range_tree_t *rt)
 }
 
 static inline uint64_t
-rs_get_end_raw(const range_seg_t *rs, const range_tree_t *rt)
+rs_get_end_raw(const range_seg_t *rs, const zfs_range_tree_t *rt)
 {
 	ASSERT3U(rt->rt_type, <=, RANGE_SEG_NUM_TYPES);
 	switch (rt->rt_type) {
@@ -151,7 +151,7 @@ rs_get_end_raw(const range_seg_t *rs, const range_tree_t *rt)
 }
 
 static inline uint64_t
-rs_get_fill_raw(const range_seg_t *rs, const range_tree_t *rt)
+rs_get_fill_raw(const range_seg_t *rs, const zfs_range_tree_t *rt)
 {
 	ASSERT3U(rt->rt_type, <=, RANGE_SEG_NUM_TYPES);
 	switch (rt->rt_type) {
@@ -173,25 +173,25 @@ rs_get_fill_raw(const range_seg_t *rs, const range_tree_t *rt)
 }
 
 static inline uint64_t
-rs_get_start(const range_seg_t *rs, const range_tree_t *rt)
+rs_get_start(const range_seg_t *rs, const zfs_range_tree_t *rt)
 {
 	return ((rs_get_start_raw(rs, rt) << rt->rt_shift) + rt->rt_start);
 }
 
 static inline uint64_t
-rs_get_end(const range_seg_t *rs, const range_tree_t *rt)
+rs_get_end(const range_seg_t *rs, const zfs_range_tree_t *rt)
 {
 	return ((rs_get_end_raw(rs, rt) << rt->rt_shift) + rt->rt_start);
 }
 
 static inline uint64_t
-rs_get_fill(const range_seg_t *rs, const range_tree_t *rt)
+rs_get_fill(const range_seg_t *rs, const zfs_range_tree_t *rt)
 {
 	return (rs_get_fill_raw(rs, rt) << rt->rt_shift);
 }
 
 static inline void
-rs_set_start_raw(range_seg_t *rs, range_tree_t *rt, uint64_t start)
+rs_set_start_raw(range_seg_t *rs, zfs_range_tree_t *rt, uint64_t start)
 {
 	ASSERT3U(rt->rt_type, <=, RANGE_SEG_NUM_TYPES);
 	switch (rt->rt_type) {
@@ -211,7 +211,7 @@ rs_set_start_raw(range_seg_t *rs, range_tree_t *rt, uint64_t start)
 }
 
 static inline void
-rs_set_end_raw(range_seg_t *rs, range_tree_t *rt, uint64_t end)
+rs_set_end_raw(range_seg_t *rs, zfs_range_tree_t *rt, uint64_t end)
 {
 	ASSERT3U(rt->rt_type, <=, RANGE_SEG_NUM_TYPES);
 	switch (rt->rt_type) {
@@ -231,7 +231,7 @@ rs_set_end_raw(range_seg_t *rs, range_tree_t *rt, uint64_t end)
 }
 
 static inline void
-rs_set_fill_raw(range_seg_t *rs, range_tree_t *rt, uint64_t fill)
+rs_set_fill_raw(range_seg_t *rs, zfs_range_tree_t *rt, uint64_t fill)
 {
 	ASSERT3U(rt->rt_type, <=, RANGE_SEG_NUM_TYPES);
 	switch (rt->rt_type) {
@@ -250,7 +250,7 @@ rs_set_fill_raw(range_seg_t *rs, range_tree_t *rt, uint64_t fill)
 }
 
 static inline void
-rs_set_start(range_seg_t *rs, range_tree_t *rt, uint64_t start)
+rs_set_start(range_seg_t *rs, zfs_range_tree_t *rt, uint64_t start)
 {
 	ASSERT3U(start, >=, rt->rt_start);
 	ASSERT(IS_P2ALIGNED(start, 1ULL << rt->rt_shift));
@@ -258,7 +258,7 @@ rs_set_start(range_seg_t *rs, range_tree_t *rt, uint64_t start)
 }
 
 static inline void
-rs_set_end(range_seg_t *rs, range_tree_t *rt, uint64_t end)
+rs_set_end(range_seg_t *rs, zfs_range_tree_t *rt, uint64_t end)
 {
 	ASSERT3U(end, >=, rt->rt_start);
 	ASSERT(IS_P2ALIGNED(end, 1ULL << rt->rt_shift));
@@ -266,51 +266,57 @@ rs_set_end(range_seg_t *rs, range_tree_t *rt, uint64_t end)
 }
 
 static inline void
-rs_set_fill(range_seg_t *rs, range_tree_t *rt, uint64_t fill)
+rs_set_fill(range_seg_t *rs, zfs_range_tree_t *rt, uint64_t fill)
 {
 	ASSERT(IS_P2ALIGNED(fill, 1ULL << rt->rt_shift));
 	rs_set_fill_raw(rs, rt, fill >> rt->rt_shift);
 }
 
-typedef void range_tree_func_t(void *arg, uint64_t start, uint64_t size);
+typedef void zfs_range_tree_func_t(void *arg, uint64_t start, uint64_t size);
 
-range_tree_t *range_tree_create_gap(const range_tree_ops_t *ops,
+zfs_range_tree_t *zfs_range_tree_create_gap(const zfs_range_tree_ops_t *ops,
     range_seg_type_t type, void *arg, uint64_t start, uint64_t shift,
     uint64_t gap);
-range_tree_t *range_tree_create(const range_tree_ops_t *ops,
+zfs_range_tree_t *zfs_range_tree_create(const zfs_range_tree_ops_t *ops,
     range_seg_type_t type, void *arg, uint64_t start, uint64_t shift);
-void range_tree_destroy(range_tree_t *rt);
-boolean_t range_tree_contains(range_tree_t *rt, uint64_t start, uint64_t size);
-range_seg_t *range_tree_find(range_tree_t *rt, uint64_t start, uint64_t size);
-boolean_t range_tree_find_in(range_tree_t *rt, uint64_t start, uint64_t size,
-    uint64_t *ostart, uint64_t *osize);
-void range_tree_verify_not_present(range_tree_t *rt,
+void zfs_range_tree_destroy(zfs_range_tree_t *rt);
+boolean_t zfs_range_tree_contains(zfs_range_tree_t *rt, uint64_t start,
+    uint64_t size);
+range_seg_t *zfs_range_tree_find(zfs_range_tree_t *rt, uint64_t start,
+    uint64_t size);
+boolean_t zfs_range_tree_find_in(zfs_range_tree_t *rt, uint64_t start,
+    uint64_t size, uint64_t *ostart, uint64_t *osize);
+void zfs_range_tree_verify_not_present(zfs_range_tree_t *rt,
     uint64_t start, uint64_t size);
-void range_tree_resize_segment(range_tree_t *rt, range_seg_t *rs,
+void zfs_range_tree_resize_segment(zfs_range_tree_t *rt, range_seg_t *rs,
     uint64_t newstart, uint64_t newsize);
-uint64_t range_tree_space(range_tree_t *rt);
-uint64_t range_tree_numsegs(range_tree_t *rt);
-boolean_t range_tree_is_empty(range_tree_t *rt);
-void range_tree_swap(range_tree_t **rtsrc, range_tree_t **rtdst);
-void range_tree_stat_verify(range_tree_t *rt);
-uint64_t range_tree_min(range_tree_t *rt);
-uint64_t range_tree_max(range_tree_t *rt);
-uint64_t range_tree_span(range_tree_t *rt);
+uint64_t zfs_range_tree_space(zfs_range_tree_t *rt);
+uint64_t zfs_range_tree_numsegs(zfs_range_tree_t *rt);
+boolean_t zfs_range_tree_is_empty(zfs_range_tree_t *rt);
+void zfs_range_tree_swap(zfs_range_tree_t **rtsrc, zfs_range_tree_t **rtdst);
+void zfs_range_tree_stat_verify(zfs_range_tree_t *rt);
+uint64_t zfs_range_tree_min(zfs_range_tree_t *rt);
+uint64_t zfs_range_tree_max(zfs_range_tree_t *rt);
+uint64_t zfs_range_tree_span(zfs_range_tree_t *rt);
 
-void range_tree_add(void *arg, uint64_t start, uint64_t size);
-void range_tree_remove(void *arg, uint64_t start, uint64_t size);
-void range_tree_remove_fill(range_tree_t *rt, uint64_t start, uint64_t size);
-void range_tree_adjust_fill(range_tree_t *rt, range_seg_t *rs, int64_t delta);
-void range_tree_clear(range_tree_t *rt, uint64_t start, uint64_t size);
+void zfs_range_tree_add(void *arg, uint64_t start, uint64_t size);
+void zfs_range_tree_remove(void *arg, uint64_t start, uint64_t size);
+void zfs_range_tree_remove_fill(zfs_range_tree_t *rt, uint64_t start,
+    uint64_t size);
+void zfs_range_tree_adjust_fill(zfs_range_tree_t *rt, range_seg_t *rs,
+    int64_t delta);
+void zfs_range_tree_clear(zfs_range_tree_t *rt, uint64_t start, uint64_t size);
 
-void range_tree_vacate(range_tree_t *rt, range_tree_func_t *func, void *arg);
-void range_tree_walk(range_tree_t *rt, range_tree_func_t *func, void *arg);
-range_seg_t *range_tree_first(range_tree_t *rt);
+void zfs_range_tree_vacate(zfs_range_tree_t *rt, zfs_range_tree_func_t *func,
+    void *arg);
+void zfs_range_tree_walk(zfs_range_tree_t *rt, zfs_range_tree_func_t *func,
+    void *arg);
+range_seg_t *zfs_range_tree_first(zfs_range_tree_t *rt);
 
-void range_tree_remove_xor_add_segment(uint64_t start, uint64_t end,
-    range_tree_t *removefrom, range_tree_t *addto);
-void range_tree_remove_xor_add(range_tree_t *rt, range_tree_t *removefrom,
-    range_tree_t *addto);
+void zfs_range_tree_remove_xor_add_segment(uint64_t start, uint64_t end,
+    zfs_range_tree_t *removefrom, zfs_range_tree_t *addto);
+void zfs_range_tree_remove_xor_add(zfs_range_tree_t *rt,
+    zfs_range_tree_t *removefrom, zfs_range_tree_t *addto);
 
 #ifdef	__cplusplus
 }

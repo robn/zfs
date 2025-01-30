@@ -330,7 +330,7 @@ vdev_initialize_block_free(abd_t *data)
 static int
 vdev_initialize_ranges(vdev_t *vd, abd_t *data)
 {
-	range_tree_t *rt = vd->vdev_initialize_tree;
+	zfs_range_tree_t *rt = vd->vdev_initialize_tree;
 	zfs_btree_t *bt = &rt->rt_root;
 	zfs_btree_index_t where;
 
@@ -440,7 +440,7 @@ vdev_initialize_calculate_progress(vdev_t *vd)
 		VERIFY0(metaslab_load(msp));
 
 		zfs_btree_index_t where;
-		range_tree_t *rt = msp->ms_allocatable;
+		zfs_range_tree_t *rt = msp->ms_allocatable;
 		for (range_seg_t *rs =
 		    zfs_btree_first(&rt->rt_root, &where); rs;
 		    rs = zfs_btree_next(&rt->rt_root, &where,
@@ -503,7 +503,7 @@ vdev_initialize_xlate_range_add(void *arg, range_seg64_t *physical_rs)
 
 	ASSERT3U(physical_rs->rs_end, >, physical_rs->rs_start);
 
-	range_tree_add(vd->vdev_initialize_tree, physical_rs->rs_start,
+	zfs_range_tree_add(vd->vdev_initialize_tree, physical_rs->rs_start,
 	    physical_rs->rs_end - physical_rs->rs_start);
 }
 
@@ -539,8 +539,8 @@ vdev_initialize_thread(void *arg)
 
 	abd_t *deadbeef = vdev_initialize_block_alloc();
 
-	vd->vdev_initialize_tree = range_tree_create(NULL, RANGE_SEG64, NULL,
-	    0, 0);
+	vd->vdev_initialize_tree = zfs_range_tree_create(NULL, RANGE_SEG64,
+	    NULL, 0, 0);
 
 	for (uint64_t i = 0; !vd->vdev_detached &&
 	    i < vd->vdev_top->vdev_ms_count; i++) {
@@ -563,15 +563,15 @@ vdev_initialize_thread(void *arg)
 			unload_when_done = B_TRUE;
 		VERIFY0(metaslab_load(msp));
 
-		range_tree_walk(msp->ms_allocatable, vdev_initialize_range_add,
-		    vd);
+		zfs_range_tree_walk(msp->ms_allocatable,
+		    vdev_initialize_range_add, vd);
 		mutex_exit(&msp->ms_lock);
 
 		error = vdev_initialize_ranges(vd, deadbeef);
 		metaslab_enable(msp, B_TRUE, unload_when_done);
 		spa_config_enter(spa, SCL_CONFIG, FTAG, RW_READER);
 
-		range_tree_vacate(vd->vdev_initialize_tree, NULL, NULL);
+		zfs_range_tree_vacate(vd->vdev_initialize_tree, NULL, NULL);
 		if (error != 0)
 			break;
 	}
@@ -584,7 +584,7 @@ vdev_initialize_thread(void *arg)
 	}
 	mutex_exit(&vd->vdev_initialize_io_lock);
 
-	range_tree_destroy(vd->vdev_initialize_tree);
+	zfs_range_tree_destroy(vd->vdev_initialize_tree);
 	vdev_initialize_block_free(deadbeef);
 	vd->vdev_initialize_tree = NULL;
 
