@@ -3959,12 +3959,12 @@ raidz_reflow_impl(vdev_t *vd, vdev_raidz_expand_t *vre, zfs_range_tree_t *rt,
 	spa_t *spa = vd->vdev_spa;
 	uint_t ashift = vd->vdev_top->vdev_ashift;
 
-	range_seg_t *rs = zfs_range_tree_first(rt);
+	zfs_range_seg_t *rs = zfs_range_tree_first(rt);
 	if (rt == NULL)
 		return (B_FALSE);
-	uint64_t offset = rs_get_start(rs, rt);
+	uint64_t offset = zfs_rs_get_start(rs, rt);
 	ASSERT(IS_P2ALIGNED(offset, 1 << ashift));
-	uint64_t size = rs_get_end(rs, rt) - offset;
+	uint64_t size = zfs_rs_get_end(rs, rt) - offset;
 	ASSERT3U(size, >=, 1 << ashift);
 	ASSERT(IS_P2ALIGNED(size, 1 << ashift));
 
@@ -4553,7 +4553,7 @@ spa_raidz_expand_thread(void *arg, zthr_t *zthr)
 		 * space (e.g. in ms_defer), and it's fine to copy that too.
 		 */
 		uint64_t shift, start;
-		range_seg_type_t type = metaslab_calculate_range_tree_type(
+		zfs_range_seg_type_t type = metaslab_calculate_range_tree_type(
 		    raidvd, msp, &start, &shift);
 		zfs_range_tree_t *rt = zfs_range_tree_create(NULL, type, NULL,
 		    start, shift);

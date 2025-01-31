@@ -702,12 +702,12 @@ space_map_write_impl(space_map_t *sm, zfs_range_tree_t *rt, maptype_t maptype,
 
 	zfs_btree_t *t = &rt->rt_root;
 	zfs_btree_index_t where;
-	for (range_seg_t *rs = zfs_btree_first(t, &where); rs != NULL;
+	for (zfs_range_seg_t *rs = zfs_btree_first(t, &where); rs != NULL;
 	    rs = zfs_btree_next(t, &where, &where)) {
-		uint64_t offset = (rs_get_start(rs, rt) - sm->sm_start) >>
+		uint64_t offset = (zfs_rs_get_start(rs, rt) - sm->sm_start) >>
 		    sm->sm_shift;
-		uint64_t length = (rs_get_end(rs, rt) - rs_get_start(rs, rt)) >>
-		    sm->sm_shift;
+		uint64_t length = (zfs_rs_get_end(rs, rt) -
+		    zfs_rs_get_start(rs, rt)) >> sm->sm_shift;
 		uint8_t words = 1;
 
 		/*
@@ -732,8 +732,9 @@ space_map_write_impl(space_map_t *sm, zfs_range_tree_t *rt, maptype_t maptype,
 		    random_in_range(100) == 0)))
 			words = 2;
 
-		space_map_write_seg(sm, rs_get_start(rs, rt), rs_get_end(rs,
-		    rt), maptype, vdev_id, words, &db, FTAG, tx);
+		space_map_write_seg(sm, zfs_rs_get_start(rs, rt),
+		    zfs_rs_get_end(rs, rt), maptype, vdev_id, words, &db,
+		    FTAG, tx);
 	}
 
 	dmu_buf_rele(db, FTAG);

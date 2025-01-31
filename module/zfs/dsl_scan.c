@@ -3278,13 +3278,14 @@ scan_io_queue_issue(dsl_scan_io_queue_t *queue, list_t *io_list)
 
 /*
  * This function removes sios from an IO queue which reside within a given
- * range_seg_t and inserts them (in offset order) into a list. Note that
+ * zfs_range_seg_t and inserts them (in offset order) into a list. Note that
  * we only ever return a maximum of 32 sios at once. If there are more sios
  * to process within this segment that did not make it onto the list we
  * return B_TRUE and otherwise B_FALSE.
  */
 static boolean_t
-scan_io_queue_gather(dsl_scan_io_queue_t *queue, range_seg_t *rs, list_t *list)
+scan_io_queue_gather(dsl_scan_io_queue_t *queue, zfs_range_seg_t *rs,
+    list_t *list)
 {
 	scan_io_t *srch_sio, *sio, *next_sio;
 	avl_index_t idx;
@@ -3296,7 +3297,7 @@ scan_io_queue_gather(dsl_scan_io_queue_t *queue, range_seg_t *rs, list_t *list)
 
 	srch_sio = sio_alloc(1);
 	srch_sio->sio_nr_dvas = 1;
-	SIO_SET_OFFSET(srch_sio, rs_get_start(rs, queue->q_exts_by_addr));
+	SIO_SET_OFFSET(srch_sio, zfs_rs_get_start(rs, queue->q_exts_by_addr));
 
 	/*
 	 * The exact start of the extent might not contain any matching zios,
@@ -3308,11 +3309,11 @@ scan_io_queue_gather(dsl_scan_io_queue_t *queue, range_seg_t *rs, list_t *list)
 	if (sio == NULL)
 		sio = avl_nearest(&queue->q_sios_by_addr, idx, AVL_AFTER);
 
-	while (sio != NULL && SIO_GET_OFFSET(sio) < rs_get_end(rs,
+	while (sio != NULL && SIO_GET_OFFSET(sio) < zfs_rs_get_end(rs,
 	    queue->q_exts_by_addr) && num_sios <= 32) {
-		ASSERT3U(SIO_GET_OFFSET(sio), >=, rs_get_start(rs,
+		ASSERT3U(SIO_GET_OFFSET(sio), >=, zfs_rs_get_start(rs,
 		    queue->q_exts_by_addr));
-		ASSERT3U(SIO_GET_END_OFFSET(sio), <=, rs_get_end(rs,
+		ASSERT3U(SIO_GET_END_OFFSET(sio), <=, zfs_rs_get_end(rs,
 		    queue->q_exts_by_addr));
 
 		next_sio = AVL_NEXT(&queue->q_sios_by_addr, sio);
@@ -3333,18 +3334,18 @@ scan_io_queue_gather(dsl_scan_io_queue_t *queue, range_seg_t *rs, list_t *list)
 	 * in the segment we update it to reflect the work we were able to
 	 * complete. Otherwise, we remove it from the range tree entirely.
 	 */
-	if (sio != NULL && SIO_GET_OFFSET(sio) < rs_get_end(rs,
+	if (sio != NULL && SIO_GET_OFFSET(sio) < zfs_rs_get_end(rs,
 	    queue->q_exts_by_addr)) {
 		zfs_range_tree_adjust_fill(queue->q_exts_by_addr, rs,
 		    -bytes_issued);
 		zfs_range_tree_resize_segment(queue->q_exts_by_addr, rs,
-		    SIO_GET_OFFSET(sio), rs_get_end(rs,
+		    SIO_GET_OFFSET(sio), zfs_rs_get_end(rs,
 		    queue->q_exts_by_addr) - SIO_GET_OFFSET(sio));
 		queue->q_last_ext_addr = SIO_GET_OFFSET(sio);
 		return (B_TRUE);
 	} else {
-		uint64_t rstart = rs_get_start(rs, queue->q_exts_by_addr);
-		uint64_t rend = rs_get_end(rs, queue->q_exts_by_addr);
+		uint64_t rstart = zfs_rs_get_start(rs, queue->q_exts_by_addr);
+		uint64_t rend = zfs_rs_get_end(rs, queue->q_exts_by_addr);
 		zfs_range_tree_remove(queue->q_exts_by_addr, rstart, rend -
 		    rstart);
 		queue->q_last_ext_addr = -1;
@@ -3363,7 +3364,7 @@ scan_io_queue_gather(dsl_scan_io_queue_t *queue, range_seg_t *rs, list_t *list)
  * 	memory limit.
  * 3) Otherwise we don't select any extents.
  */
-static range_seg_t *
+static zfs_range_seg_t *
 scan_io_queue_fetch_ext(dsl_scan_io_queue_t *queue)
 {
 	dsl_scan_t *scn = queue->q_scn;
@@ -3395,7 +3396,7 @@ scan_io_queue_fetch_ext(dsl_scan_io_queue_t *queue)
 	 */
 	uint64_t start;
 	uint64_t size = 1ULL << rt->rt_shift;
-	range_seg_t *addr_rs;
+	zfs_range_seg_t *addr_rs;
 	if (queue->q_last_ext_addr != -1) {
 		start = queue->q_last_ext_addr;
 		addr_rs = zfs_range_tree_find(rt, start, size);
@@ -3417,8 +3418,8 @@ scan_io_queue_fetch_ext(dsl_scan_io_queue_t *queue)
 	 */
 	addr_rs = zfs_range_tree_find(rt, start, size);
 	ASSERT3P(addr_rs, !=, NULL);
-	ASSERT3U(rs_get_start(addr_rs, rt), ==, start);
-	ASSERT3U(rs_get_end(addr_rs, rt), >, start);
+	ASSERT3U(zfs_rs_get_start(addr_rs, rt), ==, start);
+	ASSERT3U(zfs_rs_get_end(addr_rs, rt), >, start);
 	return (addr_rs);
 }
 
@@ -3428,7 +3429,7 @@ scan_io_queues_run_one(void *arg)
 	dsl_scan_io_queue_t *queue = arg;
 	kmutex_t *q_lock = &queue->q_vd->vdev_scan_io_queue_lock;
 	boolean_t suspended = B_FALSE;
-	range_seg_t *rs;
+	zfs_range_seg_t *rs;
 	scan_io_t *sio;
 	zio_t *zio;
 	list_t sio_list;
@@ -5016,19 +5017,19 @@ ext_size_value(zfs_range_tree_t *rt, range_seg_gap_t *rsg)
 }
 
 static void
-ext_size_add(zfs_range_tree_t *rt, range_seg_t *rs, void *arg)
+ext_size_add(zfs_range_tree_t *rt, zfs_range_seg_t *rs, void *arg)
 {
 	zfs_btree_t *size_tree = arg;
-	ASSERT3U(rt->rt_type, ==, RANGE_SEG_GAP);
+	ASSERT3U(rt->rt_type, ==, ZFS_RANGE_SEG_GAP);
 	uint64_t v = ext_size_value(rt, (range_seg_gap_t *)rs);
 	zfs_btree_add(size_tree, &v);
 }
 
 static void
-ext_size_remove(zfs_range_tree_t *rt, range_seg_t *rs, void *arg)
+ext_size_remove(zfs_range_tree_t *rt, zfs_range_seg_t *rs, void *arg)
 {
 	zfs_btree_t *size_tree = arg;
-	ASSERT3U(rt->rt_type, ==, RANGE_SEG_GAP);
+	ASSERT3U(rt->rt_type, ==, ZFS_RANGE_SEG_GAP);
 	uint64_t v = ext_size_value(rt, (range_seg_gap_t *)rs);
 	zfs_btree_remove(size_tree, &v);
 }
@@ -5076,7 +5077,7 @@ scan_io_queue_create(vdev_t *vd)
 	q->q_last_ext_addr = -1;
 	cv_init(&q->q_zio_cv, NULL, CV_DEFAULT, NULL);
 	q->q_exts_by_addr = zfs_range_tree_create_gap(&ext_size_ops,
-	    RANGE_SEG_GAP, &q->q_exts_by_size, 0, vd->vdev_ashift,
+	    ZFS_RANGE_SEG_GAP, &q->q_exts_by_size, 0, vd->vdev_ashift,
 	    zfs_scan_max_ext_gap);
 	avl_create(&q->q_sios_by_addr, sio_addr_compare,
 	    sizeof (scan_io_t), offsetof(scan_io_t, sio_nodes.sio_addr_node));
@@ -5187,10 +5188,10 @@ dsl_scan_freed_dva(spa_t *spa, const blkptr_t *bp, int dva_i)
 	 * 1) Cold, just sitting in the queue of zio's to be issued at
 	 *	some point in the future. In this case, all we do is
 	 *	remove the zio from the q_sios_by_addr tree, decrement
-	 *	its data volume from the containing range_seg_t and
+	 *	its data volume from the containing zfs_range_seg_t and
 	 *	resort the q_exts_by_size tree to reflect that the
-	 *	range_seg_t has lost some of its 'fill'. We don't shorten
-	 *	the range_seg_t - this is usually rare enough not to be
+	 *	zfs_range_seg_t has lost some of its 'fill'. We don't shorten
+	 *	the zfs_range_seg_t - this is usually rare enough not to be
 	 *	worth the extra hassle of trying keep track of precise
 	 *	extent boundaries.
 	 * 2) Hot, where the zio is currently in-flight in

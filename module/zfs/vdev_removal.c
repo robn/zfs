@@ -369,12 +369,12 @@ spa_vdev_removal_create(vdev_t *vd)
 	spa_vdev_removal_t *svr = kmem_zalloc(sizeof (*svr), KM_SLEEP);
 	mutex_init(&svr->svr_lock, NULL, MUTEX_DEFAULT, NULL);
 	cv_init(&svr->svr_cv, NULL, CV_DEFAULT, NULL);
-	svr->svr_allocd_segs = zfs_range_tree_create(NULL, RANGE_SEG64, NULL,
-	    0, 0);
+	svr->svr_allocd_segs = zfs_range_tree_create(NULL, ZFS_RANGE_SEG64,
+	    NULL, 0, 0);
 	svr->svr_vdev_id = vd->vdev_id;
 
 	for (int i = 0; i < TXG_SIZE; i++) {
-		svr->svr_frees[i] = zfs_range_tree_create(NULL, RANGE_SEG64,
+		svr->svr_frees[i] = zfs_range_tree_create(NULL, ZFS_RANGE_SEG64,
 		    NULL, 0, 0);
 		list_create(&svr->svr_new_segments[i],
 		    sizeof (vdev_indirect_mapping_entry_t),
@@ -1145,13 +1145,13 @@ spa_vdev_copy_segment(vdev_t *vd, zfs_range_tree_t *segs,
 		 */
 		range_seg_max_t search;
 		zfs_btree_index_t where;
-		rs_set_start(&search, segs, start + maxalloc);
-		rs_set_end(&search, segs, start + maxalloc);
+		zfs_rs_set_start(&search, segs, start + maxalloc);
+		zfs_rs_set_end(&search, segs, start + maxalloc);
 		(void) zfs_btree_find(&segs->rt_root, &search, &where);
-		range_seg_t *rs = zfs_btree_prev(&segs->rt_root, &where,
+		zfs_range_seg_t *rs = zfs_btree_prev(&segs->rt_root, &where,
 		    &where);
 		if (rs != NULL) {
-			size = rs_get_end(rs, segs) - start;
+			size = zfs_rs_get_end(rs, segs) - start;
 		} else {
 			/*
 			 * There are no segments that end before maxalloc.
@@ -1185,21 +1185,21 @@ spa_vdev_copy_segment(vdev_t *vd, zfs_range_tree_t *segs,
 	 * local variable "start").
 	 */
 	zfs_range_tree_t *obsolete_segs = zfs_range_tree_create(NULL,
-	    RANGE_SEG64, NULL, 0, 0);
+	    ZFS_RANGE_SEG64, NULL, 0, 0);
 
 	zfs_btree_index_t where;
-	range_seg_t *rs = zfs_btree_first(&segs->rt_root, &where);
-	ASSERT3U(rs_get_start(rs, segs), ==, start);
-	uint64_t prev_seg_end = rs_get_end(rs, segs);
+	zfs_range_seg_t *rs = zfs_btree_first(&segs->rt_root, &where);
+	ASSERT3U(zfs_rs_get_start(rs, segs), ==, start);
+	uint64_t prev_seg_end = zfs_rs_get_end(rs, segs);
 	while ((rs = zfs_btree_next(&segs->rt_root, &where, &where)) != NULL) {
-		if (rs_get_start(rs, segs) >= start + size) {
+		if (zfs_rs_get_start(rs, segs) >= start + size) {
 			break;
 		} else {
 			zfs_range_tree_add(obsolete_segs,
 			    prev_seg_end - start,
-			    rs_get_start(rs, segs) - prev_seg_end);
+			    zfs_rs_get_start(rs, segs) - prev_seg_end);
 		}
-		prev_seg_end = rs_get_end(rs, segs);
+		prev_seg_end = zfs_rs_get_end(rs, segs);
 	}
 	/* We don't end in the middle of an obsolete range */
 	ASSERT3U(start + size, <=, prev_seg_end);
@@ -1458,11 +1458,11 @@ spa_vdev_copy_impl(vdev_t *vd, spa_vdev_removal_t *svr, vdev_copy_arg_t *vca,
 	 * allocated segments that we are copying.  We may also be copying
 	 * free segments (of up to vdev_removal_max_span bytes).
 	 */
-	zfs_range_tree_t *segs = zfs_range_tree_create(NULL, RANGE_SEG64, NULL,
-	    0, 0);
+	zfs_range_tree_t *segs = zfs_range_tree_create(NULL, ZFS_RANGE_SEG64,
+	    NULL, 0, 0);
 	for (;;) {
 		zfs_range_tree_t *rt = svr->svr_allocd_segs;
-		range_seg_t *rs = zfs_range_tree_first(rt);
+		zfs_range_seg_t *rs = zfs_range_tree_first(rt);
 
 		if (rs == NULL)
 			break;
@@ -1471,17 +1471,17 @@ spa_vdev_copy_impl(vdev_t *vd, spa_vdev_removal_t *svr, vdev_copy_arg_t *vca,
 
 		if (zfs_range_tree_is_empty(segs)) {
 			/* need to truncate the first seg based on max_alloc */
-			seg_length = MIN(rs_get_end(rs, rt) - rs_get_start(rs,
-			    rt), *max_alloc);
+			seg_length = MIN(zfs_rs_get_end(rs, rt) -
+			    zfs_rs_get_start(rs, rt), *max_alloc);
 		} else {
-			if (rs_get_start(rs, rt) - zfs_range_tree_max(segs) >
-			    vdev_removal_max_span) {
+			if (zfs_rs_get_start(rs, rt) - zfs_range_tree_max(segs)
+			    > vdev_removal_max_span) {
 				/*
 				 * Including this segment would cause us to
 				 * copy a larger unneeded chunk than is allowed.
 				 */
 				break;
-			} else if (rs_get_end(rs, rt) -
+			} else if (zfs_rs_get_end(rs, rt) -
 			    zfs_range_tree_min(segs) > *max_alloc) {
 				/*
 				 * This additional segment would extend past
@@ -1490,14 +1490,14 @@ spa_vdev_copy_impl(vdev_t *vd, spa_vdev_removal_t *svr, vdev_copy_arg_t *vca,
 				 */
 				break;
 			} else {
-				seg_length = rs_get_end(rs, rt) -
-				    rs_get_start(rs, rt);
+				seg_length = zfs_rs_get_end(rs, rt) -
+				    zfs_rs_get_start(rs, rt);
 			}
 		}
 
-		zfs_range_tree_add(segs, rs_get_start(rs, rt), seg_length);
+		zfs_range_tree_add(segs, zfs_rs_get_start(rs, rt), seg_length);
 		zfs_range_tree_remove(svr->svr_allocd_segs,
-		    rs_get_start(rs, rt), seg_length);
+		    zfs_rs_get_start(rs, rt), seg_length);
 	}
 
 	if (zfs_range_tree_is_empty(segs)) {

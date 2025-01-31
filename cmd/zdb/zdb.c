@@ -614,7 +614,7 @@ livelist_metaslab_validate(spa_t *spa)
 			    (longlong_t)vd->vdev_ms_count);
 
 			uint64_t shift, start;
-			range_seg_type_t type =
+			zfs_range_seg_type_t type =
 			    metaslab_calculate_range_tree_type(vd, m,
 			    &start, &shift);
 			metaslab_verify_t mv;
@@ -6316,7 +6316,7 @@ zdb_claim_removing(spa_t *spa, zdb_cb_t *zcb)
 
 	ASSERT0(zfs_range_tree_space(svr->svr_allocd_segs));
 
-	zfs_range_tree_t *allocs = zfs_range_tree_create(NULL, RANGE_SEG64,
+	zfs_range_tree_t *allocs = zfs_range_tree_create(NULL, ZFS_RANGE_SEG64,
 	    NULL, 0, 0);
 	for (uint64_t msi = 0; msi < vd->vdev_ms_count; msi++) {
 		metaslab_t *msp = vd->vdev_ms[msi];
@@ -8445,8 +8445,8 @@ dump_zpool(spa_t *spa)
 
 	if (dump_opt['d'] || dump_opt['i']) {
 		spa_feature_t f;
-		mos_refd_objs = zfs_range_tree_create(NULL, RANGE_SEG64, NULL,
-		    0, 0);
+		mos_refd_objs = zfs_range_tree_create(NULL, ZFS_RANGE_SEG64,
+		    NULL, 0, 0);
 		dump_objset(dp->dp_meta_objset);
 
 		if (dump_opt['d'] >= 3) {

@@ -347,7 +347,8 @@ static uint64_t metaslab_weight_from_range_tree(metaslab_t *msp);
 static void metaslab_flush_update(metaslab_t *, dmu_tx_t *);
 static unsigned int metaslab_idx_func(multilist_t *, void *);
 static void metaslab_evict(metaslab_t *, uint64_t);
-static void metaslab_rt_add(zfs_range_tree_t *rt, range_seg_t *rs, void *arg);
+static void metaslab_rt_add(zfs_range_tree_t *rt, zfs_range_seg_t *rs,
+    void *arg);
 kmem_cache_t *metaslab_alloc_trace_cache;
 
 typedef struct metaslab_stats {
@@ -1390,8 +1391,8 @@ metaslab_size_sorted_add(void *arg, uint64_t start, uint64_t size)
 	zfs_range_tree_t *rt = mssap->rt;
 	metaslab_rt_arg_t *mrap = mssap->mra;
 	range_seg_max_t seg = {0};
-	rs_set_start(&seg, rt, start);
-	rs_set_end(&seg, rt, start + size);
+	zfs_rs_set_start(&seg, rt, start);
+	zfs_rs_set_end(&seg, rt, start + size);
 	metaslab_rt_add(rt, &seg, mrap);
 }
 
@@ -1430,12 +1431,12 @@ metaslab_rt_create(zfs_range_tree_t *rt, void *arg)
 	int (*compare) (const void *, const void *);
 	bt_find_in_buf_f bt_find;
 	switch (rt->rt_type) {
-	case RANGE_SEG32:
+	case ZFS_RANGE_SEG32:
 		size = sizeof (range_seg32_t);
 		compare = metaslab_rangesize32_compare;
 		bt_find = metaslab_rt_find_rangesize32_in_buf;
 		break;
-	case RANGE_SEG64:
+	case ZFS_RANGE_SEG64:
 		size = sizeof (range_seg64_t);
 		compare = metaslab_rangesize64_compare;
 		bt_find = metaslab_rt_find_rangesize64_in_buf;
@@ -1459,12 +1460,12 @@ metaslab_rt_destroy(zfs_range_tree_t *rt, void *arg)
 }
 
 static void
-metaslab_rt_add(zfs_range_tree_t *rt, range_seg_t *rs, void *arg)
+metaslab_rt_add(zfs_range_tree_t *rt, zfs_range_seg_t *rs, void *arg)
 {
 	metaslab_rt_arg_t *mrap = arg;
 	zfs_btree_t *size_tree = mrap->mra_bt;
 
-	if (rs_get_end(rs, rt) - rs_get_start(rs, rt) <
+	if (zfs_rs_get_end(rs, rt) - zfs_rs_get_start(rs, rt) <
 	    (1ULL << mrap->mra_floor_shift))
 		return;
 
@@ -1472,12 +1473,12 @@ metaslab_rt_add(zfs_range_tree_t *rt, range_seg_t *rs, void *arg)
 }
 
 static void
-metaslab_rt_remove(zfs_range_tree_t *rt, range_seg_t *rs, void *arg)
+metaslab_rt_remove(zfs_range_tree_t *rt, zfs_range_seg_t *rs, void *arg)
 {
 	metaslab_rt_arg_t *mrap = arg;
 	zfs_btree_t *size_tree = mrap->mra_bt;
 
-	if (rs_get_end(rs, rt) - rs_get_start(rs, rt) < (1ULL <<
+	if (zfs_rs_get_end(rs, rt) - zfs_rs_get_start(rs, rt) < (1ULL <<
 	    mrap->mra_floor_shift))
 		return;
 
@@ -1516,7 +1517,7 @@ uint64_t
 metaslab_largest_allocatable(metaslab_t *msp)
 {
 	zfs_btree_t *t = &msp->ms_allocatable_by_size;
-	range_seg_t *rs;
+	zfs_range_seg_t *rs;
 
 	if (t == NULL)
 		return (0);
@@ -1527,7 +1528,7 @@ metaslab_largest_allocatable(metaslab_t *msp)
 	if (rs == NULL)
 		return (0);
 
-	return (rs_get_end(rs, msp->ms_allocatable) - rs_get_start(rs,
+	return (zfs_rs_get_end(rs, msp->ms_allocatable) - zfs_rs_get_start(rs,
 	    msp->ms_allocatable));
 }
 
@@ -1545,7 +1546,7 @@ metaslab_largest_unflushed_free(metaslab_t *msp)
 
 	if (zfs_btree_numnodes(&msp->ms_unflushed_frees_by_size) == 0)
 		metaslab_size_tree_full_load(msp->ms_unflushed_frees);
-	range_seg_t *rs = zfs_btree_last(&msp->ms_unflushed_frees_by_size,
+	zfs_range_seg_t *rs = zfs_btree_last(&msp->ms_unflushed_frees_by_size,
 	    NULL);
 	if (rs == NULL)
 		return (0);
@@ -1573,8 +1574,8 @@ metaslab_largest_unflushed_free(metaslab_t *msp)
 	 * the largest segment; there may be other usable chunks in the
 	 * largest segment, but we ignore them.
 	 */
-	uint64_t rstart = rs_get_start(rs, msp->ms_unflushed_frees);
-	uint64_t rsize = rs_get_end(rs, msp->ms_unflushed_frees) - rstart;
+	uint64_t rstart = zfs_rs_get_start(rs, msp->ms_unflushed_frees);
+	uint64_t rsize = zfs_rs_get_end(rs, msp->ms_unflushed_frees) - rstart;
 	for (int t = 0; t < TXG_DEFER_SIZE; t++) {
 		uint64_t start = 0;
 		uint64_t size = 0;
@@ -1597,15 +1598,15 @@ metaslab_largest_unflushed_free(metaslab_t *msp)
 	return (rsize);
 }
 
-static range_seg_t *
+static zfs_range_seg_t *
 metaslab_block_find(zfs_btree_t *t, zfs_range_tree_t *rt, uint64_t start,
     uint64_t size, zfs_btree_index_t *where)
 {
-	range_seg_t *rs;
+	zfs_range_seg_t *rs;
 	range_seg_max_t rsearch;
 
-	rs_set_start(&rsearch, rt, start);
-	rs_set_end(&rsearch, rt, start + size);
+	zfs_rs_set_start(&rsearch, rt, start);
+	zfs_rs_set_end(&rsearch, rt, start + size);
 
 	rs = zfs_btree_find(t, &rsearch, where);
 	if (rs == NULL) {
@@ -1628,17 +1629,18 @@ metaslab_block_picker(zfs_range_tree_t *rt, uint64_t *cursor, uint64_t size,
 		*cursor = rt->rt_start;
 	zfs_btree_t *bt = &rt->rt_root;
 	zfs_btree_index_t where;
-	range_seg_t *rs = metaslab_block_find(bt, rt, *cursor, size, &where);
+	zfs_range_seg_t *rs = metaslab_block_find(bt, rt, *cursor, size,
+	    &where);
 	uint64_t first_found;
 	int count_searched = 0;
 
 	if (rs != NULL)
-		first_found = rs_get_start(rs, rt);
+		first_found = zfs_rs_get_start(rs, rt);
 
-	while (rs != NULL && (rs_get_start(rs, rt) - first_found <=
+	while (rs != NULL && (zfs_rs_get_start(rs, rt) - first_found <=
 	    max_search || count_searched < metaslab_min_search_count)) {
-		uint64_t offset = rs_get_start(rs, rt);
-		if (offset + size <= rs_get_end(rs, rt)) {
+		uint64_t offset = zfs_rs_get_start(rs, rt);
+		if (offset + size <= zfs_rs_get_end(rs, rt)) {
 			*cursor = offset + size;
 			return (offset);
 		}
@@ -1768,7 +1770,7 @@ metaslab_df_alloc(metaslab_t *msp, uint64_t size)
 	}
 
 	if (offset == -1) {
-		range_seg_t *rs;
+		zfs_range_seg_t *rs;
 		if (zfs_btree_numnodes(&msp->ms_allocatable_by_size) == 0)
 			metaslab_size_tree_full_load(msp->ms_allocatable);
 
@@ -1781,9 +1783,9 @@ metaslab_df_alloc(metaslab_t *msp, uint64_t size)
 			rs = metaslab_block_find(&msp->ms_allocatable_by_size,
 			    rt, msp->ms_start, size, &where);
 		}
-		if (rs != NULL && rs_get_start(rs, rt) + size <= rs_get_end(rs,
-		    rt)) {
-			offset = rs_get_start(rs, rt);
+		if (rs != NULL && zfs_rs_get_start(rs, rt) + size <=
+		    zfs_rs_get_end(rs, rt)) {
+			offset = zfs_rs_get_start(rs, rt);
 			*cursor = offset + size;
 		}
 	}
@@ -1814,17 +1816,17 @@ metaslab_cf_alloc(metaslab_t *msp, uint64_t size)
 	ASSERT3U(*cursor_end, >=, *cursor);
 
 	if ((*cursor + size) > *cursor_end) {
-		range_seg_t *rs;
+		zfs_range_seg_t *rs;
 
 		if (zfs_btree_numnodes(t) == 0)
 			metaslab_size_tree_full_load(msp->ms_allocatable);
 		rs = zfs_btree_last(t, NULL);
-		if (rs == NULL || (rs_get_end(rs, rt) - rs_get_start(rs, rt)) <
-		    size)
+		if (rs == NULL || (zfs_rs_get_end(rs, rt) -
+		    zfs_rs_get_start(rs, rt)) < size)
 			return (-1ULL);
 
-		*cursor = rs_get_start(rs, rt);
-		*cursor_end = rs_get_end(rs, rt);
+		*cursor = zfs_rs_get_start(rs, rt);
+		*cursor_end = zfs_rs_get_end(rs, rt);
 	}
 
 	offset = *cursor;
@@ -1854,7 +1856,7 @@ metaslab_ndf_alloc(metaslab_t *msp, uint64_t size)
 	zfs_btree_t *t = &msp->ms_allocatable->rt_root;
 	zfs_range_tree_t *rt = msp->ms_allocatable;
 	zfs_btree_index_t where;
-	range_seg_t *rs;
+	zfs_range_seg_t *rs;
 	range_seg_max_t rsearch;
 	uint64_t hbit = highbit64(size);
 	uint64_t *cursor = &msp->ms_lbas[hbit - 1];
@@ -1865,15 +1867,16 @@ metaslab_ndf_alloc(metaslab_t *msp, uint64_t size)
 	if (max_size < size)
 		return (-1ULL);
 
-	rs_set_start(&rsearch, rt, *cursor);
-	rs_set_end(&rsearch, rt, *cursor + size);
+	zfs_rs_set_start(&rsearch, rt, *cursor);
+	zfs_rs_set_end(&rsearch, rt, *cursor + size);
 
 	rs = zfs_btree_find(t, &rsearch, &where);
-	if (rs == NULL || (rs_get_end(rs, rt) - rs_get_start(rs, rt)) < size) {
+	if (rs == NULL || (zfs_rs_get_end(rs, rt) - zfs_rs_get_start(rs, rt)) <
+	    size) {
 		t = &msp->ms_allocatable_by_size;
 
-		rs_set_start(&rsearch, rt, 0);
-		rs_set_end(&rsearch, rt, MIN(max_size, 1ULL << (hbit +
+		zfs_rs_set_start(&rsearch, rt, 0);
+		zfs_rs_set_end(&rsearch, rt, MIN(max_size, 1ULL << (hbit +
 		    metaslab_ndf_clump_shift)));
 
 		rs = zfs_btree_find(t, &rsearch, &where);
@@ -1882,9 +1885,9 @@ metaslab_ndf_alloc(metaslab_t *msp, uint64_t size)
 		ASSERT(rs != NULL);
 	}
 
-	if ((rs_get_end(rs, rt) - rs_get_start(rs, rt)) >= size) {
-		*cursor = rs_get_start(rs, rt) + size;
-		return (rs_get_start(rs, rt));
+	if ((zfs_rs_get_end(rs, rt) - zfs_rs_get_start(rs, rt)) >= size) {
+		*cursor = zfs_rs_get_start(rs, rt) + size;
+		return (zfs_rs_get_start(rs, rt));
 	}
 	return (-1ULL);
 }
@@ -2645,7 +2648,7 @@ metaslab_unload(metaslab_t *msp)
  * the vdev_ms_shift - the vdev_ashift is less than 32, we can store
  * the ranges using two uint32_ts, rather than two uint64_ts.
  */
-range_seg_type_t
+zfs_range_seg_type_t
 metaslab_calculate_range_tree_type(vdev_t *vdev, metaslab_t *msp,
     uint64_t *start, uint64_t *shift)
 {
@@ -2653,11 +2656,11 @@ metaslab_calculate_range_tree_type(vdev_t *vdev, metaslab_t *msp,
 	    !zfs_metaslab_force_large_segs) {
 		*shift = vdev->vdev_ashift;
 		*start = msp->ms_start;
-		return (RANGE_SEG32);
+		return (ZFS_RANGE_SEG32);
 	} else {
 		*shift = 0;
 		*start = 0;
-		return (RANGE_SEG64);
+		return (ZFS_RANGE_SEG64);
 	}
 }
 
@@ -2743,7 +2746,7 @@ metaslab_init(metaslab_group_t *mg, uint64_t id, uint64_t object,
 	}
 
 	uint64_t shift, start;
-	range_seg_type_t type =
+	zfs_range_seg_type_t type =
 	    metaslab_calculate_range_tree_type(vd, ms, &start, &shift);
 
 	ms->ms_allocatable = zfs_range_tree_create(NULL, type, NULL, start,
@@ -3724,7 +3727,7 @@ metaslab_condense(metaslab_t *msp, dmu_tx_t *tx)
 
 	msp->ms_condense_wanted = B_FALSE;
 
-	range_seg_type_t type;
+	zfs_range_seg_type_t type;
 	uint64_t shift, start;
 	type = metaslab_calculate_range_tree_type(msp->ms_group->mg_vd, msp,
 	    &start, &shift);

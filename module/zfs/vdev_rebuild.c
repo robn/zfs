@@ -641,10 +641,10 @@ vdev_rebuild_ranges(vdev_rebuild_t *vr)
 	zfs_btree_index_t idx;
 	int error;
 
-	for (range_seg_t *rs = zfs_btree_first(t, &idx); rs != NULL;
+	for (zfs_range_seg_t *rs = zfs_btree_first(t, &idx); rs != NULL;
 	    rs = zfs_btree_next(t, &idx, &idx)) {
-		uint64_t start = rs_get_start(rs, vr->vr_scan_tree);
-		uint64_t size = rs_get_end(rs, vr->vr_scan_tree) - start;
+		uint64_t start = zfs_rs_get_start(rs, vr->vr_scan_tree);
+		uint64_t size = zfs_rs_get_end(rs, vr->vr_scan_tree) - start;
 
 		/*
 		 * zfs_scan_suspend_progress can be set to disable rebuild
@@ -786,7 +786,8 @@ vdev_rebuild_thread(void *arg)
 	vdev_rebuild_phys_t *vrp = &vr->vr_rebuild_phys;
 	vr->vr_top_vdev = vd;
 	vr->vr_scan_msp = NULL;
-	vr->vr_scan_tree = zfs_range_tree_create(NULL, RANGE_SEG64, NULL, 0, 0);
+	vr->vr_scan_tree = zfs_range_tree_create(NULL, ZFS_RANGE_SEG64, NULL,
+	    0, 0);
 	mutex_init(&vr->vr_io_lock, NULL, MUTEX_DEFAULT, NULL);
 	cv_init(&vr->vr_io_cv, NULL, CV_DEFAULT, NULL);
 

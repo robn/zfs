@@ -601,10 +601,10 @@ vdev_trim_ranges(trim_args_t *ta)
 	ta->trim_start_time = gethrtime();
 	ta->trim_bytes_done = 0;
 
-	for (range_seg_t *rs = zfs_btree_first(t, &idx); rs != NULL;
+	for (zfs_range_seg_t *rs = zfs_btree_first(t, &idx); rs != NULL;
 	    rs = zfs_btree_next(t, &idx, &idx)) {
-		uint64_t size = rs_get_end(rs, ta->trim_tree) - rs_get_start(rs,
-		    ta->trim_tree);
+		uint64_t size = zfs_rs_get_end(rs, ta->trim_tree) -
+		    zfs_rs_get_start(rs, ta->trim_tree);
 
 		if (extent_bytes_min && size < extent_bytes_min) {
 			spa_iostats_trim_add(spa, ta->trim_type,
@@ -617,7 +617,7 @@ vdev_trim_ranges(trim_args_t *ta)
 
 		for (uint64_t w = 0; w < writes_required; w++) {
 			error = vdev_trim_range(ta, VDEV_LABEL_START_SIZE +
-			    rs_get_start(rs, ta->trim_tree) +
+			    zfs_rs_get_start(rs, ta->trim_tree) +
 			    (w *extent_bytes_max), MIN(size -
 			    (w * extent_bytes_max), extent_bytes_max));
 			if (error != 0) {
@@ -732,10 +732,10 @@ vdev_trim_calculate_progress(vdev_t *vd)
 		zfs_range_tree_t *rt = msp->ms_allocatable;
 		zfs_btree_t *bt = &rt->rt_root;
 		zfs_btree_index_t idx;
-		for (range_seg_t *rs = zfs_btree_first(bt, &idx);
+		for (zfs_range_seg_t *rs = zfs_btree_first(bt, &idx);
 		    rs != NULL; rs = zfs_btree_next(bt, &idx, &idx)) {
-			logical_rs.rs_start = rs_get_start(rs, rt);
-			logical_rs.rs_end = rs_get_end(rs, rt);
+			logical_rs.rs_start = zfs_rs_get_start(rs, rt);
+			logical_rs.rs_end = zfs_rs_get_end(rs, rt);
 
 			vdev_xlate_walk(vd, &logical_rs,
 			    vdev_trim_xlate_progress, vd);
@@ -901,7 +901,7 @@ vdev_trim_thread(void *arg)
 	ta.trim_vdev = vd;
 	ta.trim_extent_bytes_max = zfs_trim_extent_bytes_max;
 	ta.trim_extent_bytes_min = zfs_trim_extent_bytes_min;
-	ta.trim_tree = zfs_range_tree_create(NULL, RANGE_SEG64, NULL, 0, 0);
+	ta.trim_tree = zfs_range_tree_create(NULL, ZFS_RANGE_SEG64, NULL, 0, 0);
 	ta.trim_type = TRIM_TYPE_MANUAL;
 	ta.trim_flags = 0;
 
@@ -1304,7 +1304,7 @@ vdev_autotrim_thread(void *arg)
 			 * Allocate an empty range tree which is swapped in
 			 * for the existing ms_trim tree while it is processed.
 			 */
-			trim_tree = zfs_range_tree_create(NULL, RANGE_SEG64,
+			trim_tree = zfs_range_tree_create(NULL, ZFS_RANGE_SEG64,
 			    NULL, 0, 0);
 			zfs_range_tree_swap(&msp->ms_trim, &trim_tree);
 			ASSERT(zfs_range_tree_is_empty(msp->ms_trim));
@@ -1360,7 +1360,7 @@ vdev_autotrim_thread(void *arg)
 					continue;
 
 				ta->trim_tree = zfs_range_tree_create(NULL,
-				    RANGE_SEG64, NULL, 0, 0);
+				    ZFS_RANGE_SEG64, NULL, 0, 0);
 				zfs_range_tree_walk(trim_tree,
 				    vdev_trim_range_add, ta);
 			}
@@ -1599,7 +1599,7 @@ vdev_trim_l2arc_thread(void *arg)
 	vd->vdev_trim_secure = 0;
 
 	ta.trim_vdev = vd;
-	ta.trim_tree = zfs_range_tree_create(NULL, RANGE_SEG64, NULL, 0, 0);
+	ta.trim_tree = zfs_range_tree_create(NULL, ZFS_RANGE_SEG64, NULL, 0, 0);
 	ta.trim_type = TRIM_TYPE_MANUAL;
 	ta.trim_extent_bytes_max = zfs_trim_extent_bytes_max;
 	ta.trim_extent_bytes_min = SPA_MINBLOCKSIZE;
@@ -1734,7 +1734,7 @@ vdev_trim_simple(vdev_t *vd, uint64_t start, uint64_t size)
 	ASSERT(!vd->vdev_top->vdev_rz_expanding);
 
 	ta.trim_vdev = vd;
-	ta.trim_tree = zfs_range_tree_create(NULL, RANGE_SEG64, NULL, 0, 0);
+	ta.trim_tree = zfs_range_tree_create(NULL, ZFS_RANGE_SEG64, NULL, 0, 0);
 	ta.trim_type = TRIM_TYPE_SIMPLE;
 	ta.trim_extent_bytes_max = zfs_trim_extent_bytes_max;
 	ta.trim_extent_bytes_min = SPA_MINBLOCKSIZE;

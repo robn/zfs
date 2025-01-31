@@ -334,9 +334,10 @@ vdev_initialize_ranges(vdev_t *vd, abd_t *data)
 	zfs_btree_t *bt = &rt->rt_root;
 	zfs_btree_index_t where;
 
-	for (range_seg_t *rs = zfs_btree_first(bt, &where); rs != NULL;
+	for (zfs_range_seg_t *rs = zfs_btree_first(bt, &where); rs != NULL;
 	    rs = zfs_btree_next(bt, &where, &where)) {
-		uint64_t size = rs_get_end(rs, rt) - rs_get_start(rs, rt);
+		uint64_t size = zfs_rs_get_end(rs, rt) -
+		    zfs_rs_get_start(rs, rt);
 
 		/* Split range into legally-sized physical chunks */
 		uint64_t writes_required =
@@ -346,7 +347,7 @@ vdev_initialize_ranges(vdev_t *vd, abd_t *data)
 			int error;
 
 			error = vdev_initialize_write(vd,
-			    VDEV_LABEL_START_SIZE + rs_get_start(rs, rt) +
+			    VDEV_LABEL_START_SIZE + zfs_rs_get_start(rs, rt) +
 			    (w * zfs_initialize_chunk_size),
 			    MIN(size - (w * zfs_initialize_chunk_size),
 			    zfs_initialize_chunk_size), data);
@@ -441,12 +442,12 @@ vdev_initialize_calculate_progress(vdev_t *vd)
 
 		zfs_btree_index_t where;
 		zfs_range_tree_t *rt = msp->ms_allocatable;
-		for (range_seg_t *rs =
+		for (zfs_range_seg_t *rs =
 		    zfs_btree_first(&rt->rt_root, &where); rs;
 		    rs = zfs_btree_next(&rt->rt_root, &where,
 		    &where)) {
-			logical_rs.rs_start = rs_get_start(rs, rt);
-			logical_rs.rs_end = rs_get_end(rs, rt);
+			logical_rs.rs_start = zfs_rs_get_start(rs, rt);
+			logical_rs.rs_end = zfs_rs_get_end(rs, rt);
 
 			vdev_xlate_walk(vd, &logical_rs,
 			    vdev_initialize_xlate_progress, vd);
@@ -539,7 +540,7 @@ vdev_initialize_thread(void *arg)
 
 	abd_t *deadbeef = vdev_initialize_block_alloc();
 
-	vd->vdev_initialize_tree = zfs_range_tree_create(NULL, RANGE_SEG64,
+	vd->vdev_initialize_tree = zfs_range_tree_create(NULL, ZFS_RANGE_SEG64,
 	    NULL, 0, 0);
 
 	for (uint64_t i = 0; !vd->vdev_detached &&
