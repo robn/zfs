@@ -110,57 +110,6 @@ my $untagged_patterns = q(
 	# Exclude CI tooling as it's not interesting for overall project
 	# licensing.
 	.github/*
-
-	# Everything below this has unclear licensing. Work is happening to
-	# identify and update them. Once one gains a tag it should be removed
-	# from this list.
-
-	cmd/zed/zed.d/*.sh
-	cmd/zpool/zpool.d/*
-
-	contrib/coverity/model.c
-	include/libzdb.h
-	include/os/freebsd/spl/sys/inttypes.h
-	include/os/freebsd/spl/sys/mode.h
-	include/os/freebsd/spl/sys/trace.h
-	include/os/freebsd/spl/sys/trace_zfs.h
-	include/os/freebsd/zfs/sys/zpl.h
-	include/os/linux/kernel/linux/page_compat.h
-	lib/libspl/include/os/freebsd/sys/sysmacros.h
-	lib/libspl/include/sys/string.h
-	lib/libspl/include/sys/trace_spl.h
-	lib/libspl/include/sys/trace_zfs.h
-	lib/libzdb/libzdb.c
-	module/lua/setjmp/setjmp.S
-	module/lua/setjmp/setjmp_ppc.S
-	module/zstd/include/sparc_compat.h
-	module/zstd/zstd_sparc.c
-	tests/zfs-tests/cmd/cp_files.c
-	tests/zfs-tests/cmd/zed_fd_spill-zedlet.c
-	tests/zfs-tests/tests/functional/tmpfile/tmpfile_001_pos.c
-	tests/zfs-tests/tests/functional/tmpfile/tmpfile_002_pos.c
-	tests/zfs-tests/tests/functional/tmpfile/tmpfile_003_pos.c
-	tests/zfs-tests/tests/functional/tmpfile/tmpfile_test.c
-
-	autogen.sh
-	contrib/bpftrace/zfs-trace.sh
-	contrib/pyzfs/docs/source/conf.py
-	contrib/pyzfs/libzfs_core/test/__init__.py
-	contrib/pyzfs/setup.py.in
-	contrib/zcp/autosnap.lua
-	scripts/commitcheck.sh
-	scripts/man-dates.sh
-	scripts/mancheck.sh
-	scripts/paxcheck.sh
-	scripts/zfs-helpers.sh
-	scripts/zfs-tests-color.sh
-	scripts/zfs.sh
-	scripts/zimport.sh
-	tests/zfs-tests/callbacks/zfs_failsafe.ksh
-	tests/zfs-tests/include/commands.cfg
-	tests/zfs-tests/include/tunables.cfg
-	tests/zfs-tests/include/zpool_script.shlib
-	tests/zfs-tests/tests/functional/mv_files/random_creation.ksh
 );
 
 # For files expected to have a license tags, these are the acceptable tags by
@@ -245,27 +194,6 @@ my %override_file_license_tags = (
 	'BSD-2-Clause' => [qw(
 		include/os/linux/spl/sys/debug.h
 		module/os/linux/spl/spl-zone.c
-	)],
-
-	# Temporary overrides for things that have the wrong license for
-	# their path. Work is underway to understand and resolve these.
-	'GPL-2.0-or-later' => [qw(
-		include/os/freebsd/spl/sys/kstat.h
-		include/os/freebsd/spl/sys/sunddi.h
-		include/sys/mod.h
-	)],
-	'CDDL-1.0' => [qw(
-		include/os/linux/spl/sys/errno.h
-		include/os/linux/spl/sys/ia32/asm_linkage.h
-		include/os/linux/spl/sys/misc.h
-		include/os/linux/spl/sys/procfs_list.h
-		include/os/linux/spl/sys/trace.h
-		include/os/linux/spl/sys/trace_spl.h
-		include/os/linux/spl/sys/trace_taskq.h
-		include/os/linux/spl/sys/wmsum.h
-		module/os/linux/spl/spl-procfs-list.c
-		module/os/linux/spl/spl-trace.c
-		module/lua/README.zfs
 	)],
 );
 
