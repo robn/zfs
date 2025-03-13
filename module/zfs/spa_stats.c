@@ -497,7 +497,7 @@ spa_tx_assign_init(spa_t *spa)
 	shk->size = shk->count * sizeof (kstat_named_t);
 	shk->priv = kmem_alloc(shk->size, KM_SLEEP);
 
-	name = kmem_asprintf("zfs/%s", spa_name(spa));
+	name = kmem_asprintf("zfs/pool/%s", spa_name(spa));
 
 	for (i = 0; i < shk->count; i++) {
 		ks = &((kstat_named_t *)shk->priv)[i];
@@ -803,7 +803,7 @@ spa_state_init(spa_t *spa)
 
 	mutex_init(&shk->lock, NULL, MUTEX_DEFAULT, NULL);
 
-	name = kmem_asprintf("zfs/%s", spa_name(spa));
+	name = kmem_asprintf("zfs/pool/%s", spa_name(spa));
 	ksp = kstat_create(name, 0, "state", "misc",
 	    KSTAT_TYPE_RAW, 0, KSTAT_FLAG_VIRTUAL);
 
@@ -837,7 +837,7 @@ spa_guid_init(spa_t *spa)
 
 	mutex_init(&shk->lock, NULL, MUTEX_DEFAULT, NULL);
 
-	name = kmem_asprintf("zfs/%s", spa_name(spa));
+	name = kmem_asprintf("zfs/pool/%s", spa_name(spa));
 
 	ksp = kstat_create(name, 0, "guid", "misc",
 	    KSTAT_TYPE_RAW, 0, KSTAT_FLAG_VIRTUAL);
@@ -1003,7 +1003,7 @@ spa_iostats_init(spa_t *spa)
 
 	mutex_init(&shk->lock, NULL, MUTEX_DEFAULT, NULL);
 
-	char *name = kmem_asprintf("zfs/%s", spa_name(spa));
+	char *name = kmem_asprintf("zfs/pool/%s", spa_name(spa));
 	kstat_t *ksp = kstat_create(name, 0, "iostats", "misc",
 	    KSTAT_TYPE_NAMED, sizeof (spa_iostats_t) / sizeof (kstat_named_t),
 	    KSTAT_FLAG_VIRTUAL);

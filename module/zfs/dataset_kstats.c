@@ -114,7 +114,7 @@ dataset_kstats_create(dataset_kstats_t *dk, objset_t *objset)
 	 */
 	char kstat_module_name[KSTAT_STRLEN];
 	int n = snprintf(kstat_module_name, sizeof (kstat_module_name),
-	    "zfs/%s", spa_name(dmu_objset_spa(objset)));
+	    "zfs/pool/%s/dataset", spa_name(dmu_objset_spa(objset)));
 	if (n < 0) {
 		zfs_dbgmsg("failed to create dataset kstat for objset %lld: "
 		    " snprintf() for kstat module name returned %d",
@@ -129,7 +129,7 @@ dataset_kstats_create(dataset_kstats_t *dk, objset_t *objset)
 	}
 
 	char kstat_name[KSTAT_STRLEN];
-	n = snprintf(kstat_name, sizeof (kstat_name), "objset-0x%llx",
+	n = snprintf(kstat_name, sizeof (kstat_name), "0x%llx",
 	    (unsigned long long)dmu_objset_id(objset));
 	if (n < 0) {
 		zfs_dbgmsg("failed to create dataset kstat for objset %lld: "

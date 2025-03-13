@@ -1565,7 +1565,7 @@ not_found:
 static void
 ddt_table_alloc_kstats(ddt_t *ddt)
 {
-	char *mod = kmem_asprintf("zfs/%s", spa_name(ddt->ddt_spa));
+	char *mod = kmem_asprintf("zfs/pool/%s", spa_name(ddt->ddt_spa));
 	char *name = kmem_asprintf("ddt_stats_%s",
 	    zio_checksum_table[ddt->ddt_checksum].ci_name);
 
