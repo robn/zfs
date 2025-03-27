@@ -257,7 +257,7 @@ secpolicy_zfs(const cred_t *cr)
 int
 secpolicy_zfs_proc(const cred_t *cr, proc_t *proc)
 {
-	if (!has_capability(proc, CAP_SYS_ADMIN))
+	if (!has_capability_noaudit(proc, CAP_SYS_ADMIN))
 		return (EACCES);
 	return (0);
 }
