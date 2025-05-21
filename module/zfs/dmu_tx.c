@@ -49,6 +49,7 @@ dmu_tx_stats_t dmu_tx_stats = {
 	{ "dmu_tx_delay",		KSTAT_DATA_UINT64 },
 	{ "dmu_tx_error",		KSTAT_DATA_UINT64 },
 	{ "dmu_tx_suspended",		KSTAT_DATA_UINT64 },
+	{ "dmu_tx_signalled",		KSTAT_DATA_UINT64 },
 	{ "dmu_tx_group",		KSTAT_DATA_UINT64 },
 	{ "dmu_tx_memory_reserve",	KSTAT_DATA_UINT64 },
 	{ "dmu_tx_memory_reclaim",	KSTAT_DATA_UINT64 },
@@ -1028,6 +1029,11 @@ dmu_tx_try_assign(dmu_tx_t *tx)
 		return (tx->tx_err);
 	}
 
+	if (issig() && tx->tx_break_on_signal) {
+		DMU_TX_STAT_BUMP(dmu_tx_signalled);
+		return (SET_ERROR(EINTR));
+	}
+
 	if (spa_suspended(spa)) {
 		DMU_TX_STAT_BUMP(dmu_tx_suspended);
 
@@ -1181,6 +1187,8 @@ dmu_tx_unassign(dmu_tx_t *tx)
  * If this flag is not set and the pool suspends, the return will be either
  * ERESTART or EIO, depending on the value of the pool's failmode= property.
  *
+ * If DMU_TX_SIGNAL is set, ... XXX
+ *
  * It is guaranteed that subsequent successful calls to dmu_tx_assign()
  * will assign the tx to monotonically increasing txgs. Of course this is
  * not strong monotonicity, because the same txg can be returned multiple
@@ -1203,8 +1211,10 @@ dmu_tx_assign(dmu_tx_t *tx, dmu_tx_flag_t flags)
 	int err;
 
 	ASSERT(tx->tx_txg == 0);
-	ASSERT0(flags & ~(DMU_TX_WAIT | DMU_TX_NOTHROTTLE | DMU_TX_SUSPEND));
+	ASSERT0(flags & ~(DMU_TX_WAIT | DMU_TX_NOTHROTTLE |
+	    DMU_TX_SUSPEND | DMU_TX_SIGNAL));
 	IMPLY(flags & DMU_TX_SUSPEND, flags & DMU_TX_WAIT);
+	IMPLY(flags & DMU_TX_SIGNAL, flags & DMU_TX_WAIT);
 	ASSERT(!dsl_pool_sync_context(tx->tx_pool));
 
 	/* If we might wait, we must not hold the config lock. */
@@ -1216,16 +1226,23 @@ dmu_tx_assign(dmu_tx_t *tx, dmu_tx_flag_t flags)
 	if (!(flags & DMU_TX_SUSPEND))
 		tx->tx_break_on_suspend = B_TRUE;
 
+	if (!(flags & DMU_TX_SIGNAL))
+		tx->tx_break_on_signal = B_TRUE;
+
 	while ((err = dmu_tx_try_assign(tx)) != 0) {
 		dmu_tx_unassign(tx);
 
-		boolean_t suspended = (err == ESHUTDOWN);
-		if (suspended) {
+		boolean_t suspended = B_FALSE;
+		boolean_t signalled = B_FALSE;
+
+		if (err == ESHUTDOWN) {
 			/*
 			 * Pool suspended. We need to decide whether to block
 			 * and retry, or return error, depending on the
 			 * caller's flags and the pool config.
 			 */
+			suspended = B_TRUE;
+
 			if (flags & DMU_TX_SUSPEND)
 				/*
 				 * The caller expressly does not care about
@@ -1243,6 +1260,12 @@ dmu_tx_assign(dmu_tx_t *tx, dmu_tx_flag_t flags)
 				err = SET_ERROR(EIO);
 			else
 				/* Anything else, we should just block. */
+				err = SET_ERROR(ERESTART);
+		} else if (err == EINTR) {
+			signalled = B_TRUE;
+
+			if (flags & DMU_TX_SIGNAL)
+				/* Caller is not interested in signals. */
 				err = SET_ERROR(ERESTART);
 		}
 
@@ -1268,9 +1291,13 @@ dmu_tx_assign(dmu_tx_t *tx, dmu_tx_flag_t flags)
 		 * should be allowed to break a txg wait if the pool does
 		 * suspend, so we can loop and reassess it in
 		 * dmu_tx_try_assign().
+		 *
+		 * XXX blah blah same again for signal
 		 */
 		if (suspended)
 			tx->tx_break_on_suspend = B_FALSE;
+		else if (signalled)
+			tx->tx_break_on_signal = B_FALSE;
 
 		dmu_tx_wait(tx);
 
@@ -1278,9 +1305,13 @@ dmu_tx_assign(dmu_tx_t *tx, dmu_tx_flag_t flags)
 		 * Reset tx_break_on_suspend for DMU_TX_SUSPEND. We do this
 		 * here so that it's available if we return for some other
 		 * reason, and then the caller calls dmu_tx_wait().
+		 *
+		 * XXX yeppers
 		 */
 		if (!(flags & DMU_TX_SUSPEND))
 			tx->tx_break_on_suspend = B_TRUE;
+		if (!(flags & DMU_TX_SIGNAL))
+			tx->tx_break_on_signal = B_TRUE;
 	}
 
 	txg_rele_to_quiesce(&tx->tx_txgh);
@@ -1305,8 +1336,11 @@ dmu_tx_wait(dmu_tx_t *tx)
 	 * gets the same behaviour wrt suspend. See also the comments in
 	 * dmu_tx_assign().
 	 */
-	txg_wait_flag_t flags =
-	    (tx->tx_break_on_suspend ? TXG_WAIT_SUSPEND : TXG_WAIT_NONE);
+	txg_wait_flag_t flags = TXG_WAIT_NONE;
+	if (tx->tx_break_on_suspend)
+		flags |= TXG_WAIT_SUSPEND;
+	if (tx->tx_break_on_signal)
+		flags |= TXG_WAIT_SIGNAL;
 
 	before = gethrtime();
 

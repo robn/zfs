@@ -292,7 +292,8 @@ typedef enum {
 	 * Assign the tx to the open transaction. If the open transaction is
 	 * full, or the write throttle is active, block until the next
 	 * transaction and try again. If the pool suspends while waiting
-	 * and failmode=continue, return an error.
+	 * and failmode=continue, or if a signal arrives while waiting,
+	 * return an error.
 	 */
 	DMU_TX_WAIT		= (1 << 0),
 
@@ -304,6 +305,9 @@ typedef enum {
 	 * assignment, regardless of the value of the failmode= property.
 	 */
 	DMU_TX_SUSPEND		= (1 << 2),
+
+	/* Ignore signals received during assignment. */
+	DMU_TX_SIGNAL		= (1 << 3),
 } dmu_tx_flag_t;
 
 void byteswap_uint64_array(void *buf, size_t size);

@@ -84,6 +84,9 @@ struct dmu_tx {
 	/* whether dmu_tx_wait() should return on suspend */
 	boolean_t tx_break_on_suspend;
 
+	/* whether dmu_tx_wait() should return on signal */
+	boolean_t tx_break_on_signal;
+
 	int tx_err;
 };
 
@@ -125,6 +128,7 @@ typedef struct dmu_tx_stats {
 	kstat_named_t dmu_tx_delay;
 	kstat_named_t dmu_tx_error;
 	kstat_named_t dmu_tx_suspended;
+	kstat_named_t dmu_tx_signalled;
 	kstat_named_t dmu_tx_group;
 	kstat_named_t dmu_tx_memory_reserve;
 	kstat_named_t dmu_tx_memory_reclaim;
