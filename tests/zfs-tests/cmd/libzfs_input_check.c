@@ -111,6 +111,15 @@ static const zfs_ioc_t ioc_skip[] = {
 	ZFS_IOC_UNJAIL,
 };
 
+typedef struct zfs_cmd_nv_t {
+        char            zc_name[MAXPATHLEN];    /* name of pool or dataset */
+        uint64_t        zc_nvlist_src;          /* really (char *) */
+        uint64_t        zc_nvlist_src_size;
+        uint64_t        zc_nvlist_dst;          /* really (char *) */
+        uint64_t        zc_nvlist_dst_size;
+        boolean_t       zc_nvlist_dst_filled;   /* put an nvlist in dst? */
+        int             zc_pad2;
+} zfs_cmd_nv_t;
 
 #define	IOC_INPUT_TEST(ioc, name, req, opt, err)		\
 	IOC_INPUT_TEST_IMPL(ioc, name, req, opt, err, B_FALSE)
@@ -131,7 +140,7 @@ static const zfs_ioc_t ioc_skip[] = {
 static void
 lzc_ioctl_run(zfs_ioc_t ioc, const char *name, nvlist_t *innvl, int expected)
 {
-	zfs_cmd_t zc = {"\0"};
+	zfs_cmd_nv_t zc = {"\0"};
 	char *packed = NULL;
 	const char *variant;
 	size_t size = 0;
@@ -160,7 +169,7 @@ lzc_ioctl_run(zfs_ioc_t ioc, const char *name, nvlist_t *innvl, int expected)
 	zc.zc_nvlist_dst_size = MAX(size * 2, 128 * 1024);
 	zc.zc_nvlist_dst = (uint64_t)(uintptr_t)malloc(zc.zc_nvlist_dst_size);
 
-	if (lzc_ioctl_fd(zfs_fd, ioc, &zc) != 0)
+	if (lzc_ioctl_fd(zfs_fd, ioc, (zfs_cmd_t *)&zc) != 0)
 		error = errno;
 
 	if (error != expected) {
@@ -706,12 +715,12 @@ test_scrub(const char *pool)
 static int
 zfs_destroy(const char *dataset)
 {
-	zfs_cmd_t zc = {"\0"};
+	zfs_cmd_nv_t zc = {"\0"};
 	int err;
 
 	(void) strlcpy(zc.zc_name, dataset, sizeof (zc.zc_name));
 	zc.zc_name[sizeof (zc.zc_name) - 1] = '\0';
-	err = lzc_ioctl_fd(zfs_fd, ZFS_IOC_DESTROY, &zc);
+	err = lzc_ioctl_fd(zfs_fd, ZFS_IOC_DESTROY, (zfs_cmd_t *)&zc);
 
 	return (err == 0 ? 0 : errno);
 }
@@ -888,7 +897,7 @@ zfs_ioc_input_tests(const char *pool)
 	/*
 	 * cleanup
 	 */
-	zfs_cmd_t zc = {"\0"};
+	zfs_cmd_nv_t zc = {"\0"};
 
 	nvlist_t *snaps = fnvlist_alloc();
 	fnvlist_add_boolean(snaps, snapshot);
@@ -921,7 +930,7 @@ zfs_ioc_input_tests(const char *pool)
 		if (ioc_tested[cmd])
 			continue;
 
-		if (lzc_ioctl_fd(zfs_fd, ioc, &zc) != 0 &&
+		if (lzc_ioctl_fd(zfs_fd, ioc, (zfs_cmd_t *)&zc) != 0 &&
 		    errno != ZFS_ERR_IOC_CMD_UNAVAIL) {
 			(void) fprintf(stderr, "cmd %d is missing a test case "
 			    "(%d)\n", cmd, errno);
