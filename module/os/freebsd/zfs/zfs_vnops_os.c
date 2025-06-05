@@ -25,6 +25,7 @@
  * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
  * Copyright 2017 Nexenta Systems, Inc.
+ * Copyright (c) 2025, Klara, Inc.
  */
 
 /* Portions Copyright 2007 Jeremy Teo */
@@ -4084,6 +4085,15 @@ zfs_freebsd_getpages(struct vop_getpages_args *ap)
 	    ap->a_rahead));
 }
 
+static void
+zfs_putpage_commit_cb(void *arg)
+{
+	vm_page_t pp = arg;
+	vm_page_undirty(pp);
+	vm_page_sunbusy(pp);
+	vm_object_pip_wakeup(pp->object);
+}
+
 static int
 zfs_putpages(struct vnode *vp, vm_page_t *ma, size_t len, int flags,
     int *rtvals)
@@ -4185,10 +4195,12 @@ zfs_putpages(struct vnode *vp, vm_page_t *ma, size_t len, int flags,
 	}
 
 	if (zp->z_blksz < PAGE_SIZE) {
-		for (i = 0; len > 0; off += tocopy, len -= tocopy, i++) {
-			tocopy = len > PAGE_SIZE ? PAGE_SIZE : len;
+		vm_ooffset_t woff = off;
+		size_t wlen = len;
+		for (i = 0; wlen > 0; woff += tocopy, wlen -= tocopy, i++) {
+			tocopy = MIN(PAGE_SIZE, wlen);
 			va = zfs_map_page(ma[i], &sf);
-			dmu_write(zfsvfs->z_os, zp->z_id, off, tocopy, va, tx);
+			dmu_write(zfsvfs->z_os, zp->z_id, woff, tocopy, va, tx);
 			zfs_unmap_page(sf);
 		}
 	} else {
@@ -4209,19 +4221,39 @@ zfs_putpages(struct vnode *vp, vm_page_t *ma, size_t len, int flags,
 		zfs_tstamp_update_setup(zp, CONTENT_MODIFIED, mtime, ctime);
 		err = sa_bulk_update(zp->z_sa_hdl, bulk, count, tx);
 		ASSERT0(err);
+
 		/*
-		 * XXX we should be passing a callback to undirty
-		 * but that would make the locking messier
+		 * Loop over the pages and load them onto the ZIL. Each page
+		 * gets a separate log write so we can get the correct page
+		 * pointer into the callback.
 		 */
-		zfs_log_write(zfsvfs->z_log, tx, TX_WRITE, zp, off,
-		    len, commit, B_FALSE, NULL, NULL);
+		vm_ooffset_t pgoff = off;
+		size_t pgrem = len;
 
 		zfs_vmobject_wlock(object);
 		for (i = 0; i < ncount; i++) {
-			rtvals[i] = zfs_vm_pagerret_ok;
-			vm_page_undirty(ma[i]);
+			ASSERT3U(pgrem, >, 0);
+			size_t pglen = MIN(PAGE_SIZE, pgrem);
+
+			zfs_log_write(zfsvfs->z_log, tx, TX_WRITE, zp,
+			    pgoff, pglen, commit, B_FALSE,
+			    zfs_putpage_commit_cb, ma[i]);
+
+			pgoff += pglen;
+			pgrem -= pglen;
+
+			/*
+			 * Inform the kernel that we will take care of page
+			 * cleanup and signalling once it's written out.
+			 */
+			rtvals[i] = zfs_vm_pagerret_pend;
 		}
+
+		ASSERT3U(pgoff, ==, off+len);
+		ASSERT0(pgrem);
+
 		zfs_vmobject_wunlock(object);
+
 		VM_CNT_INC(v_vnodeout);
 		VM_CNT_ADD(v_vnodepgsout, ncount);
 	}
