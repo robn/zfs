@@ -4172,7 +4172,19 @@ vdev_sync(vdev_t *vd, uint64_t txg)
 uint64_t
 vdev_asize_to_psize_txg(vdev_t *vd, uint64_t asize, uint64_t txg)
 {
-	return (vd->vdev_ops->vdev_op_asize_to_psize(vd, asize, txg));
+	const uint64_t psize =
+	    vd->vdev_ops->vdev_op_asize_to_psize(vd, asize, txg);
+
+	/*
+	 * Sanity check; reverse and compare. Caller has requested the largest
+	 * amount of data it can fit into an allocation of asize. Therefore,
+	 * when asked what the minimum allocation is for that returned psize,
+	 * it must advise at least as much as the initial asize.
+	 */
+	ASSERT3U(asize, >=,
+	    vd->vdev_ops->vdev_op_psize_to_asize(vd, psize, txg));
+
+	return (psize);
 }
 
 /*
@@ -4184,7 +4196,20 @@ vdev_asize_to_psize_txg(vdev_t *vd, uint64_t asize, uint64_t txg)
 uint64_t
 vdev_psize_to_asize_txg(vdev_t *vd, uint64_t psize, uint64_t txg)
 {
-	return (vd->vdev_ops->vdev_op_psize_to_asize(vd, psize, txg));
+	const uint64_t asize =
+	    vd->vdev_ops->vdev_op_psize_to_asize(vd, psize, txg);
+
+	/*
+	 * Sanity check; reverse and compare. Caller has requested the size of
+	 * smallest allocation that can fit the given psize. Therefore, when
+	 * asked what the largest amount of data it can fit into an allocation
+	 * of that returned asize, it must advise at least be as much as the
+	 * initial psize.
+	 */
+	ASSERT3U(psize, <=,
+	    vd->vdev_ops->vdev_op_asize_to_psize(vd, asize, txg));
+
+	return (asize);
 }
 
 uint64_t
