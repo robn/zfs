@@ -6142,8 +6142,6 @@ vdev_prop_get(vdev_t *vd, nvlist_t *innvl, nvlist_t *outnvl)
 	uint64_t vdev_guid;
 	nvpair_t *elem = NULL;
 	nvlist_t *nvprops = NULL;
-	uint64_t intval = 0;
-	char *strval = NULL;
 	const char *propname = NULL;
 	vdev_prop_t prop;
 
@@ -6173,31 +6171,26 @@ vdev_prop_get(vdev_t *vd, nvlist_t *innvl, nvlist_t *outnvl)
 		char namebuf[64] = { 0 };
 
 		while ((elem = nvlist_next_nvpair(nvprops, elem)) != NULL) {
-			intval = 0;
-			strval = NULL;
 			propname = nvpair_name(elem);
 			prop = vdev_name_to_prop(propname);
-			zprop_source_t src = ZPROP_SRC_DEFAULT;
-			uint64_t integer_size, num_integers;
 
 			switch (prop) {
 			/* Special Read-only Properties */
 			case VDEV_PROP_NAME:
-				strval = vdev_name(vd, namebuf,
-				    sizeof (namebuf));
-				if (strval == NULL)
-					continue;
-				vdev_prop_add_list(outnvl, propname, strval, 0,
+				vdev_name(vd, namebuf, sizeof (namebuf));
+				vdev_prop_add_list(outnvl, propname, namebuf, 0,
 				    ZPROP_SRC_NONE);
 				continue;
-			case VDEV_PROP_CAPACITY:
+			case VDEV_PROP_CAPACITY: {
 				/* percent used */
-				intval = (vd->vdev_stat.vs_dspace == 0) ? 0 :
+				uint64_t intval =
+				    (vd->vdev_stat.vs_dspace == 0) ? 0 :
 				    (vd->vdev_stat.vs_alloc * 100 /
 				    vd->vdev_stat.vs_dspace);
 				vdev_prop_add_list(outnvl, propname, NULL,
 				    intval, ZPROP_SRC_NONE);
 				continue;
+			}
 			case VDEV_PROP_STATE:
 				vdev_prop_add_list(outnvl, propname, NULL,
 				    vd->vdev_state, ZPROP_SRC_NONE);
@@ -6276,35 +6269,32 @@ vdev_prop_get(vdev_t *vd, nvlist_t *innvl, nvlist_t *outnvl)
 				continue;
 			case VDEV_PROP_PARENT:
 				if (vd->vdev_parent != NULL) {
-					strval = vdev_name(vd->vdev_parent,
+					vdev_name(vd->vdev_parent,
 					    namebuf, sizeof (namebuf));
 					vdev_prop_add_list(outnvl, propname,
-					    strval, 0, ZPROP_SRC_NONE);
+					    namebuf, 0, ZPROP_SRC_NONE);
 				}
 				continue;
-			case VDEV_PROP_CHILDREN:
-				if (vd->vdev_children > 0)
-					strval = kmem_zalloc(ZAP_MAXVALUELEN,
-					    KM_SLEEP);
+			case VDEV_PROP_CHILDREN: {
+				if (vd->vdev_children == 0)
+					continue;
+				char *strval = kmem_zalloc(ZAP_MAXVALUELEN,
+				    KM_SLEEP);
 				for (uint64_t i = 0; i < vd->vdev_children;
 				    i++) {
-					const char *vname;
-
-					vname = vdev_name(vd->vdev_child[i],
+					vdev_name(vd->vdev_child[i],
 					    namebuf, sizeof (namebuf));
-					if (vname == NULL)
-						vname = "(unknown)";
 					if (strlen(strval) > 0)
 						strlcat(strval, ",",
 						    ZAP_MAXVALUELEN);
-					strlcat(strval, vname, ZAP_MAXVALUELEN);
+					strlcat(strval, namebuf,
+					    ZAP_MAXVALUELEN);
 				}
-				if (strval != NULL) {
-					vdev_prop_add_list(outnvl, propname,
-					    strval, 0, ZPROP_SRC_NONE);
-					kmem_free(strval, ZAP_MAXVALUELEN);
-				}
+				vdev_prop_add_list(outnvl, propname,
+				    strval, 0, ZPROP_SRC_NONE);
+				kmem_free(strval, ZAP_MAXVALUELEN);
 				continue;
+			}
 			case VDEV_PROP_NUMCHILDREN:
 				vdev_prop_add_list(outnvl, propname, NULL,
 				    vd->vdev_children, ZPROP_SRC_NONE);
@@ -6432,7 +6422,9 @@ vdev_prop_get(vdev_t *vd, nvlist_t *innvl, nvlist_t *outnvl)
 				}
 				continue;
 			/* Numeric Properites */
-			case VDEV_PROP_ALLOCATING:
+			case VDEV_PROP_ALLOCATING: {
+				zprop_source_t src;
+				uint64_t intval;
 				/* Leaf vdevs cannot have this property */
 				if (vd->vdev_mg == NULL &&
 				    vd->vdev_top != NULL) {
@@ -6454,9 +6446,10 @@ vdev_prop_get(vdev_t *vd, nvlist_t *innvl, nvlist_t *outnvl)
 				vdev_prop_add_list(outnvl, propname, NULL,
 				    intval, src);
 				break;
-			case VDEV_PROP_FAILFAST:
-				src = ZPROP_SRC_LOCAL;
-				strval = NULL;
+			}
+			case VDEV_PROP_FAILFAST: {
+				zprop_source_t src = ZPROP_SRC_LOCAL;
+				uint64_t intval;
 
 				err = zap_lookup(mos, objid, nvpair_name(elem),
 				    sizeof (uint64_t), 1, &intval);
@@ -6470,15 +6463,18 @@ vdev_prop_get(vdev_t *vd, nvlist_t *innvl, nvlist_t *outnvl)
 				if (intval == vdev_prop_default_numeric(prop))
 					src = ZPROP_SRC_DEFAULT;
 
-				vdev_prop_add_list(outnvl, propname, strval,
+				vdev_prop_add_list(outnvl, propname, NULL,
 				    intval, src);
 				break;
+			}
 			case VDEV_PROP_CHECKSUM_N:
 			case VDEV_PROP_CHECKSUM_T:
 			case VDEV_PROP_IO_N:
 			case VDEV_PROP_IO_T:
 			case VDEV_PROP_SLOW_IO_N:
-			case VDEV_PROP_SLOW_IO_T:
+			case VDEV_PROP_SLOW_IO_T: {
+				zprop_source_t src;
+				uint64_t intval;
 				err = vdev_prop_get_int(vd, prop, &intval);
 				if (err && err != ENOENT)
 					break;
@@ -6491,46 +6487,44 @@ vdev_prop_get(vdev_t *vd, nvlist_t *innvl, nvlist_t *outnvl)
 				vdev_prop_add_list(outnvl, propname, NULL,
 				    intval, src);
 				break;
+			}
 			/* Text Properties */
 			case VDEV_PROP_COMMENT:
 				/* Exists in the ZAP below */
 				/* FALLTHRU */
-			case VDEV_PROP_USERPROP:
+			case VDEV_PROP_USERPROP: {
 				/* User Properites */
-				src = ZPROP_SRC_LOCAL;
+				uint64_t integer_size, num_integers;
 
 				err = zap_length(mos, objid, nvpair_name(elem),
 				    &integer_size, &num_integers);
 				if (err)
 					break;
 
-				switch (integer_size) {
-				case 8:
-					/* User properties cannot be integers */
-					err = EINVAL;
+				if (integer_size != 1) {
+					/* User props can only be strings */
+					err = SET_ERROR(EINVAL);
 					break;
-				case 1:
-					/* string property */
-					strval = kmem_alloc(num_integers,
-					    KM_SLEEP);
-					err = zap_lookup(mos, objid,
-					    nvpair_name(elem), 1,
-					    num_integers, strval);
-					if (err) {
-						kmem_free(strval,
-						    num_integers);
-						break;
-					}
-					vdev_prop_add_list(outnvl, propname,
-					    strval, 0, src);
+				}
+
+				char *strval = kmem_alloc(num_integers,
+				    KM_SLEEP);
+				err = zap_lookup(mos, objid, propname, 1,
+				    num_integers, strval);
+				if (err) {
 					kmem_free(strval, num_integers);
 					break;
 				}
+				vdev_prop_add_list(outnvl, propname, strval, 0,
+				    ZPROP_SRC_LOCAL);
+				kmem_free(strval, num_integers);
 				break;
+			}
 			default:
 				err = ENOENT;
 				break;
 			}
+
 			if (err)
 				break;
 		}
@@ -6543,34 +6537,24 @@ vdev_prop_get(vdev_t *vd, nvlist_t *innvl, nvlist_t *outnvl)
 		for (zap_cursor_init(&zc, mos, objid);
 		    (err = zap_cursor_retrieve(&zc, za)) == 0;
 		    zap_cursor_advance(&zc)) {
-			intval = 0;
-			strval = NULL;
-			zprop_source_t src = ZPROP_SRC_DEFAULT;
-			propname = za->za_name;
-
-			switch (za->za_integer_length) {
-			case 8:
-				/* We do not allow integer user properties */
+			if (za->za_integer_length != 1) {
+				/* We do not allow non-string user properties */
 				/* This is likely an internal value */
 				break;
-			case 1:
-				/* string property */
-				strval = kmem_alloc(za->za_num_integers,
-				    KM_SLEEP);
-				err = zap_lookup(mos, objid, za->za_name, 1,
-				    za->za_num_integers, strval);
-				if (err) {
-					kmem_free(strval, za->za_num_integers);
-					break;
-				}
-				vdev_prop_add_list(outnvl, propname, strval, 0,
-				    src);
+			}
+
+			/* string property */
+			char *strval =
+			    kmem_alloc(za->za_num_integers, KM_SLEEP);
+			err = zap_lookup(mos, objid, za->za_name, 1,
+			    za->za_num_integers, strval);
+			if (err) {
 				kmem_free(strval, za->za_num_integers);
 				break;
-
-			default:
-				break;
 			}
+			vdev_prop_add_list(outnvl, za->za_name, strval, 0,
+			    ZPROP_SRC_DEFAULT);
+			kmem_free(strval, za->za_num_integers);
 		}
 		zap_cursor_fini(&zc);
 		zap_attribute_free(za);
