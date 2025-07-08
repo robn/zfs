@@ -1257,6 +1257,19 @@ zfs_setsecattr(znode_t *zp, vsecattr_t *vsecp, int flag, cred_t *cr)
 }
 
 /*
+ * Get the minimum reported hole size. Usually this is just the block size.
+ * Note that this is for reporting holes, not creating them. While they're
+ * likely the same, it just means we don't have to speculate: we can just
+ * report the block size on this file as it is right now.
+ */
+int
+zfs_get_min_hole_size(znode_t *zp, uint64_t *sizep)
+{
+	*sizep = MAX(zp->z_blksz, SPA_MINBLOCKSIZE);
+	return (0);
+}
+
+/*
  * Get the optimal alignment to ensure direct IO can be performed without
  * incurring any RMW penalty on write. If direct IO is not enabled for this
  * file, returns an error.

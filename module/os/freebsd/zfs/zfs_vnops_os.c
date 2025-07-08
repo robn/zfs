@@ -4115,9 +4115,13 @@ zfs_pathconf(vnode_t *vp, int cmd, ulong_t *valp, cred_t *cr,
 	case _PC_FILESIZEBITS:
 		*valp = 64;
 		return (0);
-	case _PC_MIN_HOLE_SIZE:
-		*valp = (int)SPA_MINBLOCKSIZE;
+	case _PC_MIN_HOLE_SIZE: {
+		uint64_t size;
+		if (zfs_get_min_hole_size(VTOZ(vp), &size) != 0)
+			size = SPA_MINBLOCKSIZE;
+		*valp = (int)size;
 		return (0);
+	}
 	case _PC_ACL_EXTENDED:
 #if 0		/* POSIX ACLs are not implemented for ZFS on FreeBSD yet. */
 		zp = VTOZ(vp);

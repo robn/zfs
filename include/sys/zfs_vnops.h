@@ -45,6 +45,7 @@ extern int zfs_rewrite(znode_t *, uint64_t, uint64_t, uint64_t, uint64_t);
 extern int zfs_getsecattr(znode_t *, vsecattr_t *, int, cred_t *);
 extern int zfs_setsecattr(znode_t *, vsecattr_t *, int, cred_t *);
 
+extern int zfs_get_min_hole_size(znode_t *, uint64_t *);
 extern int zfs_get_direct_alignment(znode_t *, uint64_t *);
 
 extern int mappedread(znode_t *, int, zfs_uio_t *);
