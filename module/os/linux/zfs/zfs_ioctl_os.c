@@ -138,12 +138,12 @@ zfsdev_ioctl(struct file *filp, unsigned cmd, unsigned long arg)
 
 	zc = vmem_zalloc(sizeof (zfs_cmd_t), KM_SLEEP);
 
-	if (ddi_copyin((void *)(uintptr_t)arg, zc, sizeof (zfs_cmd_t), 0)) {
+	if (copyin((void *)(uintptr_t)arg, zc, sizeof (zfs_cmd_t))) {
 		error = -SET_ERROR(EFAULT);
 		goto out;
 	}
 	error = -zfsdev_ioctl_common(vecnum, zc);
-	rc = ddi_copyout(zc, (void *)(uintptr_t)arg, sizeof (zfs_cmd_t), 0);
+	rc = copyout(zc, (void *)(uintptr_t)arg, sizeof (zfs_cmd_t));
 	if (error == 0 && rc != 0)
 		error = -SET_ERROR(EFAULT);
 out:

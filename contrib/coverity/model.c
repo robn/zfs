@@ -40,16 +40,6 @@ typedef unsigned int uint_t;
 
 int condition0, condition1;
 
-int
-ddi_copyin(const void *from, void *to, size_t len, int flags)
-{
-	(void) flags;
-	__coverity_negative_sink__(len);
-	__coverity_tainted_data_argument__(from);
-	__coverity_tainted_data_argument__(to);
-	__coverity_writeall__(to);
-}
-
 void *
 memset(void *dst, int c, size_t len)
 {

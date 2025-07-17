@@ -1288,7 +1288,7 @@ get_nvlist(uint64_t nvl, uint64_t size, nvlist_t **nvp)
 
 	packed = vmem_alloc(size, KM_SLEEP);
 
-	if (ddi_copyin((void *)(uintptr_t)nvl, packed, size, 0) != 0) {
+	if (copyin((void *)(uintptr_t)nvl, packed, size) != 0) {
 		vmem_free(packed, size);
 		return (SET_ERROR(EFAULT));
 	}
@@ -1356,8 +1356,8 @@ put_nvlist(zfs_cmd_t *zc, nvlist_t *nvl)
 		error = SET_ERROR(ENOMEM);
 	} else {
 		packed = fnvlist_pack(nvl, &size);
-		if (ddi_copyout(packed, (void *)(uintptr_t)zc->zc_nvlist_dst,
-		    size, 0) != 0)
+		if (copyout(packed, (void *)(uintptr_t)zc->zc_nvlist_dst,
+		    size) != 0)
 			error = SET_ERROR(EFAULT);
 		fnvlist_pack_free(packed, size);
 	}
@@ -1794,9 +1794,8 @@ zfs_ioc_pool_get_history(zfs_cmd_t *zc)
 	hist_buf = vmem_alloc(size, KM_SLEEP);
 	if ((error = spa_history_get(spa, &zc->zc_history_offset,
 	    &zc->zc_history_len, hist_buf)) == 0) {
-		error = ddi_copyout(hist_buf,
-		    (void *)(uintptr_t)zc->zc_history,
-		    zc->zc_history_len, 0);
+		error = copyout(hist_buf, (void *)(uintptr_t)zc->zc_history,
+		    zc->zc_history_len);
 	}
 
 	spa_close(spa, FTAG);

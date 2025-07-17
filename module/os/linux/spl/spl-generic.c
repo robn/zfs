@@ -542,13 +542,6 @@ EXPORT_SYMBOL(ddi_strtol);
 EXPORT_SYMBOL(ddi_strtoll);
 EXPORT_SYMBOL(ddi_strtoull);
 
-int
-ddi_copyin(const void *from, void *to, size_t len, int flags)
-{
-	return (copyin(from, to, len));
-}
-EXPORT_SYMBOL(ddi_copyin);
-
 /*
  * Post a uevent to userspace whenever a new vdev adds to the pool. It is
  * necessary to sync blkid information with udev, which zed daemon uses
@@ -580,13 +573,6 @@ spl_signal_kobj_evt(struct block_device *bdev)
 #endif
 }
 EXPORT_SYMBOL(spl_signal_kobj_evt);
-
-int
-ddi_copyout(const void *from, void *to, size_t len, int flags)
-{
-	return (copyout(from, to, len));
-}
-EXPORT_SYMBOL(ddi_copyout);
 
 static int
 spl_getattr(struct file *filp, struct kstat *stat)

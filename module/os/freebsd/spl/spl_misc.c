@@ -67,18 +67,6 @@ kmem_strdup(const char *s)
 	return (buf);
 }
 
-int
-ddi_copyin(const void *from, void *to, size_t len, int flags)
-{
-	return (copyin(from, to, len));
-}
-
-int
-ddi_copyout(const void *from, void *to, size_t len, int flags)
-{
-	return (copyout(from, to, len));
-}
-
 void
 spl_panic(const char *file, const char *func, int line, const char *fmt, ...)
 {
