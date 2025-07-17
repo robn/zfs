@@ -26,7 +26,6 @@
 #define	_SPL_FILE_H
 
 #define	FIGNORECASE		0x00080000
-#define	FKIOCTL			0x80000000
 #define	ED_CASE_CONFLICT	0x10
 
 #define	spl_inode_lock(ip)		inode_lock(ip)

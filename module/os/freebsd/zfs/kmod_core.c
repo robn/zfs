@@ -165,7 +165,7 @@ zfsdev_ioctl(struct cdev *dev, ulong_t zcmd, caddr_t arg, int flag,
 		error = SET_ERROR(EFAULT);
 		goto out;
 	}
-	error = zfsdev_ioctl_common(vecnum, zc, 0);
+	error = zfsdev_ioctl_common(vecnum, zc);
 #ifdef ZFS_LEGACY_SUPPORT
 	if (zcl) {
 		zfs_cmd_ozfs_to_legacy(zc, zcl);

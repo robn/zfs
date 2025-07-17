@@ -33,8 +33,6 @@
 #include <sys/refcount.h>
 #include_next <sys/file.h>
 
-#define	FKIOCTL	0x80000000	/* ioctl addresses are from kernel */
-
 typedef	struct file	file_t;
 
 #include <sys/capsicum.h>

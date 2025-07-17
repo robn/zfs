@@ -282,7 +282,7 @@ static int zfs_check_clearable(const char *dataset, nvlist_t *props,
 static int zfs_fill_zplprops_root(uint64_t, nvlist_t *, nvlist_t *,
     boolean_t *);
 int zfs_set_prop_nvlist(const char *, zprop_source_t, nvlist_t *, nvlist_t *);
-static int get_nvlist(uint64_t nvl, uint64_t size, int iflag, nvlist_t **nvp);
+static int get_nvlist(uint64_t nvl, uint64_t size, nvlist_t **nvp);
 
 static void
 history_str_free(char *buf)
@@ -1274,7 +1274,7 @@ zfs_secpolicy_change_key(zfs_cmd_t *zc, nvlist_t *innvl, cred_t *cr)
  * Returns the nvlist as specified by the user in the zfs_cmd_t.
  */
 static int
-get_nvlist(uint64_t nvl, uint64_t size, int iflag, nvlist_t **nvp)
+get_nvlist(uint64_t nvl, uint64_t size, nvlist_t **nvp)
 {
 	char *packed;
 	int error;
@@ -1288,7 +1288,7 @@ get_nvlist(uint64_t nvl, uint64_t size, int iflag, nvlist_t **nvp)
 
 	packed = vmem_alloc(size, KM_SLEEP);
 
-	if (ddi_copyin((void *)(uintptr_t)nvl, packed, size, iflag) != 0) {
+	if (ddi_copyin((void *)(uintptr_t)nvl, packed, size, 0) != 0) {
 		vmem_free(packed, size);
 		return (SET_ERROR(EFAULT));
 	}
@@ -1357,7 +1357,7 @@ put_nvlist(zfs_cmd_t *zc, nvlist_t *nvl)
 	} else {
 		packed = fnvlist_pack(nvl, &size);
 		if (ddi_copyout(packed, (void *)(uintptr_t)zc->zc_nvlist_dst,
-		    size, zc->zc_iflags) != 0)
+		    size, 0) != 0)
 			error = SET_ERROR(EFAULT);
 		fnvlist_pack_free(packed, size);
 	}
@@ -1455,12 +1455,11 @@ zfs_ioc_pool_create(zfs_cmd_t *zc)
 	boolean_t unload_wkey = B_TRUE;
 
 	if ((error = get_nvlist(zc->zc_nvlist_conf, zc->zc_nvlist_conf_size,
-	    zc->zc_iflags, &config)))
+	    &config)))
 		return (error);
 
 	if (zc->zc_nvlist_src_size != 0 && (error =
-	    get_nvlist(zc->zc_nvlist_src, zc->zc_nvlist_src_size,
-	    zc->zc_iflags, &props))) {
+	    get_nvlist(zc->zc_nvlist_src, zc->zc_nvlist_src_size, &props))) {
 		nvlist_free(config);
 		return (error);
 	}
@@ -1543,12 +1542,11 @@ zfs_ioc_pool_import(zfs_cmd_t *zc)
 	int error;
 
 	if ((error = get_nvlist(zc->zc_nvlist_conf, zc->zc_nvlist_conf_size,
-	    zc->zc_iflags, &config)) != 0)
+	    &config)) != 0)
 		return (error);
 
 	if (zc->zc_nvlist_src_size != 0 && (error =
-	    get_nvlist(zc->zc_nvlist_src, zc->zc_nvlist_src_size,
-	    zc->zc_iflags, &props))) {
+	    get_nvlist(zc->zc_nvlist_src, zc->zc_nvlist_src_size, &props))) {
 		nvlist_free(config);
 		return (error);
 	}
@@ -1649,7 +1647,7 @@ zfs_ioc_pool_tryimport(zfs_cmd_t *zc)
 	int error;
 
 	if ((error = get_nvlist(zc->zc_nvlist_conf, zc->zc_nvlist_conf_size,
-	    zc->zc_iflags, &tryconfig)) != 0)
+	    &tryconfig)) != 0)
 		return (error);
 
 	config = spa_tryimport(tryconfig);
@@ -1798,7 +1796,7 @@ zfs_ioc_pool_get_history(zfs_cmd_t *zc)
 	    &zc->zc_history_len, hist_buf)) == 0) {
 		error = ddi_copyout(hist_buf,
 		    (void *)(uintptr_t)zc->zc_history,
-		    zc->zc_history_len, zc->zc_iflags);
+		    zc->zc_history_len, 0);
 	}
 
 	spa_close(spa, FTAG);
@@ -1822,7 +1820,7 @@ zfs_ioc_pool_reguid(zfs_cmd_t *zc)
 
 	if (zc->zc_nvlist_src_size != 0) {
 		error = get_nvlist(zc->zc_nvlist_src, zc->zc_nvlist_src_size,
-		    zc->zc_iflags, &props);
+		    &props);
 		if (error != 0)
 			return (error);
 
@@ -1925,7 +1923,7 @@ zfs_ioc_vdev_add(zfs_cmd_t *zc)
 		return (error);
 
 	error = get_nvlist(zc->zc_nvlist_conf, zc->zc_nvlist_conf_size,
-	    zc->zc_iflags, &config);
+	    &config);
 	if (error == 0) {
 		error = spa_vdev_add(spa, config, zc->zc_flags);
 		nvlist_free(config);
@@ -2018,7 +2016,7 @@ zfs_ioc_vdev_attach(zfs_cmd_t *zc)
 		return (error);
 
 	if ((error = get_nvlist(zc->zc_nvlist_conf, zc->zc_nvlist_conf_size,
-	    zc->zc_iflags, &config)) == 0) {
+	    &config)) == 0) {
 		error = spa_vdev_attach(spa, zc->zc_guid, config, replacing,
 		    rebuild);
 		nvlist_free(config);
@@ -2055,14 +2053,14 @@ zfs_ioc_vdev_split(zfs_cmd_t *zc)
 		return (error);
 
 	if ((error = get_nvlist(zc->zc_nvlist_conf, zc->zc_nvlist_conf_size,
-	    zc->zc_iflags, &config))) {
+	    &config))) {
 		spa_close(spa, FTAG);
 		return (error);
 	}
 
 	if (zc->zc_nvlist_src_size != 0 && (error =
 	    get_nvlist(zc->zc_nvlist_src, zc->zc_nvlist_src_size,
-	    zc->zc_iflags, &props))) {
+	    &props))) {
 		spa_close(spa, FTAG);
 		nvlist_free(config);
 		return (error);
@@ -2362,7 +2360,7 @@ zfs_ioc_snapshot_list_next(zfs_cmd_t *zc)
 	if (zc->zc_nvlist_src_size != 0) {
 		nvlist_t *props = NULL;
 		error = get_nvlist(zc->zc_nvlist_src, zc->zc_nvlist_src_size,
-		    zc->zc_iflags, &props);
+		    &props);
 		if (error != 0)
 			return (error);
 		(void) nvlist_lookup_uint64(props, SNAP_ITER_MIN_TXG,
@@ -2959,7 +2957,7 @@ zfs_ioc_set_prop(zfs_cmd_t *zc)
 	int error;
 
 	if ((error = get_nvlist(zc->zc_nvlist_src, zc->zc_nvlist_src_size,
-	    zc->zc_iflags, &nvl)) != 0)
+	    &nvl)) != 0)
 		return (error);
 
 	if (received) {
@@ -3074,7 +3072,7 @@ zfs_ioc_pool_set_props(zfs_cmd_t *zc)
 	nvpair_t *pair;
 
 	if ((error = get_nvlist(zc->zc_nvlist_src, zc->zc_nvlist_src_size,
-	    zc->zc_iflags, &props)))
+	    &props)))
 		return (error);
 
 	/*
@@ -3263,7 +3261,7 @@ zfs_ioc_set_fsacl(zfs_cmd_t *zc)
 	nvlist_t *fsaclnv = NULL;
 
 	if ((error = get_nvlist(zc->zc_nvlist_src, zc->zc_nvlist_src_size,
-	    zc->zc_iflags, &fsaclnv)) != 0)
+	    &fsaclnv)) != 0)
 		return (error);
 
 	/*
@@ -5624,13 +5622,13 @@ zfs_ioc_recv(zfs_cmd_t *zc)
 
 	if (zc->zc_nvlist_src != 0 &&
 	    (error = get_nvlist(zc->zc_nvlist_src, zc->zc_nvlist_src_size,
-	    zc->zc_iflags, &recvdprops)) != 0) {
+	    &recvdprops)) != 0) {
 		goto out;
 	}
 
 	if (zc->zc_nvlist_conf != 0 &&
 	    (error = get_nvlist(zc->zc_nvlist_conf, zc->zc_nvlist_conf_size,
-	    zc->zc_iflags, &localprops)) != 0) {
+	    &localprops)) != 0) {
 		goto out;
 	}
 
@@ -6111,7 +6109,7 @@ zfs_ioc_clear(zfs_cmd_t *zc)
 			return (SET_ERROR(EINVAL));
 
 		if ((error = get_nvlist(zc->zc_nvlist_src,
-		    zc->zc_nvlist_src_size, zc->zc_iflags, &policy)) == 0) {
+		    zc->zc_nvlist_src_size, &policy)) == 0) {
 			error = spa_open_rewind(zc->zc_name, &spa, FTAG,
 			    policy, &config);
 			if (config != NULL) {
@@ -7999,7 +7997,7 @@ zfsdev_state_destroy(void *priv)
 }
 
 long
-zfsdev_ioctl_common(uint_t vecnum, zfs_cmd_t *zc, int flag)
+zfsdev_ioctl_common(uint_t vecnum, zfs_cmd_t *zc)
 {
 	int error, cmd;
 	const zfs_ioc_vec_t *vec;
@@ -8024,7 +8022,7 @@ zfsdev_ioctl_common(uint_t vecnum, zfs_cmd_t *zc, int flag)
 	if (vec->zvec_func == NULL && vec->zvec_legacy_func == NULL)
 		return (SET_ERROR(ZFS_ERR_IOC_CMD_UNAVAIL));
 
-	zc->zc_iflags = flag & FKIOCTL;
+	zc->zc_iflags = 0;
 	max_nvlist_src_size = zfs_max_nvlist_src_size_os();
 	if (zc->zc_nvlist_src_size > max_nvlist_src_size) {
 		/*
@@ -8044,7 +8042,7 @@ zfsdev_ioctl_common(uint_t vecnum, zfs_cmd_t *zc, int flag)
 
 	} else if (zc->zc_nvlist_src_size != 0) {
 		error = get_nvlist(zc->zc_nvlist_src, zc->zc_nvlist_src_size,
-		    zc->zc_iflags, &innvl);
+		    &innvl);
 		if (error != 0)
 			goto out;
 	}
