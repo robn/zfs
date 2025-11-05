@@ -37,6 +37,7 @@ zed_SOURCES = \
 	%D%/agents/zfs_retire.c
 
 zed_LDADD = \
+	libspl.la \
 	libzfs.la \
 	libzfs_core.la \
 	libnvpair.la \

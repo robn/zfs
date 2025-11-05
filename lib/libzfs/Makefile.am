@@ -54,11 +54,17 @@ nodist_libzfs_la_SOURCES = \
 	module/zcommon/zprop_common.c
 
 libzfs_la_LIBADD = \
-	libshare.la \
-	libzfs_core.la \
 	libnvpair.la \
+	libshare.la \
+	libtpool.la \
+	libuutil.la \
+	libzfs_core.la \
 	libzutil.la \
-	libuutil.la
+	libspl.la
+
+if BUILD_LINUX
+libzfs_la_LIBADD += libefi.la
+endif
 
 libzfs_la_LIBADD += -lrt -lm $(LIBCRYPTO_LIBS) $(ZLIB_LIBS) $(LIBFETCH_LIBS) $(LTLIBINTL)
 

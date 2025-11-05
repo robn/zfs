@@ -192,22 +192,29 @@ nodist_libzpool_la_SOURCES = \
 	module/zfs/zthr.c
 
 libzpool_la_LIBADD = \
+	libavl.la \
 	libicp.la \
 	libunicode.la \
 	libnvpair.la \
+	libspl_reexport.la \
 	libzstd.la \
-	libzutil.la
+	libzutil.la \
+	libtpool.la
+
+if BUILD_LINUX
+libzpool_la_LIBADD += libefi.la
+endif
 
 libzpool_la_LIBADD += $(LIBCLOCK_GETTIME) $(ZLIB_LIBS) -lm
+
+if BUILD_FREEBSD
+libzpool_la_LIBADD += -lgeom
+endif
 
 libzpool_la_LDFLAGS = -pthread
 
 if !ASAN_ENABLED
 libzpool_la_LDFLAGS += -Wl,-z,defs
-endif
-
-if BUILD_FREEBSD
-libzpool_la_LIBADD += -lgeom
 endif
 
 libzpool_la_LDFLAGS += -version-info 6:0:0

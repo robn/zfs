@@ -10,6 +10,7 @@ zfs_SOURCES = \
 	%D%/zfs_util.h
 
 zfs_LDADD = \
+	libspl.la \
 	libzfs.la \
 	libzfs_core.la \
 	libnvpair.la \

@@ -28,16 +28,8 @@ libzutil_la_SOURCES += \
 	%D%/os/freebsd/zutil_import_os.c
 endif
 
-libzutil_la_LIBADD = \
-	libavl.la \
-	libtpool.la \
-	libnvpair.la \
-	libspl.la
+libzutil_la_LIBADD = -lm $(LIBBLKID_LIBS) $(LIBUDEV_LIBS)
 
 if BUILD_LINUX
-libzutil_la_LIBADD += \
-	libefi.la \
-	-lrt
+libzutil_la_LIBADD += -lrt
 endif
-
-libzutil_la_LIBADD += -lm $(LIBBLKID_LIBS) $(LIBUDEV_LIBS)

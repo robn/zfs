@@ -9,6 +9,7 @@ zinject_SOURCES = \
 	%D%/zinject.h
 
 zinject_LDADD = \
+	libspl.la \
 	libzfs.la \
 	libzfs_core.la \
 	libnvpair.la

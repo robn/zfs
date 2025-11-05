@@ -24,7 +24,7 @@
  */
 
 #ifndef	_LIBUUTIL_H
-#define	_LIBUUTIL_H
+#define	_LIBUUTIL_H extern __attribute__((visibility("default")))
 
 #include <sys/types.h>
 #include <stdarg.h>
@@ -66,7 +66,7 @@ extern "C" {
 /*
  * Error reporting functions.
  */
-uint32_t uu_error(void);
+_LIBUUTIL_H uint32_t uu_error(void);
 const char *uu_strerror(uint32_t);
 
 /*
@@ -169,11 +169,11 @@ typedef uintptr_t uu_list_index_t;
  *		    debugging? 0 : UU_AVL_POOL_DEBUG);
  *	...
  */
-uu_list_pool_t *uu_list_pool_create(const char *, size_t, size_t,
+_LIBUUTIL_H uu_list_pool_t *uu_list_pool_create(const char *, size_t, size_t,
     uu_compare_fn_t *, uint32_t);
 #define	UU_LIST_POOL_DEBUG	0x00000001
 
-void uu_list_pool_destroy(uu_list_pool_t *);
+_LIBUUTIL_H void uu_list_pool_destroy(uu_list_pool_t *);
 
 /*
  * usage:
@@ -185,44 +185,44 @@ void uu_list_pool_destroy(uu_list_pool_t *);
  *	uu_list_node_fini(a, &a->foo_list, pool);
  *	free(a);
  */
-void uu_list_node_init(void *, uu_list_node_t *, uu_list_pool_t *);
-void uu_list_node_fini(void *, uu_list_node_t *, uu_list_pool_t *);
+_LIBUUTIL_H void uu_list_node_init(void *, uu_list_node_t *, uu_list_pool_t *);
+_LIBUUTIL_H void uu_list_node_fini(void *, uu_list_node_t *, uu_list_pool_t *);
 
-uu_list_t *uu_list_create(uu_list_pool_t *, void *_parent, uint32_t);
+_LIBUUTIL_H uu_list_t *uu_list_create(uu_list_pool_t *, void *, uint32_t);
 #define	UU_LIST_DEBUG	0x00000001
 #define	UU_LIST_SORTED	0x00000002	/* list is sorted */
 
-void uu_list_destroy(uu_list_t *);	/* list must be empty */
+_LIBUUTIL_H void uu_list_destroy(uu_list_t *);	/* list must be empty */
 
-size_t uu_list_numnodes(uu_list_t *);
+_LIBUUTIL_H size_t uu_list_numnodes(uu_list_t *);
 
-void *uu_list_first(uu_list_t *);
-void *uu_list_last(uu_list_t *);
+_LIBUUTIL_H void *uu_list_first(uu_list_t *);
+_LIBUUTIL_H void *uu_list_last(uu_list_t *);
 
-void *uu_list_next(uu_list_t *, void *);
-void *uu_list_prev(uu_list_t *, void *);
+_LIBUUTIL_H void *uu_list_next(uu_list_t *, void *);
+_LIBUUTIL_H void *uu_list_prev(uu_list_t *, void *);
 
-int uu_list_walk(uu_list_t *, uu_walk_fn_t *, void *, uint32_t);
+_LIBUUTIL_H int uu_list_walk(uu_list_t *, uu_walk_fn_t *, void *, uint32_t);
 
-uu_list_walk_t *uu_list_walk_start(uu_list_t *, uint32_t);
-void *uu_list_walk_next(uu_list_walk_t *);
-void uu_list_walk_end(uu_list_walk_t *);
+_LIBUUTIL_H uu_list_walk_t *uu_list_walk_start(uu_list_t *, uint32_t);
+_LIBUUTIL_H void *uu_list_walk_next(uu_list_walk_t *);
+_LIBUUTIL_H void uu_list_walk_end(uu_list_walk_t *);
 
-void *uu_list_find(uu_list_t *, void *, void *, uu_list_index_t *);
-void uu_list_insert(uu_list_t *, void *, uu_list_index_t);
+_LIBUUTIL_H void *uu_list_find(uu_list_t *, void *, void *, uu_list_index_t *);
+_LIBUUTIL_H void uu_list_insert(uu_list_t *, void *, uu_list_index_t);
 
-void *uu_list_nearest_next(uu_list_t *, uu_list_index_t);
-void *uu_list_nearest_prev(uu_list_t *, uu_list_index_t);
+_LIBUUTIL_H void *uu_list_nearest_next(uu_list_t *, uu_list_index_t);
+_LIBUUTIL_H void *uu_list_nearest_prev(uu_list_t *, uu_list_index_t);
 
-void *uu_list_teardown(uu_list_t *, void **);
+_LIBUUTIL_H void *uu_list_teardown(uu_list_t *, void **);
 
-void uu_list_remove(uu_list_t *, void *);
+_LIBUUTIL_H void uu_list_remove(uu_list_t *, void *);
 
 /*
  * lists: interfaces for non-sorted lists only
  */
-int uu_list_insert_before(uu_list_t *, void *_target, void *_elem);
-int uu_list_insert_after(uu_list_t *, void *_target, void *_elem);
+_LIBUUTIL_H int uu_list_insert_before(uu_list_t *, void *_target, void *_elem);
+_LIBUUTIL_H int uu_list_insert_after(uu_list_t *, void *_target, void *_elem);
 
 /*
  * avl trees: opaque structures
@@ -272,11 +272,11 @@ typedef uintptr_t uu_avl_index_t;
  *		    debugging? 0 : UU_AVL_POOL_DEBUG);
  *	...
  */
-uu_avl_pool_t *uu_avl_pool_create(const char *, size_t, size_t,
+_LIBUUTIL_H uu_avl_pool_t *uu_avl_pool_create(const char *, size_t, size_t,
     uu_compare_fn_t *, uint32_t);
 #define	UU_AVL_POOL_DEBUG	0x00000001
 
-void uu_avl_pool_destroy(uu_avl_pool_t *);
+_LIBUUTIL_H void uu_avl_pool_destroy(uu_avl_pool_t *);
 
 /*
  * usage:
@@ -288,37 +288,37 @@ void uu_avl_pool_destroy(uu_avl_pool_t *);
  *	uu_avl_node_fini(a, &a->foo_avl, pool);
  *	free(a);
  */
-void uu_avl_node_init(void *, uu_avl_node_t *, uu_avl_pool_t *);
-void uu_avl_node_fini(void *, uu_avl_node_t *, uu_avl_pool_t *);
+_LIBUUTIL_H void uu_avl_node_init(void *, uu_avl_node_t *, uu_avl_pool_t *);
+_LIBUUTIL_H void uu_avl_node_fini(void *, uu_avl_node_t *, uu_avl_pool_t *);
 
-uu_avl_t *uu_avl_create(uu_avl_pool_t *, void *_parent, uint32_t);
+_LIBUUTIL_H uu_avl_t *uu_avl_create(uu_avl_pool_t *, void *_parent, uint32_t);
 #define	UU_AVL_DEBUG	0x00000001
 
-void uu_avl_destroy(uu_avl_t *);	/* list must be empty */
+_LIBUUTIL_H void uu_avl_destroy(uu_avl_t *);	/* list must be empty */
 
-size_t uu_avl_numnodes(uu_avl_t *);
+_LIBUUTIL_H size_t uu_avl_numnodes(uu_avl_t *);
 
-void *uu_avl_first(uu_avl_t *);
-void *uu_avl_last(uu_avl_t *);
+_LIBUUTIL_H void *uu_avl_first(uu_avl_t *);
+_LIBUUTIL_H void *uu_avl_last(uu_avl_t *);
 
-void *uu_avl_next(uu_avl_t *, void *);
-void *uu_avl_prev(uu_avl_t *, void *);
+_LIBUUTIL_H void *uu_avl_next(uu_avl_t *, void *);
+_LIBUUTIL_H void *uu_avl_prev(uu_avl_t *, void *);
 
-int uu_avl_walk(uu_avl_t *, uu_walk_fn_t *, void *, uint32_t);
+_LIBUUTIL_H int uu_avl_walk(uu_avl_t *, uu_walk_fn_t *, void *, uint32_t);
 
-uu_avl_walk_t *uu_avl_walk_start(uu_avl_t *, uint32_t);
-void *uu_avl_walk_next(uu_avl_walk_t *);
-void uu_avl_walk_end(uu_avl_walk_t *);
+_LIBUUTIL_H uu_avl_walk_t *uu_avl_walk_start(uu_avl_t *, uint32_t);
+_LIBUUTIL_H void *uu_avl_walk_next(uu_avl_walk_t *);
+_LIBUUTIL_H void uu_avl_walk_end(uu_avl_walk_t *);
 
-void *uu_avl_find(uu_avl_t *, void *, void *, uu_avl_index_t *);
-void uu_avl_insert(uu_avl_t *, void *, uu_avl_index_t);
+_LIBUUTIL_H void *uu_avl_find(uu_avl_t *, void *, void *, uu_avl_index_t *);
+_LIBUUTIL_H void uu_avl_insert(uu_avl_t *, void *, uu_avl_index_t);
 
-void *uu_avl_nearest_next(uu_avl_t *, uu_avl_index_t);
-void *uu_avl_nearest_prev(uu_avl_t *, uu_avl_index_t);
+_LIBUUTIL_H void *uu_avl_nearest_next(uu_avl_t *, uu_avl_index_t);
+_LIBUUTIL_H void *uu_avl_nearest_prev(uu_avl_t *, uu_avl_index_t);
 
-void *uu_avl_teardown(uu_avl_t *, void **);
+_LIBUUTIL_H void *uu_avl_teardown(uu_avl_t *, void **);
 
-void uu_avl_remove(uu_avl_t *, void *);
+_LIBUUTIL_H void uu_avl_remove(uu_avl_t *, void *);
 
 #ifdef	__cplusplus
 }

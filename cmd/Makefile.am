@@ -73,6 +73,7 @@ mount_zfs_SOURCES = \
 	%D%/mount_zfs.c
 
 mount_zfs_LDADD = \
+	libspl.la \
 	libzfs.la \
 	libzfs_core.la \
 	libnvpair.la

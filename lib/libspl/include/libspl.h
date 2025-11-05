@@ -24,14 +24,14 @@
  */
 
 #ifndef _LIBSPL_H
-#define	_LIBSPL_H extern __attribute__((visibility("default")))
+#define	_LIBSPL_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-_LIBSPL_H void libspl_init(void);
-_LIBSPL_H void libspl_fini(void);
+extern void libspl_init(void);
+extern void libspl_fini(void);
 
 #ifdef __cplusplus
 };

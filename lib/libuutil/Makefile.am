@@ -1,4 +1,5 @@
 libuutil_la_CFLAGS = $(AM_CFLAGS) $(LIBRARY_CFLAGS) $(LIBRARY_CFLAGS)
+libuutil_la_CFLAGS += -fvisibility=hidden
 
 lib_LTLIBRARIES += libuutil.la
 CPPCHECKTARGETS += libuutil.la
