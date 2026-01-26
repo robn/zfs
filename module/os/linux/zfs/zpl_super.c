@@ -36,6 +36,10 @@
 #include <linux/version.h>
 #include <linux/vfs_compat.h>
 
+#ifdef HAVE_FS_CONTEXT
+#include <linux/fs_context.h>
+#endif
+
 /*
  * What to do when the last reference to an inode is released. If 0, the kernel
  * will cache it on the superblock. If 1, the inode will be freed immediately.
@@ -504,6 +508,54 @@ zpl_prune_sb(uint64_t nr_to_scan, void *arg)
 #endif
 }
 
+#ifdef HAVE_FS_CONTEXT
+static int
+zpl_parse_param(struct fs_context *fc, struct fs_parameter *param)
+{
+	if (strcmp(param->key, "source") == 0) {
+		if (param->type != fs_value_is_string)
+			return (-SET_ERROR(EINVAL));
+		if (fc->source != NULL)
+			return (-SET_ERROR(EINVAL));
+		fc->source = param->string;
+		param->string = NULL;
+		return (0);
+	}
+	return (0);
+}
+
+static int
+zpl_get_tree(struct fs_context *fc)
+{
+	struct dentry *root =
+	    zpl_mount(fc->fs_type, fc->sb_flags, fc->source, NULL);
+	if (IS_ERR(root))
+		return PTR_ERR(root);
+
+	fc->root = root;
+	return (0);
+}
+
+static int
+zpl_reconfigure(struct fs_context *fc)
+{
+	return (zpl_remount_fs(fc->root->d_sb, &fc->sb_flags, NULL));
+}
+
+const struct fs_context_operations zpl_fs_context_operations = {
+	.parse_param		= zpl_parse_param,
+	.get_tree		= zpl_get_tree,
+	.reconfigure		= zpl_reconfigure,
+};
+
+static int
+zpl_init_fs_context(struct fs_context *fc)
+{
+	fc->ops = &zpl_fs_context_operations;
+	return (0);
+}
+#endif
+
 const struct super_operations zpl_super_operations = {
 	.alloc_inode		= zpl_inode_alloc,
 #ifdef HAVE_SOPS_FREE_INODE
@@ -517,7 +569,9 @@ const struct super_operations zpl_super_operations = {
 	.put_super		= zpl_put_super,
 	.sync_fs		= zpl_sync_fs,
 	.statfs			= zpl_statfs,
+#ifndef HAVE_FS_CONTEXT
 	.remount_fs		= zpl_remount_fs,
+#endif
 	.show_devname		= zpl_show_devname,
 	.show_options		= zpl_show_options,
 	.show_stats		= NULL,
@@ -560,7 +614,11 @@ struct file_system_type zpl_fs_type = {
 #else
 	.fs_flags		= FS_USERNS_MOUNT,
 #endif
+#ifdef HAVE_FS_CONTEXT
+	.init_fs_context	= zpl_init_fs_context,
+#else
 	.mount			= zpl_mount,
+#endif
 	.kill_sb		= zpl_kill_sb,
 };
 
