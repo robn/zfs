@@ -594,9 +594,43 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 	zpl_inode_set_ctime_to_ts(ip, tmp_ts);
 	ZFS_TIME_DECODE(&zp->z_btime, btime);
 
-	ip->i_ino = zp->z_id;
+	/*
+	 * XXX traditionally, we set i_ino to z_id, because that id is unique
+	 *     within the dataset, and with one superblock per dataset, there's
+	 *     no more to see.
+	 *
+	 *     with all inodes now in one superblock, we have a problem - i_ino
+	 *     must be unique, as it is the key into the superblock inode hash.
+	 *     
+	 *     changing this _at all_ is a migration problem, because inode
+	 *     numbers will change after upgrade. we can message around that
+	 *     probably, so I'm not worried for now.
+	 *
+	 *     what I _am_ worried about is the id space not being large
+	 *     enough. technically, the max is 64 bits of objset id, and 64
+	 *     bits of object id, so they would be 128 bits total. practically
+	 *     its going to be vastly less than that, but what we do here does
+	 *     present a limit.
+	 *
+	 *     for experimentation, taking the bottom 48 bits (ZFS_DIRENT_OBJ)
+	 *     since no zap directory can reference objects highter than that.
+	 *     the bottom 16 bits of the objset id are moved to the top, as
+	 *     a disambiguator. no where near good enough for production (need
+	 *     collision handling) but it will do for now.
+	 *
+	 *     ultimately we do not use i_ino, but it is exposed to the user,
+	 *     so whatever we do it needs to be stable and unique to the pool.
+	 *     that may be too much, but there's also a question of whether
+	 *     or not one superblock hashtable is even enough for an entire
+	 *     pool's worth of files. so this is fine for study purposes.
+	 */
+	ip->i_ino =
+	    ((dmu_objset_ds(zfsvfs->z_os)->ds_object & 0xffff) << 48) |
+	    ZFS_DIRENT_OBJ(zp->z_id);
+
 	zfs_znode_update_vfs(zp);
 	zfs_inode_set_ops(zfsvfs, ip);
+	ip->i_private = zfsvfs;
 
 	/*
 	 * The only way insert_inode_locked() can fail is if the ip->i_ino
@@ -1919,6 +1953,7 @@ zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *zplprops, dmu_tx_t *tx)
 	sb->s_fs_info = zfsvfs;
 
 	ZTOI(rootzp)->i_sb = sb;
+	ZTOI(rootzp)->i_private = zfsvfs;
 
 	error = sa_setup(os, sa_obj, zfs_attr_table, ZPL_END,
 	    &zfsvfs->z_attr_table);

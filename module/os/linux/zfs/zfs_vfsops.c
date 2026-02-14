@@ -110,7 +110,7 @@ static const match_table_t zpl_tokens = {
 	{ TOKEN_LAST,		NULL },
 };
 
-static void
+void
 zfsvfs_vfs_free(vfs_t *vfsp)
 {
 	if (vfsp != NULL) {
@@ -862,7 +862,7 @@ zfsvfs_create_impl(zfsvfs_t **zfvp, zfsvfs_t *zfsvfs, objset_t *os)
 	return (0);
 }
 
-static int
+int
 zfsvfs_setup(zfsvfs_t *zfsvfs, boolean_t mounting)
 {
 	int error;
@@ -987,7 +987,7 @@ zfsvfs_free(zfsvfs_t *zfsvfs)
 	kmem_free(zfsvfs, sizeof (zfsvfs_t));
 }
 
-static void
+void
 zfs_set_fuid_feature(zfsvfs_t *zfsvfs)
 {
 	zfsvfs->z_use_fuids = USE_FUIDS(zfsvfs->z_version, zfsvfs->z_os);
@@ -1194,7 +1194,7 @@ zfs_statvfs(struct inode *ip, struct kstatfs *statp)
 	return (err);
 }
 
-static int
+int
 zfs_root(zfsvfs_t *zfsvfs, struct inode **ipp)
 {
 	znode_t *rootzp;

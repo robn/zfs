@@ -259,6 +259,11 @@ extern int zfs_get_temporary_prop(dsl_dataset_t *ds, zfs_prop_t zfs_prop,
 extern int zfs_set_default_quota(zfsvfs_t *zfsvfs, zfs_prop_t zfs_prop,
     uint64_t quota);
 
+extern void zfsvfs_vfs_free(vfs_t *vfsp);
+extern void zfs_set_fuid_feature(zfsvfs_t *zfsvfs);
+extern int zfsvfs_setup(zfsvfs_t *zfsvfs, boolean_t mounting);
+extern int zfs_root(zfsvfs_t *zfsvfs, struct inode **ipp);
+
 #ifdef	__cplusplus
 }
 #endif

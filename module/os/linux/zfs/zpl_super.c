@@ -316,7 +316,7 @@ __zpl_show_devname(struct seq_file *seq, zfsvfs_t *zfsvfs)
 static int
 zpl_show_devname(struct seq_file *seq, struct dentry *root)
 {
-	return (__zpl_show_devname(seq, root->d_sb->s_fs_info));
+	return (__zpl_show_devname(seq, ITOZSB(root->d_inode)));
 }
 
 static int
@@ -357,6 +357,7 @@ zpl_show_options(struct seq_file *seq, struct dentry *root)
 	return (__zpl_show_options(seq, root->d_sb->s_fs_info));
 }
 
+#if 0
 static int
 zpl_fill_super(struct super_block *sb, void *data, int silent)
 {
@@ -472,6 +473,7 @@ zpl_mount(struct file_system_type *fs_type, int flags,
 
 	return (dget(sb->s_root));
 }
+#endif
 
 static void
 zpl_kill_sb(struct super_block *sb)
@@ -525,14 +527,303 @@ zpl_parse_param(struct fs_context *fc, struct fs_parameter *param)
 }
 
 static int
+zpl_test_super_fc(struct super_block *sb, struct fs_context *fc)
+{
+	/*
+	 * s_fs_info holds a spa_t pointer, so match on it to use the same
+	 * superblock for all datasets in the same pool.
+	 */
+	return (sb->s_fs_info == fc->s_fs_info);
+}
+
+static vfs_t *
+zpl_fc_to_vfs(struct fs_context *fc)
+{
+	/*
+	 * XXX zfsvfs_parse_options but transferring the sb_flags from
+	 *     fc->sb_flags. this is insufficient; we will need to use the
+	 *     real param parser so we know which are  actually offered vs
+	 *     defaults, so we can set vfs_do_*
+	 *
+	 *     oh actually, sb_flags_mask tell us which ones were offered,
+	 *     so we can tell. still, need to check what's up with negation
+	 *
+	 *     also what is s_iflags. comment says "or'd with sb->s_iflags
+	 *     but what?
+	 */
+
+	vfs_t *vfs = kmem_zalloc(sizeof (vfs_t), KM_SLEEP);
+	mutex_init(&vfs->vfs_mntpt_lock, NULL, MUTEX_DEFAULT, NULL);
+
+	vfs->vfs_readonly = !!(fc->sb_flags & SB_RDONLY);
+	vfs->vfs_setuid = !(fc->sb_flags & SB_NOSUID);
+	vfs->vfs_exec = !(fc->sb_flags & SB_NOEXEC);
+	vfs->vfs_devices = !(fc->sb_flags & SB_NODEV);
+	vfs->vfs_atime = !(fc->sb_flags & SB_NOATIME);
+
+	/*
+	 * XXX custom param for xattr then?
+	case TOKEN_DIRXATTR:
+		vfsp->vfs_xattr = ZFS_XATTR_DIR;
+		vfsp->vfs_do_xattr = B_TRUE;
+		break;
+	case TOKEN_SAXATTR:
+		vfsp->vfs_xattr = ZFS_XATTR_SA;
+		vfsp->vfs_do_xattr = B_TRUE;
+		break;
+	case TOKEN_XATTR:
+		vfsp->vfs_xattr = ZFS_XATTR_SA;
+		vfsp->vfs_do_xattr = B_TRUE;
+		break;
+	case TOKEN_NOXATTR:
+		vfsp->vfs_xattr = ZFS_XATTR_OFF;
+		vfsp->vfs_do_xattr = B_TRUE;
+		break;
+	*/
+
+	/*
+	 * XXX custom param for relatime? or is it some combo with SB_LAZYTIME?
+	case TOKEN_RELATIME:
+		vfsp->vfs_relatime = B_TRUE;
+		vfsp->vfs_do_relatime = B_TRUE;
+		break;
+	case TOKEN_NORELATIME:
+		vfsp->vfs_relatime = B_FALSE;
+		vfsp->vfs_do_relatime = B_TRUE;
+		break;
+	*/
+
+	
+	/*
+	 * XXX "non-blocking mandatory locking", see nbmand in zfsprops(7)
+	case TOKEN_NBMAND:
+		vfsp->vfs_nbmand = B_TRUE;
+		vfsp->vfs_do_nbmand = B_TRUE;
+		break;
+	case TOKEN_NONBMAND:
+		vfsp->vfs_nbmand = B_FALSE;
+		vfsp->vfs_do_nbmand = B_TRUE;
+		break;
+	*/
+
+	/* XXX not even sure about mntpoint=/foo, is it a zfs-specific one? */
+
+	return (vfs);
+}
+
+static int
+zpl_get_dataset_root(const char *name, struct super_block *sb,
+    struct fs_context *fc, struct dentry **root)
+{
+	zfsvfs_t *zfsvfs = NULL;
+	int visible, canwrite, err;
+
+	/* XXX cribbing from zfs_domount() */
+
+	/*
+	 * Refuse to mount a filesystem if we are in a namespace and the
+	 * dataset is not visible or writable in that namespace.
+	 */
+	visible = zone_dataset_visible(name, &canwrite);
+	if (!INGLOBALZONE(curproc) && (!visible || !canwrite))
+		return (SET_ERROR(EPERM));
+
+	vfs_t *vfs = zpl_fc_to_vfs(fc);
+
+	/*
+	 * If a non-writable filesystem is being mounted without the
+	 * read-only flag, pretend it was set, as done for snapshots.
+	 */
+	if (!canwrite)
+		vfs->vfs_readonly = B_TRUE;
+
+	err = zfsvfs_create(name, vfs->vfs_readonly, &zfsvfs);
+	if (err != 0) {
+		zfsvfs_vfs_free(vfs);
+		goto out;
+	}
+
+	vfs->vfs_data = zfsvfs;
+	zfsvfs->z_vfs = vfs;
+	zfsvfs->z_sb = sb; // XXX ok but maybe not?
+	
+	/* Set features for file system. */
+	zfs_set_fuid_feature(zfsvfs);
+
+	/* XXX snapshot setup here */
+	if ((err = zfsvfs_setup(zfsvfs, B_TRUE)) != 0)
+		goto out;
+
+	struct inode *i;
+	err = zfs_root(zfsvfs, &i);
+	if (err != 0) {
+		// XXX zfs_umount but the right way
+		VERIFY0(err);
+		zfsvfs = NULL;
+		goto out;
+	}
+
+	*root = d_make_root(i);
+	if (*root == NULL) {
+		// XXX zfs_umount but the right way
+		VERIFY0(err);
+		zfsvfs = NULL;
+		err = SET_ERROR(ENOMEM);
+		goto out;
+	}
+
+	// XXX snapshots, create ctldir */
+
+	// XXX z_arc_prune for z_prune_sb callback, will need rethink
+
+out:
+	if (err != 0) {
+		if (zfsvfs != NULL) {
+			dmu_objset_disown(zfsvfs->z_os, B_TRUE, zfsvfs);
+			zfsvfs_free(zfsvfs);
+		}
+	}
+
+	return (err);
+}
+
+static int
 zpl_get_tree(struct fs_context *fc)
 {
-	struct dentry *root =
-	    zpl_mount(fc->fs_type, fc->sb_flags, fc->source, NULL);
-	if (IS_ERR(root))
-		return PTR_ERR(root);
+	spa_t *spa;
+	struct super_block *sb;
+	objset_t *os;
+	int err;
 
-	fc->root = root;
+	err = dmu_objset_hold(fc->source, FTAG, &os);
+	if (err != 0)
+		return (-err);
+
+	/* XXX see comment in zpl_mount_impl */
+	dsl_dataset_long_hold(dmu_objset_ds(os), FTAG);
+	dsl_pool_rele(dmu_objset_pool(os), FTAG);
+
+	spa = dmu_objset_spa(os);
+
+	fc->s_fs_info = spa; // XXX dsl_pool_t?
+	sb = sget_fc(fc, zpl_test_super_fc, set_anon_super_fc);
+	if (IS_ERR(sb)) {
+		dsl_dataset_long_rele(dmu_objset_ds(os), FTAG);
+		dsl_dataset_rele(dmu_objset_ds(os), FTAG);
+		return (PTR_ERR(sb));
+	}
+
+	/*
+	 * XXX I don't think we need the z_os recheck from zfs_mount_impl() here
+	 *     because we never compared on it in the test, and we have the
+	 *     dataset hold throughout anyway
+	 */
+
+	/*
+	 * XXX the old code droped the dataset holds around here, but I don't
+	 *     really understand why it is safe, as it was before
+	 *     zpl_fill_super(). unless zpl_fill_super() picks up another hold?
+	 *     as I write this I have not read all the way through the old code
+	 *     yet, so it might be obvious, just further down.
+	 */
+
+	/*
+	 * Find the first separator between pool name and the rest of the
+	 * dataset name. We'll need this later for initialising the superblock
+	 * and knowing if we're mounting the root.
+	 */
+	const char *sep = strpbrk(fc->source, "/@#");
+
+	if (sb->s_root == NULL) {
+		/*
+		 * First time use; set up the superblock for the pool root
+		 * filesystem; we'll then set up whatever dataset they asked
+		 * for and add that to the context.
+		 */
+
+		/*
+		 * XXX I don't feel great about all this. of course I have
+		 *     to set sb->root, but I'm not sure that its actually
+		 *     useable as the root dataset, given the number of
+		 *     options we have on every mountpoint.
+		 *
+		 *     besides, what happens if there's multiple mountpoints
+		 *     with different options for the same dataset? what do
+		 *     we do right now actually? a bind mount is just an
+		 *     extra ref on the root inode, but multiple mounts with
+		 *     different options would mean different vfs_t ie
+		 *     different zfsvfs_t
+		 *
+		 *     if we can't resolve the root options, then I guess
+		 *     there's no real point setting it up early. do we just
+		 *     have a dummy? could be fun to put some sort of control
+		 *     doob in there? also this might make a lot more sense
+		 *     if I messed with btrfs or bcachefs for like five
+		 *     minutes?
+		 */
+
+		/*
+		 * sget_fc() has transferred the s_fs_info we set above to
+		 * the superblock; just checking this.
+		 */
+		ASSERT3P(sb->s_fs_info, ==, spa);
+		ASSERT3P(fc->s_fs_info, ==, NULL);
+
+		sb->s_magic = ZFS_SUPER_MAGIC;
+		sb->s_maxbytes = MAX_LFS_FILESIZE;
+		sb->s_time_gran = 1;
+		sb->s_blocksize = 131072; // XXX for testing; but also variable how?
+					  //     or is this ashift-based?
+		sb->s_blocksize_bits = ilog2(sb->s_blocksize);
+
+		sb->s_op = &zpl_super_operations;
+		sb->s_xattr = zpl_xattr_handlers;
+		sb->s_export_op = &zpl_export_operations;
+		set_default_d_op(sb, &zpl_dentry_operations);
+
+		if (sep == NULL) {
+			err = zpl_get_dataset_root(fc->source, sb, fc, &sb->s_root);
+		} else {
+			size_t len = (sep - fc->source) + 1;
+			char *poolname = kmem_alloc(len, KM_SLEEP);
+			strlcpy(poolname, fc->source, len);
+			err = zpl_get_dataset_root(poolname, sb, fc, &sb->s_root);
+			kmem_free(poolname, len);
+		}
+
+		if (err != 0) {
+			deactivate_locked_super(sb);
+			return (-err);
+		}
+	}
+
+	ASSERT3P(sb->s_root, !=, NULL);
+
+	if (sep == NULL) {
+		fc->root = dget(sb->s_root);
+	} else {
+		struct dentry *root;
+		err = zpl_get_dataset_root(fc->source, sb, fc, &root);
+		if (err != 0) {
+			if (fc->s_fs_info == NULL) {
+				/*
+				 * If we don't have s_fs_info, then it was
+				 * moved by sget_fc() above to create the
+				 * superblock. Since the actual mount they
+				 * wanted failed, there are now no users of
+				 * the superblock, so release it.
+				 */
+				dput(sb->s_root);
+				deactivate_locked_super(sb);
+			}
+			return (-err);
+		}
+		fc->root = dget(root);
+	}
+
+	if (fc->s_fs_info == NULL)
+		fc->s_fs_info = sb->s_fs_info;
+
 	return (0);
 }
 

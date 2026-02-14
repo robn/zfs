@@ -48,7 +48,7 @@ zpl_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 	pathname_t *ppn = NULL;
 	pathname_t pn;
 	int zfs_flags = 0;
-	zfsvfs_t *zfsvfs = dentry->d_sb->s_fs_info;
+	zfsvfs_t *zfsvfs = ITOZSB(dir);
 	dsl_dataset_t *ds = dmu_objset_ds(zfsvfs->z_os);
 	size_t dlen = dlen(dentry);
 

@@ -57,8 +57,8 @@ extern "C" {
  */
 #define	ZTOI(znode)	(&((znode)->z_inode))
 #define	ITOZ(inode)	(container_of((inode), znode_t, z_inode))
-#define	ZTOZSB(znode)	((zfsvfs_t *)(ZTOI(znode)->i_sb->s_fs_info))
-#define	ITOZSB(inode)	((zfsvfs_t *)((inode)->i_sb->s_fs_info))
+#define	ZTOZSB(znode)	((zfsvfs_t *)(ZTOI(znode)->i_private))
+#define	ITOZSB(inode)	((zfsvfs_t *)((inode)->i_private))
 
 #define	ZTOTYPE(zp)	(ZTOI(zp)->i_mode)
 #define	ZTOGID(zp) (ZTOI(zp)->i_gid)
