@@ -37,6 +37,7 @@
  */
 
 #include <sys/mntent.h>
+#include <sys/mutex.h>
 #include <libzfs.h>
 #include "libzfs_impl.h"
 
@@ -60,7 +61,7 @@ libzfs_mnttab_cache_compare(const void *arg1, const void *arg2)
 void
 libzfs_mnttab_init(libzfs_handle_t *hdl)
 {
-	pthread_mutex_init(&hdl->libzfs_mnttab_cache_lock, NULL);
+	mutex_init(&hdl->libzfs_mnttab_cache_lock, NULL, MUTEX_DEFAULT, NULL);
 	assert(avl_numnodes(&hdl->libzfs_mnttab_cache) == 0);
 	avl_create(&hdl->libzfs_mnttab_cache, libzfs_mnttab_cache_compare,
 	    sizeof (mnttab_node_t), offsetof(mnttab_node_t, mtn_node));
@@ -71,6 +72,8 @@ libzfs_mnttab_update(libzfs_handle_t *hdl)
 {
 	FILE *mnttab;
 	struct mnttab entry;
+
+	ASSERT(MUTEX_HELD(&hdl->libzfs_mnttab_cache_lock));
 
 	if ((mnttab = fopen(MNTTAB, "re")) == NULL)
 		return (ENOENT);
@@ -120,7 +123,7 @@ libzfs_mnttab_fini(libzfs_handle_t *hdl)
 		free(mtn);
 	}
 	avl_destroy(&hdl->libzfs_mnttab_cache);
-	(void) pthread_mutex_destroy(&hdl->libzfs_mnttab_cache_lock);
+	(void) mutex_destroy(&hdl->libzfs_mnttab_cache_lock);
 }
 
 void
@@ -154,12 +157,12 @@ libzfs_mnttab_find(libzfs_handle_t *hdl, const char *fsname,
 		return (ret);
 	}
 
-	pthread_mutex_lock(&hdl->libzfs_mnttab_cache_lock);
+	mutex_enter(&hdl->libzfs_mnttab_cache_lock);
 	if (avl_numnodes(&hdl->libzfs_mnttab_cache) == 0) {
 		int error;
 
 		if ((error = libzfs_mnttab_update(hdl)) != 0) {
-			pthread_mutex_unlock(&hdl->libzfs_mnttab_cache_lock);
+			mutex_exit(&hdl->libzfs_mnttab_cache_lock);
 			return (error);
 		}
 	}
@@ -170,7 +173,7 @@ libzfs_mnttab_find(libzfs_handle_t *hdl, const char *fsname,
 		*entry = mtn->mtn_mt;
 		ret = 0;
 	}
-	pthread_mutex_unlock(&hdl->libzfs_mnttab_cache_lock);
+	mutex_exit(&hdl->libzfs_mnttab_cache_lock);
 	return (ret);
 }
 
@@ -180,7 +183,7 @@ libzfs_mnttab_add(libzfs_handle_t *hdl, const char *special,
 {
 	mnttab_node_t *mtn;
 
-	pthread_mutex_lock(&hdl->libzfs_mnttab_cache_lock);
+	mutex_enter(&hdl->libzfs_mnttab_cache_lock);
 	if (avl_numnodes(&hdl->libzfs_mnttab_cache) != 0) {
 		mtn = zfs_alloc(hdl, sizeof (mnttab_node_t));
 		mtn->mtn_mt.mnt_special = zfs_strdup(hdl, special);
@@ -201,7 +204,7 @@ libzfs_mnttab_add(libzfs_handle_t *hdl, const char *special,
 			avl_add(&hdl->libzfs_mnttab_cache, mtn);
 		}
 	}
-	pthread_mutex_unlock(&hdl->libzfs_mnttab_cache_lock);
+	mutex_exit(&hdl->libzfs_mnttab_cache_lock);
 }
 
 void
@@ -210,7 +213,7 @@ libzfs_mnttab_remove(libzfs_handle_t *hdl, const char *fsname)
 	mnttab_node_t find;
 	mnttab_node_t *ret;
 
-	pthread_mutex_lock(&hdl->libzfs_mnttab_cache_lock);
+	mutex_enter(&hdl->libzfs_mnttab_cache_lock);
 	find.mtn_mt.mnt_special = (char *)fsname;
 	if ((ret = avl_find(&hdl->libzfs_mnttab_cache, (void *)&find, NULL))
 	    != NULL) {
@@ -221,6 +224,6 @@ libzfs_mnttab_remove(libzfs_handle_t *hdl, const char *fsname)
 		free(ret->mtn_mt.mnt_mntopts);
 		free(ret);
 	}
-	pthread_mutex_unlock(&hdl->libzfs_mnttab_cache_lock);
+	mutex_exit(&hdl->libzfs_mnttab_cache_lock);
 }
 
