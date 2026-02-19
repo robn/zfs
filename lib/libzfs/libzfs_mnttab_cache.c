@@ -84,9 +84,12 @@ void
 libzfs_mnttab_init(libzfs_handle_t *hdl)
 {
 	mutex_init(&hdl->mnttab_cache_lock, NULL, MUTEX_DEFAULT, NULL);
-	assert(avl_numnodes(&hdl->mnttab_cache) == 0);
+	cv_init(&hdl->mnttab_cache_cv, NULL, CV_DEFAULT, NULL);
+	ASSERT0(avl_numnodes(&hdl->mnttab_cache));
 	avl_create(&hdl->mnttab_cache, mnttab_cache_compare,
 	    sizeof (mnttab_node_t), offsetof(mnttab_node_t, mtn_node));
+	hdl->mnttab_cache_loaded = B_FALSE;
+	hdl->mnttab_cache_holds = 0;
 }
 
 void
@@ -95,11 +98,16 @@ libzfs_mnttab_fini(libzfs_handle_t *hdl)
 	void *cookie = NULL;
 	mnttab_node_t *mtn;
 
+	ASSERT0(hdl->mnttab_cache_holds);
+
 	while ((mtn = avl_destroy_nodes(&hdl->mnttab_cache, &cookie))
 	    != NULL)
 		mnttab_node_free(hdl, mtn);
+	hdl->mnttab_cache_loaded = B_FALSE;
 
 	avl_destroy(&hdl->mnttab_cache);
+
+	cv_destroy(&hdl->mnttab_cache_cv);
 	(void) mutex_destroy(&hdl->mnttab_cache_lock);
 }
 
@@ -117,6 +125,7 @@ mnttab_update(libzfs_handle_t *hdl)
 	struct mnttab entry;
 
 	ASSERT(MUTEX_HELD(&hdl->mnttab_cache_lock));
+	ASSERT(!hdl->mnttab_cache_loaded);
 
 	if ((mnttab = fopen(MNTTAB, "re")) == NULL)
 		return (ENOENT);
@@ -141,7 +150,56 @@ mnttab_update(libzfs_handle_t *hdl)
 	}
 
 	(void) fclose(mnttab);
+
+	hdl->mnttab_cache_loaded = B_TRUE;
+
 	return (0);
+}
+
+static void
+mnttab_enter(libzfs_handle_t *hdl)
+{
+	ASSERT(!MUTEX_HELD(&hdl->mnttab_cache_lock));
+	mutex_enter(&hdl->mnttab_cache_lock);
+
+	if (hdl->mnttab_cache_holds == 0 &&
+	    !hdl->mnttab_cache_loaded) {
+		mnttab_update(hdl);
+	}
+
+	hdl->mnttab_cache_holds++;
+
+	mutex_exit(&hdl->mnttab_cache_lock);
+}
+
+static void
+mnttab_exit(libzfs_handle_t *hdl)
+{
+	ASSERT(!MUTEX_HELD(&hdl->mnttab_cache_lock));
+	mutex_enter(&hdl->mnttab_cache_lock);
+	if (--hdl->mnttab_cache_holds == 0)
+		cv_broadcast(&hdl->mnttab_cache_cv);
+	mutex_exit(&hdl->mnttab_cache_lock);
+}
+
+static void
+mnttab_enter_update(libzfs_handle_t *hdl)
+{
+	ASSERT(!MUTEX_HELD(&hdl->mnttab_cache_lock));
+	mutex_enter(&hdl->mnttab_cache_lock);
+	while (hdl->mnttab_cache_holds != 0)
+		cv_wait(&hdl->mnttab_cache_cv, &hdl->mnttab_cache_lock);
+	if (!hdl->mnttab_cache_loaded)
+		mnttab_update(hdl);
+	ASSERT(MUTEX_HELD(&hdl->mnttab_cache_lock));
+}
+
+static void
+mnttab_exit_update(libzfs_handle_t *hdl)
+{
+	ASSERT(MUTEX_HELD(&hdl->mnttab_cache_lock));
+	cv_broadcast(&hdl->mnttab_cache_cv);
+	mutex_exit(&hdl->mnttab_cache_lock);
 }
 
 void
@@ -150,7 +208,7 @@ libzfs_mnttab_add(libzfs_handle_t *hdl, const char *special,
 {
 	mnttab_node_t *mtn;
 
-	mutex_enter(&hdl->mnttab_cache_lock);
+	mnttab_enter_update(hdl);
 
 	mtn = mnttab_node_alloc(hdl, special, mountp, mntopts);
 
@@ -163,7 +221,7 @@ libzfs_mnttab_add(libzfs_handle_t *hdl, const char *special,
 	else
 		avl_add(&hdl->mnttab_cache, mtn);
 
-	mutex_exit(&hdl->mnttab_cache_lock);
+	mnttab_exit_update(hdl);
 }
 
 void
@@ -172,13 +230,15 @@ libzfs_mnttab_remove(libzfs_handle_t *hdl, const char *fsname)
 	mnttab_node_t find;
 	mnttab_node_t *ret;
 
-	mutex_enter(&hdl->mnttab_cache_lock);
+	mnttab_enter_update(hdl);
+
 	find.mtn_mt.mnt_special = (char *)fsname;
 	if ((ret = avl_find(&hdl->mnttab_cache, (void *)&find, NULL)) != NULL) {
 		avl_remove(&hdl->mnttab_cache, ret);
 		mnttab_node_free(hdl, ret);
 	}
-	mutex_exit(&hdl->mnttab_cache_lock);
+
+	mnttab_exit_update(hdl);
 }
 
 int
@@ -189,15 +249,7 @@ libzfs_mnttab_find(libzfs_handle_t *hdl, const char *fsname,
 	mnttab_node_t *mtn;
 	int ret = ENOENT;
 
-	mutex_enter(&hdl->mnttab_cache_lock);
-	if (avl_numnodes(&hdl->mnttab_cache) == 0) {
-		int error;
-
-		if ((error = mnttab_update(hdl)) != 0) {
-			mutex_exit(&hdl->mnttab_cache_lock);
-			return (error);
-		}
-	}
+	mnttab_enter(hdl);
 
 	find.mtn_mt.mnt_special = (char *)fsname;
 	mtn = avl_find(&hdl->mnttab_cache, &find, NULL);
@@ -205,7 +257,9 @@ libzfs_mnttab_find(libzfs_handle_t *hdl, const char *fsname,
 		*entry = mtn->mtn_mt;
 		ret = 0;
 	}
-	mutex_exit(&hdl->mnttab_cache_lock);
+
+	mnttab_exit(hdl);
+
 	return (ret);
 }
 
