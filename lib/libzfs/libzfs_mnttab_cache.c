@@ -263,3 +263,22 @@ libzfs_mnttab_find(libzfs_handle_t *hdl, const char *fsname,
 	return (ret);
 }
 
+int
+libzfs_mnttab_foreach(libzfs_handle_t *hdl, libzfs_mnttab_iter_f func,
+    void *data)
+{
+	int err = 0;
+
+	mnttab_enter(hdl);
+
+	for (mnttab_node_t *node = avl_first(&hdl->mnttab_cache);
+	    node != NULL; node = AVL_NEXT(&hdl->mnttab_cache, node)) {
+		err = func(hdl, &node->mtn_mt, data);
+		if (err != 0)
+			break;
+	}
+
+	mnttab_exit(hdl);
+
+	return (err);
+}

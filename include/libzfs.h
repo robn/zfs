@@ -238,6 +238,11 @@ _LIBZFS_H void libzfs_mnttab_add(libzfs_handle_t *, const char *,
     const char *, const char *);
 _LIBZFS_H void libzfs_mnttab_remove(libzfs_handle_t *, const char *);
 
+typedef int (*libzfs_mnttab_iter_f)(libzfs_handle_t *,
+    const struct mnttab *, void *);
+_LIBZFS_H int libzfs_mnttab_foreach(libzfs_handle_t *,
+    libzfs_mnttab_iter_f, void *);
+
 /*
  * Basic handle functions
  */
