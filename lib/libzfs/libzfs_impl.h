@@ -64,8 +64,12 @@ struct libzfs_handle {
 	uint64_t libzfs_max_nvlist;
 	void *libfetch;
 	char *libfetch_load_error;
-	kmutex_t mnttab_cache_lock;
+
 	avl_tree_t mnttab_cache;
+	kmutex_t mnttab_cache_lock;
+	kcondvar_t mnttab_cache_cv;
+	uint64_t mnttab_cache_holds;
+	boolean_t mnttab_cache_loaded;
 };
 
 struct zfs_handle {
