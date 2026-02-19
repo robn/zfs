@@ -1354,88 +1354,95 @@ mountpoint_compare(const void *a, const void *b)
  * arbitrarily (on I/O error, for example).  Instead, we walk /proc/self/mounts
  * and gather all the filesystems that are currently mounted.
  */
+typedef struct {
+	int used;
+	int alloc;
+	struct sets_s *sets;
+	const char *name;
+	size_t namelen;
+} zpool_disable_mnttab_cb_t;
+
+static int
+zpool_disable_mnttab_cb(libzfs_handle_t *hdl, const struct mnttab *entry,
+    void *arg)
+{
+	zpool_disable_mnttab_cb_t *cbarg = arg;
+
+	/*
+	 * Ignore filesystems not within this pool.
+	 */
+	if (strncmp(entry->mnt_special, cbarg->name, cbarg->namelen) != 0 ||
+	    (entry->mnt_special[cbarg->namelen] != '/' &&
+	    entry->mnt_special[cbarg->namelen] != '\0'))
+		return (0);
+
+	/*
+	 * At this point we've found a filesystem within our pool.  Add
+	 * it to our growing list.
+	 */
+	if (cbarg->used == cbarg->alloc) {
+		if (cbarg->alloc == 0) {
+			cbarg->sets = zfs_alloc(hdl,
+			    8 * sizeof (struct sets_s));
+			cbarg->alloc = 8;
+		} else {
+			cbarg->sets = zfs_realloc(hdl, cbarg->sets,
+			    cbarg->alloc * sizeof (struct sets_s),
+			    cbarg->alloc * 2 * sizeof (struct sets_s));
+
+			cbarg->alloc *= 2;
+		}
+	}
+
+	cbarg->sets[cbarg->used].mountpoint =
+	    zfs_strdup(hdl, entry->mnt_mountp);
+
+	/*
+	 * This is allowed to fail, in case there is some I/O error.  It
+	 * is only used to determine if we need to remove the underlying
+	 * mountpoint, so failure is not fatal.
+	 */
+	cbarg->sets[cbarg->used].dataset = make_dataset_handle(hdl,
+	    entry->mnt_special);
+
+	cbarg->used++;
+
+	return (0);
+}
+
 int
 zpool_disable_datasets(zpool_handle_t *zhp, boolean_t force)
 {
-	int used, alloc;
-	FILE *mnttab;
-	struct mnttab entry;
-	size_t namelen;
-	struct sets_s *sets = NULL;
 	libzfs_handle_t *hdl = zhp->zpool_hdl;
 	int i;
 	int ret = -1;
 	int flags = (force ? MS_FORCE : 0);
 
-	namelen = strlen(zhp->zpool_name);
-
-	if ((mnttab = fopen(MNTTAB, "re")) == NULL)
-		return (ENOENT);
-
-	used = alloc = 0;
-	while (getmntent(mnttab, &entry) == 0) {
-		/*
-		 * Ignore non-ZFS entries.
-		 */
-		if (entry.mnt_fstype == NULL ||
-		    strcmp(entry.mnt_fstype, MNTTYPE_ZFS) != 0)
-			continue;
-
-		/*
-		 * Ignore filesystems not within this pool.
-		 */
-		if (entry.mnt_mountp == NULL ||
-		    strncmp(entry.mnt_special, zhp->zpool_name, namelen) != 0 ||
-		    (entry.mnt_special[namelen] != '/' &&
-		    entry.mnt_special[namelen] != '\0'))
-			continue;
-
-		/*
-		 * At this point we've found a filesystem within our pool.  Add
-		 * it to our growing list.
-		 */
-		if (used == alloc) {
-			if (alloc == 0) {
-				sets = zfs_alloc(hdl,
-				    8 * sizeof (struct sets_s));
-				alloc = 8;
-			} else {
-				sets = zfs_realloc(hdl, sets,
-				    alloc * sizeof (struct sets_s),
-				    alloc * 2 * sizeof (struct sets_s));
-
-				alloc *= 2;
-			}
-		}
-
-		sets[used].mountpoint = zfs_strdup(hdl, entry.mnt_mountp);
-
-		/*
-		 * This is allowed to fail, in case there is some I/O error.  It
-		 * is only used to determine if we need to remove the underlying
-		 * mountpoint, so failure is not fatal.
-		 */
-		sets[used].dataset = make_dataset_handle(hdl,
-		    entry.mnt_special);
-
-		used++;
-	}
+	zpool_disable_mnttab_cb_t cbarg = {
+		.used = 0,
+		.alloc = 0,
+		.sets = NULL,
+		.name = zhp->zpool_name,
+		.namelen = strlen(zhp->zpool_name),
+	};
+	libzfs_mnttab_foreach(hdl, zpool_disable_mnttab_cb, &cbarg);
 
 	/*
 	 * At this point, we have the entire list of filesystems, so sort it by
 	 * mountpoint.
 	 */
-	if (used != 0)
-		qsort(sets, used, sizeof (struct sets_s), mountpoint_compare);
+	if (cbarg.used != 0)
+		qsort(cbarg.sets, cbarg.used,
+		    sizeof (struct sets_s), mountpoint_compare);
 
 	/*
 	 * Walk through and first unshare everything.
 	 */
-	for (i = 0; i < used; i++) {
+	for (i = 0; i < cbarg.used; i++) {
 		for (enum sa_protocol p = 0; p < SA_PROTOCOL_COUNT; ++p) {
-			if (sa_is_shared(sets[i].mountpoint, p) &&
-			    unshare_one(hdl, sets[i].mountpoint,
-			    sets[i].mountpoint, p) != 0)
+			if (sa_is_shared(cbarg.sets[i].mountpoint, p) &&
+			    unshare_one(hdl, cbarg.sets[i].mountpoint,
+			    cbarg.sets[i].mountpoint, p) != 0)
 				goto out;
 		}
 	}
@@ -1445,28 +1452,27 @@ zpool_disable_datasets(zpool_handle_t *zhp, boolean_t force)
 	 * Now unmount everything, removing the underlying directories as
 	 * appropriate.
 	 */
-	for (i = 0; i < used; i++) {
-		if (unmount_one(sets[i].dataset, sets[i].mountpoint,
-		    flags) != 0)
+	for (i = 0; i < cbarg.used; i++) {
+		if (unmount_one(cbarg.sets[i].dataset,
+		    cbarg.sets[i].mountpoint, flags) != 0)
 			goto out;
 	}
 
-	for (i = 0; i < used; i++) {
-		if (sets[i].dataset)
-			remove_mountpoint(sets[i].dataset);
+	for (i = 0; i < cbarg.used; i++) {
+		if (cbarg.sets[i].dataset)
+			remove_mountpoint(cbarg.sets[i].dataset);
 	}
 
 	zpool_disable_datasets_os(zhp, force);
 
 	ret = 0;
 out:
-	(void) fclose(mnttab);
-	for (i = 0; i < used; i++) {
-		if (sets[i].dataset)
-			zfs_close(sets[i].dataset);
-		free(sets[i].mountpoint);
+	for (i = 0; i < cbarg.used; i++) {
+		if (cbarg.sets[i].dataset)
+			zfs_close(cbarg.sets[i].dataset);
+		free(cbarg.sets[i].mountpoint);
 	}
-	free(sets);
+	free(cbarg.sets);
 
 	return (ret);
 }
