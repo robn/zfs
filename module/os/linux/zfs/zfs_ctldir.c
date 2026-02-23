@@ -128,6 +128,7 @@ typedef struct {
 	kcondvar_t	se_cv;		/* signal mount completion */
 	boolean_t	se_mounting;	/* mount operation in progress */
 	int		se_mount_error;	/* error from failed mount */
+	struct vfsmount	*se_mnt;	/* mount context, for unmount */
 } zfs_snapentry_t;
 
 static void zfsctl_snapshot_unmount_delay_impl(zfs_snapentry_t *se, int delay);
@@ -231,12 +232,14 @@ zfsctl_snapshot_remove(zfs_snapentry_t *se)
  * remaining fields and adds the entry to the zfs_snapshots_by_objsetid tree.
  */
 static void
-zfsctl_snapshot_fill(zfs_snapentry_t *se, spa_t *spa, uint64_t objsetid)
+zfsctl_snapshot_fill(zfs_snapentry_t *se, spa_t *spa, uint64_t objsetid,
+    struct vfsmount *mnt)
 {
 	ASSERT(RW_WRITE_HELD(&zfs_snapshot_lock));
 	ASSERT3P(se->se_spa, ==, NULL);
 	se->se_spa = spa;
 	se->se_objsetid = objsetid;
+	se->se_mnt = mnt;
 	avl_add(&zfs_snapshots_by_objsetid, se);
 }
 
@@ -1286,7 +1289,7 @@ zfsctl_snapshot_mount(struct path *path, int flags, struct vfsmount **mntp)
 		 *     is really.
 		 */
 		zfsctl_snapshot_fill(se, snap_zfsvfs->z_os->os_spa,
-		    dmu_objset_id(snap_zfsvfs->z_os));
+		    dmu_objset_id(snap_zfsvfs->z_os), mntget(mnt));
 		zfsctl_snapshot_unmount_delay_impl(se, zfs_expire_snapshot);
 	} else {
 		zfsctl_snapshot_remove(se);
