@@ -168,11 +168,15 @@ const struct inode_operations zpl_ops_root = {
 static struct vfsmount *
 zpl_snapdir_automount(struct path *path)
 {
+	struct vfsmount *mntp = NULL;
 	int error;
 
-	error = -zfsctl_snapshot_mount(path, 0);
+	error = -zfsctl_snapshot_mount(path, 0, &mntp);
 	if (error)
 		return (ERR_PTR(error));
+
+	if (mntp != NULL)
+		return (mntp);
 
 	/*
 	 * Rather than returning the new vfsmount for the snapshot we must
