@@ -1117,11 +1117,7 @@ is_current_chrooted(void)
 int
 zfsctl_snapshot_unmount(const char *snapname, int flags)
 {
-	char *argv[] = { "/usr/bin/env", "umount", "-t", "zfs", "-n", NULL,
-	    NULL };
-	char *envp[] = { NULL };
 	zfs_snapentry_t *se;
-	int error;
 
 	rw_enter(&zfs_snapshot_lock, RW_READER);
 	if ((se = zfsctl_snapshot_find_by_name(snapname)) == NULL) {
@@ -1140,23 +1136,11 @@ zfsctl_snapshot_unmount(const char *snapname, int flags)
 
 	exportfs_flush();
 
-	if (flags & MNT_FORCE)
-		argv[4] = "-fn";
-	argv[5] = se->se_path;
-	dprintf("unmount; path=%s\n", se->se_path);
-	error = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_PROC);
+	mntput(se->se_mnt);
+
 	zfsctl_snapshot_rele(se);
 
-
-	/*
-	 * The umount system utility will return 256 on error.  We must
-	 * assume this error is because the file system is busy so it is
-	 * converted to the more sensible EBUSY.
-	 */
-	if (error)
-		error = SET_ERROR(EBUSY);
-
-	return (error);
+	return (0);
 }
 
 int
