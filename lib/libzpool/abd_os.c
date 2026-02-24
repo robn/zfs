@@ -25,12 +25,12 @@
  * Copyright (c) 2023, 2024, Klara Inc.
  */
 
-#include <sys/abd_impl.h>
-#include <sys/param.h>
-#include <sys/zio.h>
-#include <sys/arc.h>
-#include <sys/zfs_context.h>
-#include <sys/zfs_znode.h>
+#include <zfs/abd_impl.h>
+#include <spl/param.h>
+#include <zfs/zio.h>
+#include <zfs/arc.h>
+#include <zfs/zfs_context.h>
+#include <zfs/zfs_znode.h>
 
 /*
  * We're simulating scatter/gather with 4K allocations, since that's more like

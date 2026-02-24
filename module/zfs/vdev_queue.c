@@ -28,15 +28,15 @@
  * Copyright (c) 2012, 2018 by Delphix. All rights reserved.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/vdev_impl.h>
-#include <sys/spa_impl.h>
-#include <sys/zio.h>
-#include <sys/avl.h>
-#include <sys/dsl_pool.h>
-#include <sys/metaslab_impl.h>
-#include <sys/spa.h>
-#include <sys/abd.h>
+#include <zfs/zfs_context.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/spa_impl.h>
+#include <zfs/zio.h>
+#include <zfs/avl.h>
+#include <zfs/dsl_pool.h>
+#include <zfs/metaslab_impl.h>
+#include <zfs/spa.h>
+#include <zfs/abd.h>
 
 /*
  * ZFS I/O Scheduler

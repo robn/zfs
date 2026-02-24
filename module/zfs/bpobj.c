@@ -25,12 +25,12 @@
  * Copyright (c) 2017 Datto Inc.
  */
 
-#include <sys/bpobj.h>
-#include <sys/zfs_context.h>
-#include <sys/zfs_refcount.h>
-#include <sys/dsl_pool.h>
-#include <sys/zfeature.h>
-#include <sys/zap.h>
+#include <zfs/bpobj.h>
+#include <zfs/zfs_context.h>
+#include <zfs/zfs_refcount.h>
+#include <zfs/dsl_pool.h>
+#include <zfs/zfeature.h>
+#include <zfs/zap.h>
 
 /*
  * Return an empty bpobj, preferably the empty dummy one (dp_empty_bpobj).

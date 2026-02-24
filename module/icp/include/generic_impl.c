@@ -34,9 +34,9 @@
  * for reference.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/zio_checksum.h>
-#include <sys/zfs_impl.h>
+#include <zfs/zfs_context.h>
+#include <zfs/zio_checksum.h>
+#include <zfs/zfs_impl.h>
 
 /* Two default implementations */
 #define	IMPL_FASTEST	(UINT32_MAX)

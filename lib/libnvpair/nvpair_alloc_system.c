@@ -28,8 +28,8 @@
 
 
 #include <rpc/types.h>
-#include <sys/kmem.h>
-#include <sys/nvpair.h>
+#include <spl/kmem.h>
+#include <zfs/nvpair.h>
 
 static void *
 nv_alloc_sys(nv_alloc_t *nva, size_t size)

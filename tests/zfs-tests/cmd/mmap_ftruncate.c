@@ -35,7 +35,7 @@
 
 #include <unistd.h>
 #include <fcntl.h>
-#include <sys/stat.h>
+#include <spl/stat.h>
 #include <sys/mman.h>
 #include <stdlib.h>
 #include <stdio.h>

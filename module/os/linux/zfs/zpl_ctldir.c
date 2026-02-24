@@ -28,14 +28,14 @@
  *   Brian Behlendorf <behlendorf1@llnl.gov>
  */
 
-#include <sys/zfs_znode.h>
-#include <sys/zfs_vfsops.h>
-#include <sys/zfs_vnops.h>
-#include <sys/zfs_ctldir.h>
-#include <sys/zpl.h>
-#include <sys/dmu.h>
-#include <sys/dsl_dataset.h>
-#include <sys/zap.h>
+#include <zfs/zfs_znode.h>
+#include <zfs/zfs_vfsops.h>
+#include <zfs/zfs_vnops.h>
+#include <zfs/zfs_ctldir.h>
+#include <zfs/zpl.h>
+#include <zfs/dmu.h>
+#include <zfs/dsl_dataset.h>
+#include <zfs/zap.h>
 
 /*
  * Common open routine.  Disallow any write access.

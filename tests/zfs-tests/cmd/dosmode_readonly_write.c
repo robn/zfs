@@ -28,7 +28,7 @@
  * We should be able to open a file RW, set READONLY, and still write to the fd.
  */
 
-#include <sys/stat.h>
+#include <spl/stat.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -38,7 +38,7 @@
 
 #ifdef __linux__
 #include <stdint.h>
-#include <sys/fs/zfs.h>
+#include <zfs/fs/zfs.h>
 #endif
 
 int

@@ -27,28 +27,28 @@
  * Copyright (c) 2016 Actifio, Inc. All rights reserved.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/dsl_userhold.h>
-#include <sys/dsl_dataset.h>
-#include <sys/dsl_synctask.h>
-#include <sys/dsl_destroy.h>
-#include <sys/dsl_bookmark.h>
-#include <sys/dmu_tx.h>
-#include <sys/dsl_pool.h>
-#include <sys/dsl_dir.h>
-#include <sys/dmu_traverse.h>
-#include <sys/dsl_scan.h>
-#include <sys/dmu_objset.h>
-#include <sys/zap.h>
-#include <sys/zfeature.h>
-#include <sys/zfs_ioctl.h>
-#include <sys/dsl_deleg.h>
-#include <sys/dmu_impl.h>
-#include <sys/zvol.h>
-#include <sys/zcp.h>
-#include <sys/dsl_deadlist.h>
-#include <sys/zthr.h>
-#include <sys/spa_impl.h>
+#include <zfs/zfs_context.h>
+#include <zfs/dsl_userhold.h>
+#include <zfs/dsl_dataset.h>
+#include <zfs/dsl_synctask.h>
+#include <zfs/dsl_destroy.h>
+#include <zfs/dsl_bookmark.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/dsl_pool.h>
+#include <zfs/dsl_dir.h>
+#include <zfs/dmu_traverse.h>
+#include <zfs/dsl_scan.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/zap.h>
+#include <zfs/zfeature.h>
+#include <zfs/zfs_ioctl.h>
+#include <zfs/dsl_deleg.h>
+#include <zfs/dmu_impl.h>
+#include <zfs/zvol.h>
+#include <zfs/zcp.h>
+#include <zfs/dsl_deadlist.h>
+#include <zfs/zthr.h>
+#include <zfs/spa_impl.h>
 
 extern int zfs_snapshot_history_enabled;
 

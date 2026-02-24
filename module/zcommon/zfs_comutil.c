@@ -34,11 +34,11 @@
 #include <string.h>
 #endif
 
-#include <sys/types.h>
-#include <sys/fs/zfs.h>
-#include <sys/nvpair.h>
+#include <spl/types.h>
+#include <zfs/fs/zfs.h>
+#include <zfs/nvpair.h>
 #include "zfs_comutil.h"
-#include <sys/zfs_ratelimit.h>
+#include <zfs/zfs_ratelimit.h>
 
 /*
  * Are there allocatable vdevs?

@@ -14,7 +14,7 @@
  * Copyright (c) 2018 by Delphix. All rights reserved.
  */
 
-#include <sys/types.h>
+#include <spl/types.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>

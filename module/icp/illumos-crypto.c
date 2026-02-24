@@ -33,11 +33,11 @@
 #define	__init
 #endif
 
-#include <sys/crypto/common.h>
-#include <sys/crypto/api.h>
+#include <zfs/crypto/common.h>
+#include <zfs/crypto/api.h>
 #include <sys/crypto/impl.h>
 #include <sys/crypto/sched_impl.h>
-#include <sys/crypto/icp.h>
+#include <zfs/crypto/icp.h>
 
 /*
  * Changes made to the original Illumos Crypto Layer for the ICP:

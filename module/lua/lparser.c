@@ -8,7 +8,7 @@
 #define lparser_c
 #define LUA_CORE
 
-#include <sys/lua/lua.h>
+#include <zfs/lua/lua.h>
 
 #include "lcode.h"
 #include "ldebug.h"

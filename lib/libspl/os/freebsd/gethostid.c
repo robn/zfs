@@ -26,9 +26,9 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/systeminfo.h>
+#include <spl/types.h>
+#include <spl/stat.h>
+#include <spl/systeminfo.h>
 
 unsigned long
 get_system_hostid(void)

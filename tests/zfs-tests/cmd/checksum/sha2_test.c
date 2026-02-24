@@ -36,10 +36,10 @@
 #include <string.h>
 #include <stdio.h>
 
-#include <sys/time.h>
-#include <sys/sha2.h>
-#include <sys/stdtypes.h>
-#include <sys/zfs_impl.h>
+#include <spl/time.h>
+#include <zfs/sha2.h>
+#include <spl/stdtypes.h>
+#include <zfs/zfs_impl.h>
 
 /*
  * Test messages from:

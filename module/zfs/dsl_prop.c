@@ -27,17 +27,17 @@
  * Copyright (c) 2022 Hewlett Packard Enterprise Development LP.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/dmu.h>
-#include <sys/dmu_objset.h>
-#include <sys/dmu_tx.h>
-#include <sys/dsl_dataset.h>
-#include <sys/dsl_dir.h>
-#include <sys/dsl_prop.h>
-#include <sys/dsl_synctask.h>
-#include <sys/spa.h>
-#include <sys/zap.h>
-#include <sys/fs/zfs.h>
+#include <zfs/zfs_context.h>
+#include <zfs/dmu.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/dsl_dataset.h>
+#include <zfs/dsl_dir.h>
+#include <zfs/dsl_prop.h>
+#include <zfs/dsl_synctask.h>
+#include <zfs/spa.h>
+#include <zfs/zap.h>
+#include <zfs/fs/zfs.h>
 
 #include "zfs_prop.h"
 

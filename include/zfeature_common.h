@@ -31,9 +31,9 @@
 #ifndef _ZFEATURE_COMMON_H
 #define	_ZFEATURE_COMMON_H extern __attribute__((visibility("default")))
 
-#include <sys/fs/zfs.h>
-#include <sys/inttypes.h>
-#include <sys/types.h>
+#include <zfs/fs/zfs.h>
+#include <spl/inttypes.h>
+#include <spl/types.h>
 
 #ifdef	__cplusplus
 extern "C" {

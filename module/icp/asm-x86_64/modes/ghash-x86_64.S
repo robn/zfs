@@ -99,7 +99,7 @@
     HAVE_SIMD(AES) && HAVE_SIMD(PCLMULQDQ)
 
 #define _ASM
-#include <sys/asm_linkage.h>
+#include <zfs/asm_linkage.h>
 
 .text
 

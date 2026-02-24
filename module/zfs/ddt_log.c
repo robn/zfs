@@ -24,16 +24,16 @@
  * Copyright (c) 2023, Klara Inc.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/spa.h>
-#include <sys/ddt.h>
-#include <sys/dmu_tx.h>
-#include <sys/dmu.h>
-#include <sys/ddt_impl.h>
-#include <sys/dnode.h>
-#include <sys/dbuf.h>
-#include <sys/zap.h>
-#include <sys/zio_checksum.h>
+#include <zfs/zfs_context.h>
+#include <zfs/spa.h>
+#include <zfs/ddt.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/dmu.h>
+#include <zfs/ddt_impl.h>
+#include <zfs/dnode.h>
+#include <zfs/dbuf.h>
+#include <zfs/zap.h>
+#include <zfs/zio_checksum.h>
 
 /*
  * No more than this many txgs before swapping logs.

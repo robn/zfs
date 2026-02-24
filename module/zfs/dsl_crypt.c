@@ -19,15 +19,15 @@
  * Copyright (c) 2018 by Delphix. All rights reserved.
  */
 
-#include <sys/dsl_crypt.h>
-#include <sys/dsl_pool.h>
-#include <sys/zap.h>
-#include <sys/zil.h>
-#include <sys/dsl_dir.h>
-#include <sys/dsl_prop.h>
-#include <sys/spa_impl.h>
-#include <sys/dmu_objset.h>
-#include <sys/zvol.h>
+#include <zfs/dsl_crypt.h>
+#include <zfs/dsl_pool.h>
+#include <zfs/zap.h>
+#include <zfs/zil.h>
+#include <zfs/dsl_dir.h>
+#include <zfs/dsl_prop.h>
+#include <zfs/spa_impl.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/zvol.h>
 
 /*
  * This file's primary purpose is for managing master encryption keys in

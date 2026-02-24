@@ -31,13 +31,13 @@
  * Common routines used by zfs and zpool property management.
  */
 
-#include <sys/zio.h>
-#include <sys/spa.h>
-#include <sys/zfs_acl.h>
-#include <sys/zfs_ioctl.h>
-#include <sys/zfs_sysfs.h>
-#include <sys/zfs_znode.h>
-#include <sys/fs/zfs.h>
+#include <zfs/zio.h>
+#include <zfs/spa.h>
+#include <zfs/zfs_acl.h>
+#include <zfs/zfs_ioctl.h>
+#include <zfs/zfs_sysfs.h>
+#include <zfs/zfs_znode.h>
+#include <zfs/fs/zfs.h>
 
 #include "zfs_prop.h"
 #include "zfs_deleg.h"
@@ -46,7 +46,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <sys/stat.h>
+#include <spl/stat.h>
 #endif
 
 static zprop_desc_t *

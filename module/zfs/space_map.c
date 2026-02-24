@@ -27,15 +27,15 @@
  * Copyright (c) 2012, 2019 by Delphix. All rights reserved.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/spa.h>
-#include <sys/dmu.h>
-#include <sys/dmu_tx.h>
-#include <sys/dnode.h>
-#include <sys/dsl_pool.h>
-#include <sys/zio.h>
-#include <sys/space_map.h>
-#include <sys/zfeature.h>
+#include <zfs/zfs_context.h>
+#include <zfs/spa.h>
+#include <zfs/dmu.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/dnode.h>
+#include <zfs/dsl_pool.h>
+#include <zfs/zio.h>
+#include <zfs/space_map.h>
+#include <zfs/zfeature.h>
 
 /*
  * Note on space map block size:

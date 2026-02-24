@@ -42,8 +42,8 @@
 #include <libzfs.h>
 #include <libzfs_core.h>
 
-#include <sys/dmu.h>
-#include <sys/zfs_ioctl.h>
+#include <zfs/dmu.h>
+#include <zfs/zfs_ioctl.h>
 #include "zstream.h"
 
 int

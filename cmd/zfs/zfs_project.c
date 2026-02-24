@@ -34,10 +34,10 @@
 #include <dirent.h>
 #include <stddef.h>
 #include <libintl.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/list.h>
-#include <sys/zfs_project.h>
+#include <spl/stat.h>
+#include <spl/types.h>
+#include <spl/list.h>
+#include <zfs/zfs_project.h>
 
 #include "zfs_util.h"
 #include "zfs_projectutil.h"

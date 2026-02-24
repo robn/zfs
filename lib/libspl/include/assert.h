@@ -33,7 +33,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#include <sys/types.h>
+#include <spl/types.h>
 
 /* Workaround for non-Clang compilers */
 #ifndef __has_feature

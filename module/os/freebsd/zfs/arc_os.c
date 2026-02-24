@@ -20,37 +20,37 @@
  * CDDL HEADER END
  */
 
-#include <sys/spa.h>
-#include <sys/zio.h>
-#include <sys/spa_impl.h>
+#include <zfs/spa.h>
+#include <zfs/zio.h>
+#include <zfs/spa_impl.h>
 #include <sys/counter.h>
-#include <sys/zio_compress.h>
-#include <sys/zio_checksum.h>
-#include <sys/zfs_context.h>
-#include <sys/arc.h>
-#include <sys/arc_os.h>
-#include <sys/zfs_refcount.h>
-#include <sys/vdev.h>
-#include <sys/vdev_trim.h>
-#include <sys/vdev_impl.h>
-#include <sys/dsl_pool.h>
-#include <sys/zio_checksum.h>
-#include <sys/multilist.h>
-#include <sys/abd.h>
-#include <sys/zil.h>
-#include <sys/fm/fs/zfs.h>
+#include <zfs/zio_compress.h>
+#include <zfs/zio_checksum.h>
+#include <zfs/zfs_context.h>
+#include <zfs/arc.h>
+#include <zfs/arc_os.h>
+#include <zfs/zfs_refcount.h>
+#include <zfs/vdev.h>
+#include <zfs/vdev_trim.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/dsl_pool.h>
+#include <zfs/zio_checksum.h>
+#include <zfs/multilist.h>
+#include <zfs/abd.h>
+#include <zfs/zil.h>
+#include <zfs/fm/fs/zfs.h>
 #include <sys/eventhandler.h>
-#include <sys/callb.h>
-#include <sys/kstat.h>
-#include <sys/zthr.h>
+#include <spl/callb.h>
+#include <spl/kstat.h>
+#include <zfs/zthr.h>
 #include <zfs_fletcher.h>
-#include <sys/arc_impl.h>
+#include <zfs/arc_impl.h>
 #include <sys/sdt.h>
-#include <sys/aggsum.h>
-#include <sys/vnode.h>
+#include <zfs/aggsum.h>
+#include <spl/vnode.h>
 #include <cityhash.h>
 #include <machine/vmparam.h>
-#include <sys/vm.h>
+#include <spl/vm.h>
 #include <sys/vmmeter.h>
 
 extern struct vfsops zfs_vfsops;

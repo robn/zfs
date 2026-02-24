@@ -97,11 +97,11 @@
  * B_FALSE.
  */
 
-#include <sys/abd_impl.h>
-#include <sys/param.h>
-#include <sys/zio.h>
-#include <sys/zfs_context.h>
-#include <sys/zfs_znode.h>
+#include <zfs/abd_impl.h>
+#include <spl/param.h>
+#include <zfs/zio.h>
+#include <zfs/zfs_context.h>
+#include <zfs/zfs_znode.h>
 
 /* see block comment above for description */
 int zfs_abd_scatter_enabled = B_TRUE;

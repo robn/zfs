@@ -26,8 +26,8 @@
  * Copyright (c) 2021-2022 Tino Reichardt <milky-zfs@mcmilk.de>
  */
 
-#include <sys/simd.h>
-#include <sys/zfs_context.h>
+#include <spl/simd.h>
+#include <zfs/zfs_context.h>
 #include "blake3_impl.h"
 
 #define	rotr32(x, n)	(((x) >> (n)) | ((x) << (32 - (n))))

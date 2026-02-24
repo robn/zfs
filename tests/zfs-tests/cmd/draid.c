@@ -27,9 +27,9 @@
 #include <stdio.h>
 #include <zlib.h>
 #include <zfs_fletcher.h>
-#include <sys/vdev_draid.h>
-#include <sys/nvpair.h>
-#include <sys/stat.h>
+#include <zfs/vdev_draid.h>
+#include <zfs/nvpair.h>
+#include <spl/stat.h>
 
 /*
  * The number of rows to generate for new permutation maps.

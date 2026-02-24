@@ -55,8 +55,8 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <dirent.h>
-#include <sys/types.h>
-#include <sys/stat.h>
+#include <spl/types.h>
+#include <spl/stat.h>
 #include <libzfs.h>
 #include "../../libzfs_share.h"
 

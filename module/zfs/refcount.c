@@ -24,8 +24,8 @@
  * Copyright (c) 2012, 2021 by Delphix. All rights reserved.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/zfs_refcount.h>
+#include <zfs/zfs_context.h>
+#include <zfs/zfs_refcount.h>
 
 #ifdef	ZFS_DEBUG
 /*

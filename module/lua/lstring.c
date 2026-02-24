@@ -9,7 +9,7 @@
 #define lstring_c
 #define LUA_CORE
 
-#include <sys/lua/lua.h>
+#include <zfs/lua/lua.h>
 
 #include "lmem.h"
 #include "lobject.h"

@@ -24,21 +24,21 @@
  * Copyright (c) 2012, 2018 by Delphix. All rights reserved.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/dmu_objset.h>
-#include <sys/dmu_traverse.h>
-#include <sys/dsl_dataset.h>
-#include <sys/dsl_dir.h>
-#include <sys/dsl_pool.h>
-#include <sys/dnode.h>
-#include <sys/spa.h>
-#include <sys/spa_impl.h>
-#include <sys/zio.h>
-#include <sys/dmu_impl.h>
-#include <sys/sa.h>
-#include <sys/sa_impl.h>
-#include <sys/callb.h>
-#include <sys/zfeature.h>
+#include <zfs/zfs_context.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/dmu_traverse.h>
+#include <zfs/dsl_dataset.h>
+#include <zfs/dsl_dir.h>
+#include <zfs/dsl_pool.h>
+#include <zfs/dnode.h>
+#include <zfs/spa.h>
+#include <zfs/spa_impl.h>
+#include <zfs/zio.h>
+#include <zfs/dmu_impl.h>
+#include <zfs/sa.h>
+#include <zfs/sa_impl.h>
+#include <spl/callb.h>
+#include <zfs/zfeature.h>
 
 static int32_t zfs_pd_bytes_max = 50 * 1024 * 1024;	/* 50MB */
 static int32_t send_holes_without_birth_time = 1;

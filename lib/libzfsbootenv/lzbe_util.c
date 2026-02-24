@@ -13,7 +13,7 @@
  * Copyright 2020 Toomas Soome <tsoome@me.com>
  */
 
-#include <sys/types.h>
+#include <spl/types.h>
 #include <string.h>
 #include <libzfs.h>
 #include <libzfsbootenv.h>

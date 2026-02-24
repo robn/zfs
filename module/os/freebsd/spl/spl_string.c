@@ -26,10 +26,10 @@
  * Use is subject to license terms.
  */
 
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/string.h>
-#include <sys/kmem.h>
+#include <spl/types.h>
+#include <spl/param.h>
+#include <spl/string.h>
+#include <spl/kmem.h>
 #include <machine/stdarg.h>
 
 #define	IS_DIGIT(c)	((c) >= '0' && (c) <= '9')

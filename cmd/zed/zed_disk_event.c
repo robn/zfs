@@ -27,8 +27,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <sys/sysevent/eventdefs.h>
-#include <sys/sysevent/dev.h>
+#include <zfs/sysevent/eventdefs.h>
+#include <zfs/sysevent/dev.h>
 
 #include "zed_log.h"
 #include "zed_disk_event.h"

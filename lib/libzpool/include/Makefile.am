@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: CDDL-1.0
-libzpool_sysdir = $(includedir)/libzpool/sys
-libzpool_sys_HEADERS = \
-	%D%/sys/abd_os.h \
-	%D%/sys/abd_impl_os.h \
-	%D%/sys/trace_zfs.h \
-	%D%/sys/zfs_bootenv_os.h \
-	%D%/sys/zfs_context_os.h \
-	%D%/sys/zfs_debug_os.h
+libzpool_zfsdir = $(includedir)/libzpool/zfs
+libzpool_zfs_HEADERS = \
+	%D%/zfs/abd_os.h \
+	%D%/zfs/abd_impl_os.h \
+	%D%/zfs/policy.h \
+	%D%/zfs/trace_zfs.h \
+	%D%/zfs/zfs_bootenv_os.h \
+	%D%/zfs/zfs_context_os.h \
+	%D%/zfs/zfs_debug_os.h

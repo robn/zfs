@@ -11,7 +11,7 @@ zfs_include = @abs_top_srcdir@/include
 icp_include = @abs_srcdir@/icp/include
 zstd_include = @abs_srcdir@/zstd/include
 ZFS_MODULE_CFLAGS += -include @abs_top_builddir@/zfs_config.h
-ZFS_MODULE_CFLAGS += -include $(zfs_include)/sys/simd_config.h
+ZFS_MODULE_CFLAGS += -include $(zfs_include)/zfs/simd_config.h
 ZFS_MODULE_CFLAGS += -I@abs_top_builddir@/include
 src = @abs_srcdir@
 obj = @abs_builddir@
@@ -20,10 +20,11 @@ zfs_include = $(srctree)/include/zfs
 icp_include = $(src)/icp/include
 zstd_include = $(src)/zstd/include
 ZFS_MODULE_CFLAGS += -include $(zfs_include)/zfs_config.h
-ZFS_MODULE_CFLAGS += -include $(zfs_include)/sys/simd_config.h
+ZFS_MODULE_CFLAGS += -include $(zfs_include)/zfs/simd_config.h
 endif
 
 ZFS_MODULE_CFLAGS += -I$(zfs_include)/os/linux/kernel
+ZFS_MODULE_CFLAGS += -I$(zfs_include)/os/linux
 ZFS_MODULE_CFLAGS += -I$(zfs_include)/os/linux/spl
 ZFS_MODULE_CFLAGS += -I$(zfs_include)/os/linux/zfs
 ZFS_MODULE_CFLAGS += -I$(zfs_include)
@@ -181,10 +182,10 @@ zfs-$(CONFIG_PPC)    += $(addprefix icp/,$(ICP_OBJS_PPC_PPC64))
 zfs-$(CONFIG_PPC64)  += $(addprefix icp/,$(ICP_OBJS_PPC_PPC64))
 
 $(addprefix $(obj)/icp/,$(ICP_OBJS) $(ICP_OBJS_X86) $(ICP_OBJS_X86_64) \
-	$(ICP_OBJS_ARM64) $(ICP_OBJS_PPC_PPC64)) : asflags-y += -I$(icp_include) -I$(zfs_include)/os/linux/spl -I$(zfs_include)
+	$(ICP_OBJS_ARM64) $(ICP_OBJS_PPC_PPC64)) : asflags-y += -I$(icp_include) -I$(zfs_include)/os/linux -I$(zfs_include)/os/linux/spl -I$(zfs_include)
 
 $(addprefix $(obj)/icp/,$(ICP_OBJS) $(ICP_OBJS_X86) $(ICP_OBJS_X86_64) \
-	$(ICP_OBJS_ARM64) $(ICP_OBJS_PPC_PPC64)) : ccflags-y += -I$(icp_include) -I$(zfs_include)/os/linux/spl -I$(zfs_include)
+	$(ICP_OBJS_ARM64) $(ICP_OBJS_PPC_PPC64)) : ccflags-y += -I$(icp_include) -I$(zfs_include)/os/linux -I$(zfs_include)/os/linux/spl -I$(zfs_include)
 
 LUA_OBJS := \
 	lapi.o \

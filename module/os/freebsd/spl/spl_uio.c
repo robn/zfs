@@ -41,13 +41,13 @@
  * $FreeBSD$
  */
 
-#include <sys/param.h>
-#include <sys/uio_impl.h>
-#include <sys/vnode.h>
-#include <sys/zfs_znode.h>
-#include <sys/byteorder.h>
-#include <sys/lock.h>
-#include <sys/vm.h>
+#include <spl/param.h>
+#include <zfs/uio_impl.h>
+#include <spl/vnode.h>
+#include <zfs/zfs_znode.h>
+#include <spl/byteorder.h>
+#include <spl/lock.h>
+#include <spl/vm.h>
 #include <vm/vm_map.h>
 
 static void

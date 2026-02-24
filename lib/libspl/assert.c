@@ -29,7 +29,7 @@
 
 #include <assert.h>
 #include <pthread.h>
-#include <sys/backtrace.h>
+#include <spl/backtrace.h>
 
 #if defined(__linux__)
 #include <errno.h>

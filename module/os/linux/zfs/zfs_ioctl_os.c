@@ -41,31 +41,31 @@
  * Copyright (c) 2021 Klara, Inc.
  */
 
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/errno.h>
-#include <sys/uio.h>
-#include <sys/file.h>
-#include <sys/kmem.h>
-#include <sys/stat.h>
-#include <sys/zfs_ioctl.h>
-#include <sys/zfs_vfsops.h>
-#include <sys/zap.h>
-#include <sys/spa.h>
-#include <sys/nvpair.h>
-#include <sys/fs/zfs.h>
-#include <sys/zfs_ctldir.h>
-#include <sys/zfs_dir.h>
-#include <sys/zfs_onexit.h>
-#include <sys/zvol.h>
-#include <sys/fm/util.h>
-#include <sys/dsl_crypt.h>
-#include <sys/crypto/icp.h>
-#include <sys/zstd/zstd.h>
+#include <spl/types.h>
+#include <spl/param.h>
+#include <spl/errno.h>
+#include <spl/uio.h>
+#include <spl/file.h>
+#include <spl/kmem.h>
+#include <spl/stat.h>
+#include <zfs/zfs_ioctl.h>
+#include <zfs/zfs_vfsops.h>
+#include <zfs/zap.h>
+#include <zfs/spa.h>
+#include <zfs/nvpair.h>
+#include <zfs/fs/zfs.h>
+#include <zfs/zfs_ctldir.h>
+#include <zfs/zfs_dir.h>
+#include <zfs/zfs_onexit.h>
+#include <zfs/zvol.h>
+#include <zfs/fm/util.h>
+#include <zfs/dsl_crypt.h>
+#include <zfs/crypto/icp.h>
+#include <zfs/zstd/zstd.h>
 
-#include <sys/zfs_ioctl_impl.h>
+#include <zfs/zfs_ioctl_impl.h>
 
-#include <sys/zfs_sysfs.h>
+#include <zfs/zfs_sysfs.h>
 #include <linux/miscdevice.h>
 #include <linux/slab.h>
 

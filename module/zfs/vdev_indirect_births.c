@@ -18,11 +18,11 @@
  * Copyright (c) 2015 by Delphix. All rights reserved.
  */
 
-#include <sys/dmu_tx.h>
-#include <sys/spa.h>
-#include <sys/dmu.h>
-#include <sys/dsl_pool.h>
-#include <sys/vdev_indirect_births.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/spa.h>
+#include <zfs/dmu.h>
+#include <zfs/dsl_pool.h>
+#include <zfs/vdev_indirect_births.h>
 
 #ifdef ZFS_DEBUG
 static boolean_t

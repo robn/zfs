@@ -84,7 +84,7 @@
 extern "C" {
 #endif
 
-#include <sys/types.h>
+#include <spl/types.h>
 
 #define	t_dec(m, n) t_##m##n
 #define	t_set(m, n) t_##m##n

@@ -31,7 +31,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <inttypes.h>
-#include <sys/tunables.h>
+#include <spl/tunables.h>
 
 /*
  * Userspace tunables.

@@ -27,9 +27,9 @@
  */
 
 #include <sys/cdefs.h>
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/cmn_err.h>
+#include <spl/param.h>
+#include <spl/systm.h>
+#include <spl/cmn_err.h>
 
 void
 vcmn_err(int ce, const char *fmt, va_list adx)

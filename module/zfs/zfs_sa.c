@@ -23,14 +23,14 @@
  * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/vnode.h>
-#include <sys/sa.h>
-#include <sys/zfs_acl.h>
-#include <sys/zfs_sa.h>
-#include <sys/dmu_objset.h>
-#include <sys/sa_impl.h>
-#include <sys/zfeature.h>
+#include <zfs/zfs_context.h>
+#include <spl/vnode.h>
+#include <zfs/sa.h>
+#include <zfs/zfs_acl.h>
+#include <zfs/zfs_sa.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/sa_impl.h>
+#include <zfs/zfeature.h>
 
 /*
  * ZPL attribute registration table.

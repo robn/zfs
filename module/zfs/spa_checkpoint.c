@@ -138,16 +138,16 @@
  *   reservations.
  */
 
-#include <sys/dmu_tx.h>
-#include <sys/dsl_dir.h>
-#include <sys/dsl_synctask.h>
-#include <sys/metaslab_impl.h>
-#include <sys/spa.h>
-#include <sys/spa_impl.h>
-#include <sys/spa_checkpoint.h>
-#include <sys/vdev_impl.h>
-#include <sys/zap.h>
-#include <sys/zfeature.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/dsl_dir.h>
+#include <zfs/dsl_synctask.h>
+#include <zfs/metaslab_impl.h>
+#include <zfs/spa.h>
+#include <zfs/spa_impl.h>
+#include <zfs/spa_checkpoint.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/zap.h>
+#include <zfs/zfeature.h>
 
 /*
  * The following parameter limits the amount of memory to be used for the

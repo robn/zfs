@@ -111,8 +111,8 @@
  * range to just the range to be written using rangelock_reduce().
  */
 
-#include <sys/zfs_context.h>
-#include <sys/zfs_rlock.h>
+#include <zfs/zfs_context.h>
+#include <zfs/zfs_rlock.h>
 
 
 /*

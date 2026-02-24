@@ -27,9 +27,9 @@
 #ifndef	_ZFS_PROP_H
 #define	_ZFS_PROP_H extern __attribute__((visibility("default")))
 
-#include <sys/fs/zfs.h>
-#include <sys/types.h>
-#include <sys/zfs_sysfs.h>
+#include <zfs/fs/zfs.h>
+#include <spl/types.h>
+#include <zfs/zfs_sysfs.h>
 
 #ifdef	__cplusplus
 extern "C" {

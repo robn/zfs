@@ -26,31 +26,31 @@
  * Copyright (c) 2021, 2022 by Pawel Jakub Dawidek
  */
 
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/sysmacros.h>
-#include <sys/cmn_err.h>
-#include <sys/kmem.h>
-#include <sys/thread.h>
-#include <sys/file.h>
-#include <sys/fcntl.h>
-#include <sys/vfs.h>
-#include <sys/fs/zfs.h>
-#include <sys/zfs_znode.h>
-#include <sys/zfs_dir.h>
-#include <sys/zfs_acl.h>
-#include <sys/zfs_fuid.h>
-#include <sys/zfs_vnops.h>
-#include <sys/spa.h>
-#include <sys/zil.h>
-#include <sys/byteorder.h>
-#include <sys/stat.h>
-#include <sys/acl.h>
-#include <sys/atomic.h>
-#include <sys/cred.h>
-#include <sys/zpl.h>
-#include <sys/dmu_objset.h>
-#include <sys/zfeature.h>
+#include <spl/types.h>
+#include <spl/param.h>
+#include <spl/sysmacros.h>
+#include <spl/cmn_err.h>
+#include <spl/kmem.h>
+#include <spl/thread.h>
+#include <spl/file.h>
+#include <spl/fcntl.h>
+#include <spl/vfs.h>
+#include <zfs/fs/zfs.h>
+#include <zfs/zfs_znode.h>
+#include <zfs/zfs_dir.h>
+#include <zfs/zfs_acl.h>
+#include <zfs/zfs_fuid.h>
+#include <zfs/zfs_vnops.h>
+#include <zfs/spa.h>
+#include <zfs/zil.h>
+#include <spl/byteorder.h>
+#include <spl/stat.h>
+#include <spl/acl.h>
+#include <spl/atomic.h>
+#include <spl/cred.h>
+#include <zfs/zpl.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/zfeature.h>
 
 /*
  * NB: FreeBSD expects to be able to do vnode locking in lookup and

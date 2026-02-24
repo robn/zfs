@@ -26,8 +26,8 @@ extern "C" {
 #endif
 
 #include <stddef.h>
-#include <sys/zfs_ioctl.h>
-#include <sys/zio_checksum.h>
+#include <zfs/zfs_ioctl.h>
+#include <zfs/zio_checksum.h>
 
 /*
  * The safe_ versions of the functions below terminate the process if the

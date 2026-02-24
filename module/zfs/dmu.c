@@ -33,34 +33,34 @@
  * Copyright (c) 2021, 2022 by Pawel Jakub Dawidek
  */
 
-#include <sys/dmu.h>
-#include <sys/dmu_impl.h>
-#include <sys/dmu_tx.h>
-#include <sys/dbuf.h>
-#include <sys/dnode.h>
-#include <sys/zfs_context.h>
-#include <sys/dmu_objset.h>
-#include <sys/dmu_traverse.h>
-#include <sys/dsl_dataset.h>
-#include <sys/dsl_dir.h>
-#include <sys/dsl_pool.h>
-#include <sys/dsl_synctask.h>
-#include <sys/dsl_prop.h>
-#include <sys/dmu_zfetch.h>
-#include <sys/zfs_ioctl.h>
-#include <sys/zap.h>
-#include <sys/zio_checksum.h>
-#include <sys/zio_compress.h>
-#include <sys/sa.h>
-#include <sys/zfeature.h>
-#include <sys/abd.h>
-#include <sys/brt.h>
-#include <sys/trace_zfs.h>
-#include <sys/zfs_racct.h>
-#include <sys/zfs_rlock.h>
+#include <zfs/dmu.h>
+#include <zfs/dmu_impl.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/dbuf.h>
+#include <zfs/dnode.h>
+#include <zfs/zfs_context.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/dmu_traverse.h>
+#include <zfs/dsl_dataset.h>
+#include <zfs/dsl_dir.h>
+#include <zfs/dsl_pool.h>
+#include <zfs/dsl_synctask.h>
+#include <zfs/dsl_prop.h>
+#include <zfs/dmu_zfetch.h>
+#include <zfs/zfs_ioctl.h>
+#include <zfs/zap.h>
+#include <zfs/zio_checksum.h>
+#include <zfs/zio_compress.h>
+#include <zfs/sa.h>
+#include <zfs/zfeature.h>
+#include <zfs/abd.h>
+#include <zfs/brt.h>
+#include <zfs/trace_zfs.h>
+#include <zfs/zfs_racct.h>
+#include <zfs/zfs_rlock.h>
 #ifdef _KERNEL
-#include <sys/vmsystm.h>
-#include <sys/zfs_znode.h>
+#include <spl/vmsystm.h>
+#include <zfs/zfs_znode.h>
 #endif
 
 /*

@@ -9,7 +9,7 @@
 #define ltm_c
 #define LUA_CORE
 
-#include <sys/lua/lua.h>
+#include <zfs/lua/lua.h>
 
 #include "lobject.h"
 #include "lstate.h"

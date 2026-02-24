@@ -43,9 +43,9 @@
 
 #if HAVE_SIMD(AVX) && HAVE_SIMD(AVX2)
 
-#include <sys/spa_checksum.h>
-#include <sys/string.h>
-#include <sys/simd.h>
+#include <zfs/spa_checksum.h>
+#include <spl/string.h>
+#include <spl/simd.h>
 #include <zfs_fletcher.h>
 
 static void

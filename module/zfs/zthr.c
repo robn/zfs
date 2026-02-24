@@ -193,8 +193,8 @@
  * of being cancelled will not block.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/zthr.h>
+#include <zfs/zfs_context.h>
+#include <zfs/zthr.h>
 
 struct zthr {
 	/* running thread doing the work */

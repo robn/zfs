@@ -18,8 +18,8 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
+#include <spl/stat.h>
+#include <spl/types.h>
 #include <unistd.h>
 #include "zed_file.h"
 #include "zed_log.h"

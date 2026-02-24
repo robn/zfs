@@ -24,8 +24,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <limits.h>
-#include <sys/types.h>
-#include <sys/types.h>
+#include <spl/types.h>
+#include <spl/types.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <fcntl.h>

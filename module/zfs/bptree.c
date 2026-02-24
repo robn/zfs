@@ -24,17 +24,17 @@
  * Copyright (c) 2011, 2018 by Delphix. All rights reserved.
  */
 
-#include <sys/arc.h>
-#include <sys/bptree.h>
-#include <sys/dmu.h>
-#include <sys/dmu_objset.h>
-#include <sys/dmu_tx.h>
-#include <sys/dmu_traverse.h>
-#include <sys/dsl_dataset.h>
-#include <sys/dsl_dir.h>
-#include <sys/dsl_pool.h>
-#include <sys/dnode.h>
-#include <sys/spa.h>
+#include <zfs/arc.h>
+#include <zfs/bptree.h>
+#include <zfs/dmu.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/dmu_traverse.h>
+#include <zfs/dsl_dataset.h>
+#include <zfs/dsl_dir.h>
+#include <zfs/dsl_pool.h>
+#include <zfs/dnode.h>
+#include <zfs/spa.h>
 
 /*
  * A bptree is a queue of root block pointers from destroyed datasets. When a

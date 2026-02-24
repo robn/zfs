@@ -18,10 +18,10 @@
  * Copyright (c) 2013, 2016 by Delphix. All rights reserved.
  */
 
-#include <sys/blkptr.h>
-#include <sys/zfs_context.h>
-#include <sys/zio.h>
-#include <sys/zio_compress.h>
+#include <zfs/blkptr.h>
+#include <zfs/zfs_context.h>
+#include <zfs/zio.h>
+#include <zfs/zio_compress.h>
 
 /*
  * Embedded-data Block Pointers

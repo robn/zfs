@@ -25,9 +25,9 @@
  * Copyright (c) 2022 Tino Reichardt <milky-zfs@mcmilk.de>
  */
 
-#include <sys/zfs_context.h>
-#include <sys/zfs_impl.h>
-#include <sys/sha2.h>
+#include <zfs/zfs_context.h>
+#include <zfs/zfs_impl.h>
+#include <zfs/sha2.h>
 
 #include <sha2/sha2_impl.h>
 

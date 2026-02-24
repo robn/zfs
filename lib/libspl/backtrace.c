@@ -24,9 +24,9 @@
  * Copyright (c) 2024, Klara Inc.
  */
 
-#include <sys/backtrace.h>
-#include <sys/types.h>
-#include <sys/debug.h>
+#include <spl/backtrace.h>
+#include <spl/types.h>
+#include <spl/debug.h>
 #include <unistd.h>
 
 /*

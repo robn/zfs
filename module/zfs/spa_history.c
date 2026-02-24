@@ -27,21 +27,21 @@
  * Copyright 2017 Joyent, Inc.
  */
 
-#include <sys/spa.h>
-#include <sys/spa_impl.h>
-#include <sys/zap.h>
-#include <sys/dsl_synctask.h>
-#include <sys/dmu_tx.h>
-#include <sys/dmu_objset.h>
-#include <sys/dsl_dataset.h>
-#include <sys/dsl_dir.h>
-#include <sys/cmn_err.h>
-#include <sys/sunddi.h>
-#include <sys/cred.h>
+#include <zfs/spa.h>
+#include <zfs/spa_impl.h>
+#include <zfs/zap.h>
+#include <zfs/dsl_synctask.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/dsl_dataset.h>
+#include <zfs/dsl_dir.h>
+#include <spl/cmn_err.h>
+#include <spl/sunddi.h>
+#include <spl/cred.h>
 #include "zfs_comutil.h"
 #include "zfs_gitrev.h"
 #ifdef _KERNEL
-#include <sys/zone.h>
+#include <spl/zone.h>
 #endif
 
 /*

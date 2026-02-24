@@ -36,15 +36,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
-#include <sys/zfs_context.h>
-#include <sys/spa.h>
-#include <sys/dmu.h>
-#include <sys/stat.h>
+#include <zfs/zfs_context.h>
+#include <zfs/spa.h>
+#include <zfs/dmu.h>
+#include <spl/stat.h>
 #include <sys/resource.h>
-#include <sys/zil.h>
-#include <sys/zil_impl.h>
-#include <sys/spa_impl.h>
-#include <sys/abd.h>
+#include <zfs/zil.h>
+#include <zfs/zil_impl.h>
+#include <zfs/spa_impl.h>
+#include <zfs/abd.h>
 
 #include "zdb.h"
 

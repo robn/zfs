@@ -26,7 +26,7 @@
  * Copyright (c) 2025, Klara, Inc.
  */
 
-#include <sys/kstat.h>
+#include <spl/kstat.h>
 
 /*
  * =========================================================================

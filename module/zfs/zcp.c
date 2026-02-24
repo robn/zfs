@@ -90,18 +90,18 @@
  * See zfs-program(8) for more information on high level usage.
  */
 
-#include <sys/lua/lua.h>
-#include <sys/lua/lualib.h>
-#include <sys/lua/lauxlib.h>
+#include <zfs/lua/lua.h>
+#include <zfs/lua/lualib.h>
+#include <zfs/lua/lauxlib.h>
 
-#include <sys/dsl_prop.h>
-#include <sys/dsl_synctask.h>
-#include <sys/dsl_dataset.h>
-#include <sys/zcp.h>
-#include <sys/zcp_iter.h>
-#include <sys/zcp_prop.h>
-#include <sys/zcp_global.h>
-#include <sys/zvol.h>
+#include <zfs/dsl_prop.h>
+#include <zfs/dsl_synctask.h>
+#include <zfs/dsl_dataset.h>
+#include <zfs/zcp.h>
+#include <zfs/zcp_iter.h>
+#include <zfs/zcp_prop.h>
+#include <zfs/zcp_global.h>
+#include <zfs/zvol.h>
 
 #ifndef KM_NORMALPRI
 #define	KM_NORMALPRI	0

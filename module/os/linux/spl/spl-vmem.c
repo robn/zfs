@@ -22,10 +22,10 @@
  *  with the SPL.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <sys/debug.h>
-#include <sys/vmem.h>
-#include <sys/kmem_cache.h>
-#include <sys/shrinker.h>
+#include <spl/debug.h>
+#include <spl/vmem.h>
+#include <spl/kmem_cache.h>
+#include <spl/shrinker.h>
 #include <linux/module.h>
 
 /*

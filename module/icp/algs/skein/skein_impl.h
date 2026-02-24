@@ -25,8 +25,8 @@
 #ifndef	_SKEIN_IMPL_H_
 #define	_SKEIN_IMPL_H_
 
-#include <sys/skein.h>
-#include <sys/string.h>
+#include <zfs/skein.h>
+#include <spl/string.h>
 #include "skein_impl.h"
 #include "skein_port.h"
 
@@ -196,11 +196,11 @@
 #define	Skein_Assert(x, retCode)
 #define	Skein_assert(x)
 #elif	defined(SKEIN_ASSERT)
-#include <sys/debug.h>
+#include <spl/debug.h>
 #define	Skein_Assert(x, retCode)	ASSERT(x)
 #define	Skein_assert(x)			ASSERT(x)
 #else
-#include <sys/debug.h>
+#include <spl/debug.h>
 /*  caller error */
 #define	Skein_Assert(x, retCode)		\
 	do {					\

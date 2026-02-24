@@ -29,7 +29,7 @@
 #include <assert.h>
 #include <pthread.h>
 #include <string.h>
-#include <sys/thread.h>
+#include <spl/thread.h>
 
 /* this only exists to have its address taken */
 void p0(void) {}

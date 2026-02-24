@@ -26,16 +26,16 @@
  *
  */
 
-#include <sys/types.h>
-#include <sys/param.h>
+#include <spl/types.h>
+#include <spl/param.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
-#include <sys/lock.h>
+#include <spl/lock.h>
 #include <sys/malloc.h>
-#include <sys/mutex.h>
-#include <sys/errno.h>
-#include <sys/cmn_err.h>
-#include <sys/zfs_ioctl_compat.h>
+#include <spl/mutex.h>
+#include <spl/errno.h>
+#include <spl/cmn_err.h>
+#include <zfs/zfs_ioctl_compat.h>
 
 #ifdef ZFS_LEGACY_SUPPORT
 enum zfs_ioc_legacy {

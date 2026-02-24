@@ -24,13 +24,13 @@
  * Copyright (c) 2022 Tino Reichardt <milky-zfs@mcmilk.de>
  */
 
-#include <sys/simd.h>
-#include <sys/zfs_context.h>
-#include <sys/zfs_impl.h>
-#include <sys/sha2.h>
+#include <spl/simd.h>
+#include <zfs/zfs_context.h>
+#include <zfs/zfs_impl.h>
+#include <zfs/sha2.h>
 
 #include <sha2/sha2_impl.h>
-#include <sys/asm_linkage.h>
+#include <zfs/asm_linkage.h>
 
 #define	TF(E, N) \
 	extern void ASMABI E(uint32_t s[8], const void *, size_t); \

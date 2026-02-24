@@ -30,7 +30,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/efi_partition.h>
+#include <zfs/efi_partition.h>
 
 #ifdef HAVE_LIBUDEV
 #include <libudev.h>

@@ -49,8 +49,8 @@
     HAVE_SIMD(AES) && HAVE_SIMD(PCLMULQDQ)
 
 #define _ASM
-#include <sys/asm_linkage.h>
-#include <sys/frame.h>
+#include <zfs/asm_linkage.h>
+#include <zfs/frame.h>
 
 /* Windows userland links with OpenSSL */
 #if !defined (_WIN32) || defined (_KERNEL)

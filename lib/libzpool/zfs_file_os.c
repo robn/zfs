@@ -26,8 +26,8 @@
  * Copyright (c) 2025, Klara, Inc.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/zfs_file.h>
+#include <zfs/zfs_context.h>
+#include <zfs/zfs_file.h>
 #include <libzpool.h>
 #include <libzutil.h>
 

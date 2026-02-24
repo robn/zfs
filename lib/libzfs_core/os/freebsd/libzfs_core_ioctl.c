@@ -19,11 +19,11 @@
  *
  * CDDL HEADER END
  */
-#include <sys/types.h>
-#include <sys/param.h>
+#include <spl/types.h>
+#include <spl/param.h>
 #include <sys/sysctl.h>
-#include <sys/zfs_ioctl.h>
-#include <os/freebsd/zfs/sys/zfs_ioctl_compat.h>
+#include <zfs/zfs_ioctl.h>
+#include <os/freebsd/zfs/zfs_ioctl_compat.h>
 #include <err.h>
 #include <libzfs_core.h>
 #include "libzfs_core_impl.h"

@@ -23,8 +23,8 @@
  * Copyright (C) 2016 Romain Dolbeau. All rights reserved.
  */
 
-#include <sys/types.h>
-#include <sys/simd.h>
+#include <spl/types.h>
+#include <spl/simd.h>
 
 #ifdef __linux__
 #define	__asm __asm__ __volatile__

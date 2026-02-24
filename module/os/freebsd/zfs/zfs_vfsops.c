@@ -30,43 +30,43 @@
 
 /* Portions Copyright 2010 Robert Milkowski */
 
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/systm.h>
+#include <spl/types.h>
+#include <spl/param.h>
+#include <spl/systm.h>
 #include <sys/kernel.h>
-#include <sys/sysmacros.h>
-#include <sys/kmem.h>
-#include <sys/acl.h>
-#include <sys/vnode.h>
-#include <sys/vfs.h>
-#include <sys/mntent.h>
-#include <sys/mount.h>
-#include <sys/cmn_err.h>
-#include <sys/zfs_znode.h>
-#include <sys/zfs_vnops.h>
-#include <sys/zfs_dir.h>
-#include <sys/zil.h>
-#include <sys/fs/zfs.h>
-#include <sys/dmu.h>
-#include <sys/dsl_prop.h>
-#include <sys/dsl_dataset.h>
-#include <sys/dsl_deleg.h>
-#include <sys/spa.h>
-#include <sys/zap.h>
-#include <sys/sa.h>
-#include <sys/sa_impl.h>
-#include <sys/policy.h>
-#include <sys/atomic.h>
-#include <sys/zfs_ioctl.h>
-#include <sys/zfs_ctldir.h>
-#include <sys/zfs_fuid.h>
-#include <sys/sunddi.h>
-#include <sys/dmu_objset.h>
-#include <sys/dsl_dir.h>
+#include <spl/sysmacros.h>
+#include <spl/kmem.h>
+#include <spl/acl.h>
+#include <spl/vnode.h>
+#include <spl/vfs.h>
+#include <zfs/mntent.h>
+#include <spl/mount.h>
+#include <spl/cmn_err.h>
+#include <zfs/zfs_znode.h>
+#include <zfs/zfs_vnops.h>
+#include <zfs/zfs_dir.h>
+#include <zfs/zil.h>
+#include <zfs/fs/zfs.h>
+#include <zfs/dmu.h>
+#include <zfs/dsl_prop.h>
+#include <zfs/dsl_dataset.h>
+#include <zfs/dsl_deleg.h>
+#include <zfs/spa.h>
+#include <zfs/zap.h>
+#include <zfs/sa.h>
+#include <zfs/sa_impl.h>
+#include <zfs/policy.h>
+#include <spl/atomic.h>
+#include <zfs/zfs_ioctl.h>
+#include <zfs/zfs_ctldir.h>
+#include <zfs/zfs_fuid.h>
+#include <spl/sunddi.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/dsl_dir.h>
 #include <sys/jail.h>
 #include <sys/osd.h>
 #include <ufs/ufs/quota.h>
-#include <sys/zfs_quota.h>
+#include <zfs/zfs_quota.h>
 
 #include "zfs_comutil.h"
 
@@ -2418,6 +2418,8 @@ zfsvfs_update_fromname(const char *oldname, const char *newname)
 	mtx_unlock(&mountlist_mtx);
 }
 #endif
+
+MALLOC_DECLARE(M_PRISON);
 
 /*
  * Find a prison with ZFS info.

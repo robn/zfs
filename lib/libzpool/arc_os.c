@@ -27,8 +27,8 @@
  * Copyright 2017 Nexenta Systems, Inc.  All rights reserved.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/arc_impl.h>
+#include <zfs/zfs_context.h>
+#include <zfs/arc_impl.h>
 
 /*
  * Return a default max arc size based on the amount of physical memory.

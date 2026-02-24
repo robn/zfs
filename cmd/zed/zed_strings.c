@@ -18,8 +18,8 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/avl.h>
-#include <sys/sysmacros.h>
+#include <zfs/avl.h>
+#include <spl/sysmacros.h>
 #include "zed_strings.h"
 
 struct zed_strings {

@@ -25,22 +25,22 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
-#include <sys/param.h>
+#include <spl/types.h>
+#include <spl/param.h>
 #include <sys/kernel.h>
-#include <sys/systm.h>
-#include <sys/proc.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
+#include <spl/systm.h>
+#include <spl/proc.h>
+#include <spl/lock.h>
+#include <spl/mutex.h>
 #include <sys/sx.h>
 #include <sys/malloc.h>
 #include <sys/queue.h>
 #include <sys/jail.h>
 #include <sys/osd.h>
 #include <sys/priv.h>
-#include <sys/zone.h>
+#include <spl/zone.h>
 
-#include <sys/policy.h>
+#include <zfs/policy.h>
 
 static MALLOC_DEFINE(M_ZONES, "zones_data", "Zones data");
 

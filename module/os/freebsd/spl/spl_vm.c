@@ -25,14 +25,14 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
-#include <sys/param.h>
+#include <spl/types.h>
+#include <spl/param.h>
 #include <sys/counter.h>
 
-#include <sys/byteorder.h>
-#include <sys/lock.h>
-#include <sys/freebsd_rwlock.h>
-#include <sys/vm.h>
+#include <spl/byteorder.h>
+#include <spl/lock.h>
+#include <spl/freebsd_rwlock.h>
+#include <spl/vm.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>

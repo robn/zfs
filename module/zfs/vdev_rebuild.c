@@ -27,17 +27,17 @@
  * Copyright (c) 2024 by Delphix. All rights reserved.
  */
 
-#include <sys/vdev_impl.h>
-#include <sys/vdev_draid.h>
-#include <sys/dsl_scan.h>
-#include <sys/spa_impl.h>
-#include <sys/metaslab_impl.h>
-#include <sys/vdev_rebuild.h>
-#include <sys/zio.h>
-#include <sys/dmu_tx.h>
-#include <sys/arc.h>
-#include <sys/arc_impl.h>
-#include <sys/zap.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/vdev_draid.h>
+#include <zfs/dsl_scan.h>
+#include <zfs/spa_impl.h>
+#include <zfs/metaslab_impl.h>
+#include <zfs/vdev_rebuild.h>
+#include <zfs/zio.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/arc.h>
+#include <zfs/arc_impl.h>
+#include <zfs/zap.h>
 
 /*
  * This file contains the sequential reconstruction implementation for

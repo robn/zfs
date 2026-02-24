@@ -26,35 +26,35 @@
  * Copyright 2017 Nexenta Systems, Inc.
  */
 
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/time.h>
-#include <sys/sysmacros.h>
-#include <sys/vfs.h>
-#include <sys/vnode.h>
-#include <sys/file.h>
-#include <sys/kmem.h>
-#include <sys/uio.h>
-#include <sys/pathname.h>
-#include <sys/cmn_err.h>
-#include <sys/errno.h>
-#include <sys/stat.h>
-#include <sys/sunddi.h>
-#include <sys/random.h>
-#include <sys/policy.h>
-#include <sys/zfs_dir.h>
-#include <sys/zfs_acl.h>
-#include <sys/zfs_vnops.h>
-#include <sys/fs/zfs.h>
-#include <sys/zap.h>
-#include <sys/dmu.h>
-#include <sys/atomic.h>
-#include <sys/zfs_ctldir.h>
-#include <sys/zfs_fuid.h>
-#include <sys/sa.h>
-#include <sys/zfs_sa.h>
-#include <sys/dmu_objset.h>
-#include <sys/dsl_dir.h>
+#include <spl/types.h>
+#include <spl/param.h>
+#include <spl/time.h>
+#include <spl/sysmacros.h>
+#include <spl/vfs.h>
+#include <spl/vnode.h>
+#include <spl/file.h>
+#include <spl/kmem.h>
+#include <spl/uio.h>
+#include <zfs/pathname.h>
+#include <spl/cmn_err.h>
+#include <spl/errno.h>
+#include <spl/stat.h>
+#include <spl/sunddi.h>
+#include <spl/random.h>
+#include <zfs/policy.h>
+#include <zfs/zfs_dir.h>
+#include <zfs/zfs_acl.h>
+#include <zfs/zfs_vnops.h>
+#include <zfs/fs/zfs.h>
+#include <zfs/zap.h>
+#include <zfs/dmu.h>
+#include <spl/atomic.h>
+#include <zfs/zfs_ctldir.h>
+#include <zfs/zfs_fuid.h>
+#include <zfs/sa.h>
+#include <zfs/zfs_sa.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/dsl_dir.h>
 
 /*
  * zfs_match_find() is used by zfs_dirent_lock() to perform zap lookups

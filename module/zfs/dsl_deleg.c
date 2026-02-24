@@ -67,19 +67,19 @@
  * The ZAP OBJ is referred to as the jump object.
  */
 
-#include <sys/dmu.h>
-#include <sys/dmu_objset.h>
-#include <sys/dmu_tx.h>
-#include <sys/dsl_dataset.h>
-#include <sys/dsl_dir.h>
-#include <sys/dsl_prop.h>
-#include <sys/dsl_synctask.h>
-#include <sys/dsl_deleg.h>
-#include <sys/spa.h>
-#include <sys/zap.h>
-#include <sys/fs/zfs.h>
-#include <sys/cred.h>
-#include <sys/sunddi.h>
+#include <zfs/dmu.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/dsl_dataset.h>
+#include <zfs/dsl_dir.h>
+#include <zfs/dsl_prop.h>
+#include <zfs/dsl_synctask.h>
+#include <zfs/dsl_deleg.h>
+#include <zfs/spa.h>
+#include <zfs/zap.h>
+#include <zfs/fs/zfs.h>
+#include <spl/cred.h>
+#include <spl/sunddi.h>
 
 #include "zfs_deleg.h"
 

@@ -29,16 +29,16 @@
  * This file implements Solaris compatible zmount() function.
  */
 
-#include <sys/param.h>
-#include <sys/mount.h>
-#include <sys/uio.h>
-#include <sys/mntent.h>
+#include <spl/param.h>
+#include <spl/mount.h>
+#include <spl/uio.h>
+#include <zfs/mntent.h>
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/mnttab.h>
-#include <sys/errno.h>
+#include <spl/mnttab.h>
+#include <spl/errno.h>
 #include <libzfs.h>
 
 #include "../../libzfs_impl.h"

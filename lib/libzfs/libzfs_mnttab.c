@@ -37,8 +37,8 @@
  * Copyright (c) 2026, TrueNAS.
  */
 
-#include <sys/mntent.h>
-#include <sys/mutex.h>
+#include <zfs/mntent.h>
+#include <spl/mutex.h>
 #include <libzfs.h>
 #include "libzfs_impl.h"
 

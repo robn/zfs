@@ -27,13 +27,13 @@
  * abd_alloc_linear() or zfs_abd_scatter_enabled is disabled.
  */
 
-#include <sys/abd_impl.h>
-#include <sys/param.h>
-#include <sys/types.h>
-#include <sys/zio.h>
-#include <sys/zfs_context.h>
-#include <sys/zfs_znode.h>
-#include <sys/vm.h>
+#include <zfs/abd_impl.h>
+#include <spl/param.h>
+#include <spl/types.h>
+#include <zfs/zio.h>
+#include <zfs/zfs_context.h>
+#include <zfs/zfs_znode.h>
+#include <spl/vm.h>
 
 typedef struct abd_stats {
 	kstat_named_t abdstat_struct_size;

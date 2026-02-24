@@ -30,7 +30,7 @@
 #ifndef	_STATCOMMON_H
 #define	_STATCOMMON_H
 
-#include <sys/types.h>
+#include <spl/types.h>
 
 #define	NODATE	0	/* Default:  No time stamp */
 #define	DDATE	1	/* Standard date format */

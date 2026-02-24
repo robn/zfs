@@ -28,11 +28,11 @@
  */
 
 
-#include <sys/zfs_znode.h>
-#include <sys/zfs_vfsops.h>
-#include <sys/zfs_vnops.h>
-#include <sys/zfs_ctldir.h>
-#include <sys/zpl.h>
+#include <zfs/zfs_znode.h>
+#include <zfs/zfs_vfsops.h>
+#include <zfs/zfs_vnops.h>
+#include <zfs/zfs_ctldir.h>
+#include <zfs/zpl.h>
 #include <linux/iversion.h>
 #include <linux/version.h>
 #include <linux/vfs_compat.h>

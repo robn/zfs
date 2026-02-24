@@ -24,12 +24,12 @@
  * Use is subject to license terms.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/vfs.h>
-#include <sys/fs/zfs.h>
-#include <sys/zfs_znode.h>
-#include <sys/zfs_sa.h>
-#include <sys/zfs_acl.h>
+#include <zfs/zfs_context.h>
+#include <spl/vfs.h>
+#include <zfs/fs/zfs.h>
+#include <zfs/zfs_znode.h>
+#include <zfs/zfs_sa.h>
+#include <zfs/zfs_acl.h>
 
 #ifndef _KERNEL
 static

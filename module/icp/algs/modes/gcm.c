@@ -23,14 +23,14 @@
  * Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/cmn_err.h>
+#include <zfs/zfs_context.h>
+#include <spl/cmn_err.h>
 #include <modes/modes.h>
-#include <sys/crypto/common.h>
-#include <sys/crypto/icp.h>
+#include <zfs/crypto/common.h>
+#include <zfs/crypto/icp.h>
 #include <sys/crypto/impl.h>
-#include <sys/byteorder.h>
-#include <sys/simd.h>
+#include <spl/byteorder.h>
+#include <spl/simd.h>
 #include <modes/gcm_impl.h>
 #ifdef CAN_USE_GCM_ASM
 #include <aes/aes_impl.h>

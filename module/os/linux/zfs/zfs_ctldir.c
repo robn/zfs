@@ -72,23 +72,23 @@
  * as that used by the parent zfsvfs_t to make NFS happy.
  */
 
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/time.h>
-#include <sys/sysmacros.h>
-#include <sys/pathname.h>
-#include <sys/vfs.h>
-#include <sys/zfs_ctldir.h>
-#include <sys/zfs_ioctl.h>
-#include <sys/zfs_vfsops.h>
-#include <sys/zfs_vnops.h>
-#include <sys/stat.h>
-#include <sys/dmu.h>
-#include <sys/dmu_objset.h>
-#include <sys/dsl_destroy.h>
-#include <sys/dsl_deleg.h>
-#include <sys/zpl.h>
-#include <sys/mntent.h>
+#include <spl/types.h>
+#include <spl/param.h>
+#include <spl/time.h>
+#include <spl/sysmacros.h>
+#include <zfs/pathname.h>
+#include <spl/vfs.h>
+#include <zfs/zfs_ctldir.h>
+#include <zfs/zfs_ioctl.h>
+#include <zfs/zfs_vfsops.h>
+#include <zfs/zfs_vnops.h>
+#include <spl/stat.h>
+#include <zfs/dmu.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/dsl_destroy.h>
+#include <zfs/dsl_deleg.h>
+#include <zfs/zpl.h>
+#include <zfs/mntent.h>
 #include "zfs_namecheck.h"
 
 /*

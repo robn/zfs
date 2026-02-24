@@ -24,21 +24,21 @@
  * Use is subject to license terms.
  */
 
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/time.h>
-#include <sys/sysmacros.h>
-#include <sys/systm.h>
-#include <sys/proc.h>
-#include <sys/mutex.h>
-#include <sys/condvar.h>
-#include <sys/callb.h>
-#include <sys/kmem.h>
-#include <sys/cmn_err.h>
-#include <sys/debug.h>
+#include <spl/types.h>
+#include <spl/param.h>
+#include <spl/time.h>
+#include <spl/sysmacros.h>
+#include <spl/systm.h>
+#include <spl/proc.h>
+#include <spl/mutex.h>
+#include <spl/condvar.h>
+#include <spl/callb.h>
+#include <spl/kmem.h>
+#include <spl/cmn_err.h>
+#include <spl/debug.h>
 #include <sys/kobj.h>
-#include <sys/systm.h>	/* for delay() */
-#include <sys/taskq.h>  /* For TASKQ_NAMELEN */
+#include <spl/systm.h>	/* for delay() */
+#include <spl/taskq.h>  /* For TASKQ_NAMELEN */
 #include <sys/kernel.h>
 
 #define	CB_MAXNAME	TASKQ_NAMELEN

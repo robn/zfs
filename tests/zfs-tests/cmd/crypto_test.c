@@ -43,8 +43,8 @@
 #include <errno.h>
 #include <getopt.h>
 
-#include <sys/crypto/icp.h>
-#include <sys/crypto/api.h>
+#include <zfs/crypto/icp.h>
+#include <zfs/crypto/api.h>
 
 /* for zfs_nicenum, zfs_nicebytes */
 #include <libzutil.h>

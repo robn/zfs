@@ -33,15 +33,15 @@
  * Copyright (c) 2024-2025, Syneto
  */
 
-#include <sys/types.h>
-#include <sys/param.h>
+#include <spl/types.h>
+#include <spl/param.h>
 #include <sys/kernel.h>
-#include <sys/systm.h>
+#include <spl/systm.h>
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
-#include <sys/kstat.h>
+#include <spl/kstat.h>
 #include <sys/sbuf.h>
-#include <sys/zone.h>
+#include <spl/zone.h>
 
 static MALLOC_DEFINE(M_KSTAT, "kstat_data", "Kernel statistics");
 

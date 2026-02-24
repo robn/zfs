@@ -39,9 +39,9 @@
 #include <unistd.h>
 #include <stddef.h>
 
-#include <sys/dmu.h>
-#include <sys/zfs_ioctl.h>
-#include <sys/zio.h>
+#include <zfs/dmu.h>
+#include <zfs/zfs_ioctl.h>
+#include <zfs/zio.h>
 #include <zfs_fletcher.h>
 #include "zstream.h"
 #include "zstream_util.h"

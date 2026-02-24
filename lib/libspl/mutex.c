@@ -30,7 +30,7 @@
 #include <pthread.h>
 #include <string.h>
 #include <errno.h>
-#include <sys/mutex.h>
+#include <spl/mutex.h>
 
 /*
  * =========================================================================

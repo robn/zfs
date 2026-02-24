@@ -20,10 +20,10 @@
  * CDDL HEADER END
  */
 
-#include <sys/zfs_context.h>
-#include <sys/zfs_file.h>
-#include <sys/stat.h>
-#include <sys/file.h>
+#include <zfs/zfs_context.h>
+#include <zfs/zfs_file.h>
+#include <spl/stat.h>
+#include <spl/file.h>
 #include <linux/falloc.h>
 #include <linux/fs.h>
 #include <linux/uaccess.h>

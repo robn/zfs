@@ -28,7 +28,7 @@
  * Copyright (c) 2024, Klara, Inc.
  */
 
-#include <sys/debug.h>
+#include <spl/debug.h>
 #include <stddef.h>
 #include <errno.h>
 #include <unistd.h>

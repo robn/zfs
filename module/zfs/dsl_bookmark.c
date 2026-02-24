@@ -20,22 +20,22 @@
  * Copyright 2019, 2020 by Christian Schwarz. All rights reserved.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/dsl_dataset.h>
-#include <sys/dsl_dir.h>
-#include <sys/dsl_prop.h>
-#include <sys/dsl_synctask.h>
-#include <sys/dsl_destroy.h>
-#include <sys/dmu_impl.h>
-#include <sys/dmu_tx.h>
-#include <sys/arc.h>
-#include <sys/zap.h>
-#include <sys/zfeature.h>
-#include <sys/spa.h>
-#include <sys/dsl_bookmark.h>
+#include <zfs/zfs_context.h>
+#include <zfs/dsl_dataset.h>
+#include <zfs/dsl_dir.h>
+#include <zfs/dsl_prop.h>
+#include <zfs/dsl_synctask.h>
+#include <zfs/dsl_destroy.h>
+#include <zfs/dmu_impl.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/arc.h>
+#include <zfs/zap.h>
+#include <zfs/zfeature.h>
+#include <zfs/spa.h>
+#include <zfs/dsl_bookmark.h>
 #include <zfs_namecheck.h>
-#include <sys/dmu_send.h>
-#include <sys/dbuf.h>
+#include <zfs/dmu_send.h>
+#include <zfs/dbuf.h>
 
 static int
 dsl_bookmark_hold_ds(dsl_pool_t *dp, const char *fullname,

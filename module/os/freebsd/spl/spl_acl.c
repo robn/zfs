@@ -24,14 +24,14 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/types.h>
+#include <spl/types.h>
+#include <spl/param.h>
+#include <spl/systm.h>
+#include <spl/types.h>
 #include <sys/malloc.h>
-#include <sys/errno.h>
-#include <sys/zfs_acl.h>
-#include <sys/acl.h>
+#include <spl/errno.h>
+#include <zfs/zfs_acl.h>
+#include <spl/acl.h>
 
 struct zfs2bsd {
 	uint32_t	zb_zfs;

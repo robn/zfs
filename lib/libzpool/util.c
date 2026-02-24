@@ -27,16 +27,16 @@
  */
 
 #include <assert.h>
-#include <sys/zfs_context.h>
-#include <sys/avl.h>
+#include <zfs/zfs_context.h>
+#include <zfs/avl.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/spa.h>
-#include <sys/fs/zfs.h>
-#include <sys/zfs_refcount.h>
-#include <sys/zfs_ioctl.h>
-#include <sys/tunables.h>
+#include <zfs/spa.h>
+#include <zfs/fs/zfs.h>
+#include <zfs/zfs_refcount.h>
+#include <zfs/zfs_ioctl.h>
+#include <spl/tunables.h>
 #include <libzutil.h>
 #include <libzpool.h>
 
@@ -274,7 +274,7 @@ refresh_config(void *unused, nvlist_t *tryconfig)
 
 #if defined(__FreeBSD__)
 
-#include <sys/param.h>
+#include <spl/param.h>
 #include <sys/sysctl.h>
 #include <os/freebsd/zfs/sys/zfs_ioctl_compat.h>
 

@@ -30,11 +30,11 @@
 #ifndef	_LIBZFS_IMPL_H
 #define	_LIBZFS_IMPL_H
 
-#include <sys/fs/zfs.h>
-#include <sys/nvpair.h>
-#include <sys/dmu.h>
-#include <sys/zfs_ioctl.h>
-#include <sys/mutex.h>
+#include <zfs/fs/zfs.h>
+#include <zfs/nvpair.h>
+#include <zfs/dmu.h>
+#include <zfs/zfs_ioctl.h>
+#include <spl/mutex.h>
 #include <regex.h>
 
 #include <libzfs.h>

@@ -30,8 +30,8 @@
 #include <libintl.h>
 #include <sys/linker.h>
 #include <sys/module.h>
-#include <sys/stat.h>
-#include <sys/param.h>
+#include <spl/stat.h>
+#include <spl/param.h>
 
 #ifdef IN_BASE
 #define	ZFS_KMOD	"zfs"

@@ -22,9 +22,9 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <libzfs.h>
-#include <sys/nvpair.h>
-#include <sys/fm/protocol.h>
-#include <sys/fm/fs/zfs.h>
+#include <zfs/nvpair.h>
+#include <zfs/fm/protocol.h>
+#include <zfs/fm/fs/zfs.h>
 
 #define	ZEVENT_NONBLOCK	0x1
 

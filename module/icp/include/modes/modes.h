@@ -31,8 +31,8 @@
 extern "C" {
 #endif
 
-#include <sys/zfs_context.h>
-#include <sys/crypto/common.h>
+#include <zfs/zfs_context.h>
+#include <zfs/crypto/common.h>
 #include <sys/crypto/impl.h>
 
 /*

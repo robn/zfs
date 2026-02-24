@@ -25,10 +25,10 @@
  * Copyright (c) 2018 Datto Inc.
  */
 
-#include <sys/dataset_kstats.h>
-#include <sys/dmu_objset.h>
-#include <sys/dsl_dataset.h>
-#include <sys/spa.h>
+#include <zfs/dataset_kstats.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/dsl_dataset.h>
+#include <zfs/spa.h>
 
 static dataset_kstat_values_t empty_dataset_kstats = {
 	{ "dataset_name",	KSTAT_DATA_STRING },

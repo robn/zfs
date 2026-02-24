@@ -37,7 +37,7 @@
  *
  * https://labs.omniti.com/trac/portableumem
  */
-#include <sys/debug.h>
+#include <spl/debug.h>
 
 #include <stdlib.h>
 #include <stdio.h>

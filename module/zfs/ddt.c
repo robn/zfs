@@ -27,20 +27,20 @@
  * Copyright (c) 2019, 2023, Klara Inc.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/spa.h>
-#include <sys/spa_impl.h>
-#include <sys/zio.h>
-#include <sys/ddt.h>
-#include <sys/ddt_impl.h>
-#include <sys/zap.h>
-#include <sys/dmu_tx.h>
-#include <sys/arc.h>
-#include <sys/dsl_pool.h>
-#include <sys/zio_checksum.h>
-#include <sys/dsl_scan.h>
-#include <sys/abd.h>
-#include <sys/zfeature.h>
+#include <zfs/zfs_context.h>
+#include <zfs/spa.h>
+#include <zfs/spa_impl.h>
+#include <zfs/zio.h>
+#include <zfs/ddt.h>
+#include <zfs/ddt_impl.h>
+#include <zfs/zap.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/arc.h>
+#include <zfs/dsl_pool.h>
+#include <zfs/zio_checksum.h>
+#include <zfs/dsl_scan.h>
+#include <zfs/abd.h>
+#include <zfs/zfeature.h>
 
 /*
  * # DDT: Deduplication tables

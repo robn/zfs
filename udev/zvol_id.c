@@ -30,7 +30,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/fs/zfs.h>
+#include <zfs/fs/zfs.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 

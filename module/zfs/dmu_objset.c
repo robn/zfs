@@ -39,37 +39,37 @@
 
 /* Portions Copyright 2010 Robert Milkowski */
 
-#include <sys/cred.h>
-#include <sys/zfs_context.h>
-#include <sys/dmu_objset.h>
-#include <sys/dsl_dir.h>
-#include <sys/dsl_dataset.h>
-#include <sys/dsl_prop.h>
-#include <sys/dsl_pool.h>
-#include <sys/dsl_synctask.h>
-#include <sys/dsl_deleg.h>
-#include <sys/dnode.h>
-#include <sys/dbuf.h>
-#include <sys/zvol.h>
-#include <sys/dmu_tx.h>
-#include <sys/zap.h>
-#include <sys/zil.h>
-#include <sys/dmu_impl.h>
-#include <sys/zfs_ioctl.h>
-#include <sys/sa.h>
-#include <sys/zfs_onexit.h>
-#include <sys/dsl_destroy.h>
-#include <sys/vdev.h>
-#include <sys/zfeature.h>
-#include <sys/policy.h>
-#include <sys/spa_impl.h>
-#include <sys/dmu_recv.h>
-#include <sys/zfs_project.h>
+#include <spl/cred.h>
+#include <zfs/zfs_context.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/dsl_dir.h>
+#include <zfs/dsl_dataset.h>
+#include <zfs/dsl_prop.h>
+#include <zfs/dsl_pool.h>
+#include <zfs/dsl_synctask.h>
+#include <zfs/dsl_deleg.h>
+#include <zfs/dnode.h>
+#include <zfs/dbuf.h>
+#include <zfs/zvol.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/zap.h>
+#include <zfs/zil.h>
+#include <zfs/dmu_impl.h>
+#include <zfs/zfs_ioctl.h>
+#include <zfs/sa.h>
+#include <zfs/zfs_onexit.h>
+#include <zfs/dsl_destroy.h>
+#include <zfs/vdev.h>
+#include <zfs/zfeature.h>
+#include <zfs/policy.h>
+#include <zfs/spa_impl.h>
+#include <zfs/dmu_recv.h>
+#include <zfs/zfs_project.h>
 #include "zfs_namecheck.h"
-#include <sys/vdev_impl.h>
-#include <sys/arc.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/arc.h>
 #include <cityhash.h>
-#include <sys/cred.h>
+#include <spl/cred.h>
 
 /*
  * Needed to close a window in dnode_move() that allows the objset to be freed

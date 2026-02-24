@@ -25,9 +25,9 @@
  * Use is subject to license terms.
  */
 
-#include <sys/isa_defs.h>
-#include <sys/nvpair.h>
-#include <sys/sysmacros.h>
+#include <spl/isa_defs.h>
+#include <zfs/nvpair.h>
+#include <spl/sysmacros.h>
 
 /*
  * This allocator is very simple.

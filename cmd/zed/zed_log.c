@@ -19,7 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
+#include <spl/types.h>
 #include <syslog.h>
 #include <unistd.h>
 #include "zed_log.h"

@@ -24,12 +24,12 @@
  * Copyright (c) 2012, 2017 by Delphix. All rights reserved.
  */
 
-#include <sys/dmu.h>
-#include <sys/dmu_tx.h>
-#include <sys/dsl_pool.h>
-#include <sys/dsl_dir.h>
-#include <sys/dsl_synctask.h>
-#include <sys/metaslab.h>
+#include <zfs/dmu.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/dsl_pool.h>
+#include <zfs/dsl_dir.h>
+#include <zfs/dsl_synctask.h>
+#include <zfs/metaslab.h>
 
 #define	DST_AVG_BLKSHIFT 14
 

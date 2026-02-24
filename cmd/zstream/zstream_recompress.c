@@ -32,9 +32,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <sys/zfs_ioctl.h>
-#include <sys/zio_checksum.h>
-#include <sys/zstd/zstd.h>
+#include <zfs/zfs_ioctl.h>
+#include <zfs/zio_checksum.h>
+#include <zfs/zstd/zstd.h>
 #include "zfs_fletcher.h"
 #include "zstream.h"
 #include "zstream_util.h"

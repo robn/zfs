@@ -29,8 +29,8 @@
 
 #include <string.h>
 #include <pthread.h>
-#include <sys/nvpair.h>
-#include <sys/fs/zfs.h>
+#include <zfs/nvpair.h>
+#include <zfs/fs/zfs.h>
 
 #ifdef	__cplusplus
 extern "C" {

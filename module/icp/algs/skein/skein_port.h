@@ -16,7 +16,7 @@
 #ifndef	_SKEIN_PORT_H_
 #define	_SKEIN_PORT_H_
 
-#include <sys/types.h>	/* get integer type definitions */
+#include <spl/types.h>	/* get integer type definitions */
 
 #ifndef	RotL_64
 #define	RotL_64(x, N)	(((x) << (N)) | ((x) >> (64 - (N))))
@@ -43,7 +43,7 @@
  */
 #ifndef	SKEIN_NEED_SWAP		/* compile-time "override" for endianness? */
 
-#include <sys/isa_defs.h>	/* get endianness selection */
+#include <spl/isa_defs.h>	/* get endianness selection */
 
 #if	defined(_ZFS_BIG_ENDIAN)
 /* here for big-endian CPUs */

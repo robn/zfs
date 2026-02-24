@@ -68,18 +68,18 @@
 #include <string.h>
 #include <unistd.h>
 #include <zone.h>
-#include <sys/mntent.h>
-#include <sys/mount.h>
-#include <sys/stat.h>
-#include <sys/vfs.h>
-#include <sys/dsl_crypt.h>
+#include <zfs/mntent.h>
+#include <spl/mount.h>
+#include <spl/stat.h>
+#include <spl/vfs.h>
+#include <zfs/dsl_crypt.h>
 
 #include <libzfs.h>
 #include <libzutil.h>
 
 #include "libzfs_impl.h"
 
-#include <sys/systeminfo.h>
+#include <spl/systeminfo.h>
 #define	MAXISALEN	257	/* based on sysinfo(2) man page */
 
 static void zfs_mount_task(void *);

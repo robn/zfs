@@ -20,10 +20,10 @@
  * CDDL HEADER END
  */
 
-#include <sys/zfs_context.h>
-#include <sys/spa_impl.h>
-#include <sys/vdev_impl.h>
-#include <sys/spa.h>
+#include <zfs/zfs_context.h>
+#include <zfs/spa_impl.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/spa.h>
 #include <zfs_comutil.h>
 
 /*

@@ -71,18 +71,18 @@
 #include <libnvpair.h>
 #include <libzutil.h>
 #include <limits.h>
-#include <sys/spa.h>
+#include <zfs/spa.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 #include "zpool_util.h"
-#include <sys/zfs_context.h>
+#include <zfs/zfs_context.h>
 
 #include <scsi/scsi.h>
 #include <scsi/sg.h>
-#include <sys/efi_partition.h>
-#include <sys/stat.h>
-#include <sys/mntent.h>
+#include <zfs/efi_partition.h>
+#include <spl/stat.h>
+#include <zfs/mntent.h>
 #include <uuid/uuid.h>
 #include <blkid/blkid.h>
 

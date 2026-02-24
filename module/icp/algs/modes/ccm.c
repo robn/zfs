@@ -24,13 +24,13 @@
  * Use is subject to license terms.
  */
 
-#include <sys/zfs_context.h>
+#include <zfs/zfs_context.h>
 #include <modes/modes.h>
-#include <sys/crypto/common.h>
+#include <zfs/crypto/common.h>
 #include <sys/crypto/impl.h>
 
 #ifdef HAVE_EFFICIENT_UNALIGNED_ACCESS
-#include <sys/byteorder.h>
+#include <spl/byteorder.h>
 #define	UNALIGNED_POINTERS_PERMITTED
 #endif
 

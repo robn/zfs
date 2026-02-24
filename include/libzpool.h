@@ -29,7 +29,7 @@
 #ifndef _LIBZPOOL_H
 #define	_LIBZPOOL_H extern __attribute__((visibility("default")))
 
-#include <sys/zfs_context.h>
+#include <zfs/zfs_context.h>
 
 #ifdef	__cplusplus
 extern "C" {

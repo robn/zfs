@@ -9,7 +9,7 @@
     HAVE_SIMD(VAES) && HAVE_SIMD(VPCLMULQDQ)
 
 #define _ASM
-#include <sys/asm_linkage.h>
+#include <zfs/asm_linkage.h>
 #include <modes/gcm_asm_rename_funcs.h>
 
 /* Windows userland links with OpenSSL */

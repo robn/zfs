@@ -46,8 +46,8 @@
 #include <stddef.h>
 #include <zone.h>
 #include <fcntl.h>
-#include <sys/mntent.h>
-#include <sys/mount.h>
+#include <zfs/mntent.h>
+#include <spl/mount.h>
 #include <pwd.h>
 #include <grp.h>
 #ifdef HAVE_IDMAP
@@ -56,10 +56,10 @@
 #include <directory.h>
 #endif /* HAVE_IDMAP */
 
-#include <sys/dnode.h>
-#include <sys/spa.h>
-#include <sys/zap.h>
-#include <sys/dsl_crypt.h>
+#include <zfs/dnode.h>
+#include <zfs/spa.h>
+#include <zfs/zap.h>
+#include <zfs/dsl_crypt.h>
 #include <libzfs.h>
 #include <libzutil.h>
 

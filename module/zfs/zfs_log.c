@@ -26,27 +26,27 @@
  */
 
 
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/sysmacros.h>
-#include <sys/cmn_err.h>
-#include <sys/kmem.h>
-#include <sys/thread.h>
-#include <sys/file.h>
-#include <sys/vfs.h>
-#include <sys/zfs_znode.h>
-#include <sys/zfs_dir.h>
-#include <sys/zil.h>
-#include <sys/zil_impl.h>
-#include <sys/byteorder.h>
-#include <sys/policy.h>
-#include <sys/stat.h>
-#include <sys/acl.h>
-#include <sys/dmu.h>
-#include <sys/dbuf.h>
-#include <sys/spa.h>
-#include <sys/zfs_fuid.h>
-#include <sys/dsl_dataset.h>
+#include <spl/types.h>
+#include <spl/param.h>
+#include <spl/sysmacros.h>
+#include <spl/cmn_err.h>
+#include <spl/kmem.h>
+#include <spl/thread.h>
+#include <spl/file.h>
+#include <spl/vfs.h>
+#include <zfs/zfs_znode.h>
+#include <zfs/zfs_dir.h>
+#include <zfs/zil.h>
+#include <zfs/zil_impl.h>
+#include <spl/byteorder.h>
+#include <zfs/policy.h>
+#include <spl/stat.h>
+#include <spl/acl.h>
+#include <zfs/dmu.h>
+#include <zfs/dbuf.h>
+#include <zfs/spa.h>
+#include <zfs/zfs_fuid.h>
+#include <zfs/dsl_dataset.h>
 
 /*
  * These zfs_log_* functions must be called within a dmu tx, in one

@@ -26,7 +26,7 @@
 
 #include "file_common.h"
 #include <unistd.h>
-#include <sys/sysmacros.h>
+#include <spl/sysmacros.h>
 
 static char *filename = NULL;
 static int expected_offset = -1;

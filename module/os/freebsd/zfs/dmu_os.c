@@ -26,35 +26,35 @@
  *
  */
 
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/dmu.h>
-#include <sys/dmu_impl.h>
-#include <sys/dmu_tx.h>
-#include <sys/dbuf.h>
-#include <sys/dnode.h>
-#include <sys/zfs_context.h>
-#include <sys/dmu_objset.h>
-#include <sys/dmu_traverse.h>
-#include <sys/dsl_dataset.h>
-#include <sys/dsl_dir.h>
-#include <sys/dsl_pool.h>
-#include <sys/dsl_synctask.h>
-#include <sys/dsl_prop.h>
-#include <sys/zfs_ioctl.h>
-#include <sys/zap.h>
-#include <sys/zio_checksum.h>
-#include <sys/zio_compress.h>
-#include <sys/sa.h>
-#include <sys/zfeature.h>
-#include <sys/abd.h>
-#include <sys/zfs_rlock.h>
+#include <spl/types.h>
+#include <spl/param.h>
+#include <zfs/dmu.h>
+#include <zfs/dmu_impl.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/dbuf.h>
+#include <zfs/dnode.h>
+#include <zfs/zfs_context.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/dmu_traverse.h>
+#include <zfs/dsl_dataset.h>
+#include <zfs/dsl_dir.h>
+#include <zfs/dsl_pool.h>
+#include <zfs/dsl_synctask.h>
+#include <zfs/dsl_prop.h>
+#include <zfs/zfs_ioctl.h>
+#include <zfs/zap.h>
+#include <zfs/zio_checksum.h>
+#include <zfs/zio_compress.h>
+#include <zfs/sa.h>
+#include <zfs/zfeature.h>
+#include <zfs/abd.h>
+#include <zfs/zfs_rlock.h>
 #include <sys/racct.h>
-#include <sys/vm.h>
-#include <sys/zfs_znode.h>
-#include <sys/zfs_vnops.h>
+#include <spl/vm.h>
+#include <zfs/zfs_znode.h>
+#include <zfs/zfs_vnops.h>
 
-#include <sys/ccompat.h>
+#include <spl/ccompat.h>
 
 #ifndef IDX_TO_OFF
 #define	IDX_TO_OFF(idx) (((vm_ooffset_t)(idx)) << PAGE_SHIFT)

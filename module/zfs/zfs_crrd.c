@@ -64,7 +64,7 @@
  * the database contains no records from before this feature was enabled.
  * Both, upon reflection, are expected.
  */
-#include <sys/zfs_context.h>
+#include <zfs/zfs_context.h>
 
 #include "zfs_crrd.h"
 

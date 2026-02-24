@@ -29,20 +29,20 @@
  * Copyright (c) 2025, Rob Norris <robn@despairlabs.com>
  */
 
-#include <sys/types.h>
-#include <sys/sysmacros.h>
-#include <sys/kmem.h>
+#include <spl/types.h>
+#include <spl/sysmacros.h>
+#include <spl/kmem.h>
 #include <linux/file.h>
 #include <linux/magic.h>
-#include <sys/zone.h>
-#include <sys/string.h>
+#include <spl/zone.h>
+#include <spl/string.h>
 
 #if defined(CONFIG_USER_NS)
 #include <linux/statfs.h>
 #include <linux/proc_ns.h>
 #endif
 
-#include <sys/mutex.h>
+#include <spl/mutex.h>
 
 static kmutex_t zone_datasets_lock;
 static struct list_head zone_datasets;

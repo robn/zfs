@@ -22,7 +22,7 @@
 #ifndef _SPL_RPC_TYPES_H
 #define	_SPL_RPC_TYPES_H
 
-#include <sys/types.h>
+#include <spl/types.h>
 
 /* Just enough to support rpc/xdr.h */
 

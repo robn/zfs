@@ -24,7 +24,7 @@
  * Copyright (C) 2016 Gvozden Nešković. All rights reserved.
  */
 
-#include <sys/vdev_raidz_impl.h>
+#include <zfs/vdev_raidz_impl.h>
 
 /*
  * Provide native CPU scalar routines.

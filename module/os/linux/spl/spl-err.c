@@ -24,8 +24,8 @@
  *  Solaris Porting Layer (SPL) Error Implementation.
  */
 
-#include <sys/sysmacros.h>
-#include <sys/cmn_err.h>
+#include <spl/sysmacros.h>
+#include <spl/cmn_err.h>
 
 /*
  * It is often useful to actually have the panic crash the node so you

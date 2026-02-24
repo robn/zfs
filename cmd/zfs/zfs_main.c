@@ -36,7 +36,7 @@
 
 #include <assert.h>
 #include <ctype.h>
-#include <sys/debug.h>
+#include <spl/debug.h>
 #include <dirent.h>
 #include <errno.h>
 #include <getopt.h>
@@ -56,17 +56,17 @@
 #include <umem.h>
 #include <pthread.h>
 #include <signal.h>
-#include <sys/list.h>
-#include <sys/mkdev.h>
-#include <sys/mntent.h>
-#include <sys/mnttab.h>
-#include <sys/mount.h>
-#include <sys/stat.h>
-#include <sys/fs/zfs.h>
-#include <sys/systeminfo.h>
-#include <sys/types.h>
+#include <spl/list.h>
+#include <spl/mkdev.h>
+#include <zfs/mntent.h>
+#include <spl/mnttab.h>
+#include <spl/mount.h>
+#include <spl/stat.h>
+#include <zfs/fs/zfs.h>
+#include <spl/systeminfo.h>
+#include <spl/types.h>
 #include <time.h>
-#include <sys/zfs_project.h>
+#include <zfs/zfs_project.h>
 
 #include <libzfs.h>
 #include <libzfs_core.h>

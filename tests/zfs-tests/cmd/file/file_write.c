@@ -29,7 +29,7 @@
 #include <libgen.h>
 #include <string.h>
 #include <inttypes.h>
-#include <sys/types.h>
+#include <spl/types.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <time.h>

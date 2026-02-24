@@ -23,8 +23,8 @@
 #if defined(__x86_64)
 
 #define _ASM
-#include <sys/asm_linkage.h>
-#include <sys/frame.h>
+#include <zfs/asm_linkage.h>
+#include <zfs/frame.h>
 
 SECTION_STATIC
 

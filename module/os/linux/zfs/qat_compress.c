@@ -25,10 +25,10 @@
 #include <linux/vmalloc.h>
 #include <linux/pagemap.h>
 #include <linux/completion.h>
-#include <sys/zfs_context.h>
-#include <sys/byteorder.h>
-#include <sys/zio.h>
-#include <sys/qat.h>
+#include <zfs/zfs_context.h>
+#include <spl/byteorder.h>
+#include <zfs/zio.h>
+#include <zfs/qat.h>
 
 /*
  * Max instances in a QAT device, each instance is a channel to submit

@@ -27,15 +27,15 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/param.h>
+#include <spl/param.h>
 #include <sys/kernel.h>
-#include <sys/kmem.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
+#include <spl/kmem.h>
+#include <spl/lock.h>
+#include <spl/mutex.h>
 #include <sys/queue.h>
-#include <sys/taskq.h>
+#include <spl/taskq.h>
 #include <sys/taskqueue.h>
-#include <sys/zfs_context.h>
+#include <zfs/zfs_context.h>
 
 #if defined(__i386__) || defined(__amd64__) || defined(__aarch64__)
 #include <machine/pcb.h>

@@ -48,10 +48,10 @@
 #if LIBFETCH_DYNAMIC
 #include <dlfcn.h>
 #endif
-#include <sys/stat.h>
-#include <sys/mnttab.h>
-#include <sys/mntent.h>
-#include <sys/types.h>
+#include <spl/stat.h>
+#include <spl/mnttab.h>
+#include <zfs/mntent.h>
+#include <spl/types.h>
 #include <sys/wait.h>
 
 #include <libzfs.h>

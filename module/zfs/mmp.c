@@ -23,15 +23,15 @@
  * Copyright (c) 2017 by Lawrence Livermore National Security, LLC.
  */
 
-#include <sys/abd.h>
-#include <sys/mmp.h>
-#include <sys/spa.h>
-#include <sys/spa_impl.h>
-#include <sys/time.h>
-#include <sys/vdev.h>
-#include <sys/vdev_impl.h>
-#include <sys/zfs_context.h>
-#include <sys/callb.h>
+#include <zfs/abd.h>
+#include <zfs/mmp.h>
+#include <zfs/spa.h>
+#include <zfs/spa_impl.h>
+#include <spl/time.h>
+#include <zfs/vdev.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/zfs_context.h>
+#include <spl/callb.h>
 
 /*
  * Multi-Modifier Protection (MMP) attempts to prevent a user from importing

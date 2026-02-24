@@ -26,18 +26,18 @@
  * Portions Copyright (c) 2012 Martin Matuska <mm@FreeBSD.org>
  */
 
-#include <sys/zfs_context.h>
-#include <sys/param.h>
+#include <zfs/zfs_context.h>
+#include <spl/param.h>
 #include <sys/kernel.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
-#include <sys/file.h>
-#include <sys/spa.h>
-#include <sys/spa_impl.h>
-#include <sys/vdev_impl.h>
-#include <sys/vdev_os.h>
-#include <sys/fs/zfs.h>
-#include <sys/zio.h>
+#include <spl/file.h>
+#include <zfs/spa.h>
+#include <zfs/spa_impl.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/vdev_os.h>
+#include <zfs/fs/zfs.h>
+#include <zfs/zio.h>
 #include <vm/vm_page.h>
 #include <geom/geom.h>
 #include <geom/geom_disk.h>

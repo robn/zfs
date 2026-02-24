@@ -39,8 +39,8 @@
  * actively referenced without the fuss of flagging lock ownership across
  * function calls.
  */
-#include <sys/zrlock.h>
-#include <sys/trace_zfs.h>
+#include <zfs/zrlock.h>
+#include <zfs/trace_zfs.h>
 
 /*
  * A ZRL can be locked only while there are zero references, so ZRL_LOCKED is

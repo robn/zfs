@@ -24,12 +24,12 @@
  * Copyright (C) 2016 Gvozden Nešković. All rights reserved.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/time.h>
+#include <zfs/zfs_context.h>
+#include <spl/time.h>
 #include <sys/wait.h>
-#include <sys/zio.h>
-#include <sys/vdev_raidz.h>
-#include <sys/vdev_raidz_impl.h>
+#include <zfs/zio.h>
+#include <zfs/vdev_raidz.h>
+#include <zfs/vdev_raidz_impl.h>
 #include <stdio.h>
 
 #include "raidz_test.h"

@@ -71,13 +71,13 @@
 #include <libnvpair.h>
 #include <libzutil.h>
 #include <limits.h>
-#include <sys/spa.h>
+#include <zfs/spa.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 #include "zpool_util.h"
-#include <sys/zfs_context.h>
-#include <sys/stat.h>
+#include <zfs/zfs_context.h>
+#include <spl/stat.h>
 
 /*
  * For any given vdev specification, we can have multiple errors.  The

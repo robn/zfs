@@ -30,9 +30,9 @@
 #include <string.h>
 #endif
 
-#include <sys/zfs_context.h>
-#include <sys/zfs_debug.h>
-#include <sys/nvpair.h>
+#include <zfs/zfs_context.h>
+#include <zfs/zfs_debug.h>
+#include <zfs/nvpair.h>
 
 /*
  * Given a multi-line string, print out one of the lines and return a pointer

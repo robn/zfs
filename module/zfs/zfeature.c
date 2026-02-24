@@ -24,14 +24,14 @@
  * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/zfeature.h>
-#include <sys/dmu.h>
-#include <sys/nvpair.h>
-#include <sys/zap.h>
-#include <sys/dmu_tx.h>
+#include <zfs/zfs_context.h>
+#include <zfs/zfeature.h>
+#include <zfs/dmu.h>
+#include <zfs/nvpair.h>
+#include <zfs/zap.h>
+#include <zfs/dmu_tx.h>
 #include "zfeature_common.h"
-#include <sys/spa_impl.h>
+#include <zfs/spa_impl.h>
 
 /*
  * ZFS Feature Flags

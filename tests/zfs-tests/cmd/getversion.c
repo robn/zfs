@@ -21,7 +21,7 @@
 
 #include <sys/ioctl.h>
 #ifdef _KERNEL
-#include <sys/fcntl.h>
+#include <spl/fcntl.h>
 #else
 #include <fcntl.h>
 #endif

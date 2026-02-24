@@ -39,10 +39,10 @@
 #include <time.h>
 #include <unistd.h>
 #include <sys/xattr.h>
-#include <sys/types.h>
+#include <spl/types.h>
 #include <sys/wait.h>
-#include <sys/stat.h>
-#include <sys/time.h>
+#include <spl/stat.h>
+#include <spl/time.h>
 #include <linux/limits.h>
 
 #define	ERROR(fmt, ...)                                                 \

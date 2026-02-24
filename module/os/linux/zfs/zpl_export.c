@@ -25,11 +25,11 @@
  */
 
 
-#include <sys/file.h>
-#include <sys/zfs_znode.h>
-#include <sys/zfs_vnops.h>
-#include <sys/zfs_ctldir.h>
-#include <sys/zpl.h>
+#include <spl/file.h>
+#include <zfs/zfs_znode.h>
+#include <zfs/zfs_vnops.h>
+#include <zfs/zfs_ctldir.h>
+#include <zfs/zpl.h>
 
 
 static int

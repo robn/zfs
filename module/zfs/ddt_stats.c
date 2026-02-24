@@ -27,11 +27,11 @@
  * Copyright (c) 2023, Klara Inc.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/spa.h>
-#include <sys/spa_impl.h>
-#include <sys/ddt.h>
-#include <sys/ddt_impl.h>
+#include <zfs/zfs_context.h>
+#include <zfs/spa.h>
+#include <zfs/spa_impl.h>
+#include <zfs/ddt.h>
+#include <zfs/ddt_impl.h>
 
 static void
 ddt_stat_generate(ddt_t *ddt, const ddt_lightweight_entry_t *ddlwe,

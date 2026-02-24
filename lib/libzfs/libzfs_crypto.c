@@ -19,8 +19,8 @@
  * Copyright 2020 Joyent, Inc.
  */
 
-#include <sys/fs/zfs.h>
-#include <sys/dsl_crypt.h>
+#include <zfs/fs/zfs.h>
+#include <zfs/dsl_crypt.h>
 #include <libintl.h>
 #include <termios.h>
 #include <signal.h>
@@ -30,7 +30,7 @@
 #include <dlfcn.h>
 #endif
 #if LIBFETCH_IS_FETCH
-#include <sys/param.h>
+#include <spl/param.h>
 #include <stdio.h>
 #include <fetch.h>
 #elif LIBFETCH_IS_LIBCURL

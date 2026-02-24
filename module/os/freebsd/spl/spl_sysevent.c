@@ -26,20 +26,20 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
-#include <sys/param.h>
+#include <spl/types.h>
+#include <spl/param.h>
 #include <sys/kernel.h>
-#include <sys/systm.h>
+#include <spl/systm.h>
 #include <sys/malloc.h>
-#include <sys/kmem.h>
-#include <sys/list.h>
-#include <sys/proc.h>
+#include <spl/kmem.h>
+#include <spl/list.h>
+#include <spl/proc.h>
 #include <sys/sbuf.h>
-#include <sys/nvpair.h>
-#include <sys/sunddi.h>
-#include <sys/sysevent.h>
-#include <sys/fm/protocol.h>
-#include <sys/fm/util.h>
+#include <zfs/nvpair.h>
+#include <spl/sunddi.h>
+#include <zfs/sysevent.h>
+#include <zfs/fm/protocol.h>
+#include <zfs/fm/util.h>
 #include <sys/bus.h>
 
 static int

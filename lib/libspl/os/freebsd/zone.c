@@ -29,7 +29,7 @@
 
 #include <stdlib.h>
 #include <assert.h>
-#include <sys/types.h>
+#include <spl/types.h>
 #include <sys/sysctl.h>
 #include <zone.h>
 

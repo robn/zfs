@@ -29,14 +29,14 @@
 
 /* Portions Copyright 2010 Robert Milkowski */
 
-#include <sys/avl.h>
-#include <sys/dmu_objset.h>
-#include <sys/sa.h>
-#include <sys/sa_impl.h>
-#include <sys/zap.h>
-#include <sys/zfs_project.h>
-#include <sys/zfs_quota.h>
-#include <sys/zfs_znode.h>
+#include <zfs/avl.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/sa.h>
+#include <zfs/sa_impl.h>
+#include <zfs/zap.h>
+#include <zfs/zfs_project.h>
+#include <zfs/zfs_quota.h>
+#include <zfs/zfs_znode.h>
 
 int
 zpl_get_file_info(dmu_object_type_t bonustype, const void *data,

@@ -23,13 +23,13 @@
  * Copyright (C) 2016 Gvozden Nešković. All rights reserved.
  */
 
-#include <sys/isa_defs.h>
+#include <spl/isa_defs.h>
 
 #if defined(__x86_64) && HAVE_SIMD(SSE2)
 
-#include <sys/types.h>
-#include <sys/simd.h>
-#include <sys/debug.h>
+#include <spl/types.h>
+#include <spl/simd.h>
+#include <spl/debug.h>
 
 #ifdef __linux__
 #define	__asm __asm__ __volatile__
@@ -608,7 +608,7 @@ gf_x2_mul_fns[256] = {
 #define	REC_PQR_YS		4
 
 
-#include <sys/vdev_raidz_impl.h>
+#include <zfs/vdev_raidz_impl.h>
 #include "vdev_raidz_math_impl.h"
 
 DEFINE_GEN_METHODS(sse2);

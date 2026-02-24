@@ -17,9 +17,9 @@
  * Copyright (c) 2013, 2017 by Delphix. All rights reserved.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/multilist.h>
-#include <sys/trace_zfs.h>
+#include <zfs/zfs_context.h>
+#include <zfs/multilist.h>
+#include <zfs/trace_zfs.h>
 
 /*
  * This overrides the number of sublists in each multilist_t, which defaults

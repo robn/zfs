@@ -84,7 +84,7 @@
 
 #if defined(lint) || defined(__lint)	/* lint */
 
-#include <sys/types.h>
+#include <spl/types.h>
 
 void
 gcm_mul_pclmulqdq(uint64_t *x_in, uint64_t *y, uint64_t *res) {
@@ -94,7 +94,7 @@ gcm_mul_pclmulqdq(uint64_t *x_in, uint64_t *y, uint64_t *res) {
 #elif HAVE_SIMD(PCLMULQDQ)	/* guard by instruction set */
 
 #define _ASM
-#include <sys/asm_linkage.h>
+#include <zfs/asm_linkage.h>
 
 /*
  * Use this mask to byte-swap a 16-byte integer with the pshufb instruction

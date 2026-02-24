@@ -25,16 +25,16 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/byteorder.h>
+#include <spl/types.h>
+#include <spl/param.h>
+#include <spl/byteorder.h>
 #include <sys/kernel.h>
-#include <sys/systm.h>
+#include <spl/systm.h>
 #include <sys/malloc.h>
-#include <sys/kmem.h>
-#include <sys/kmem_cache.h>
-#include <sys/debug.h>
-#include <sys/mutex.h>
+#include <spl/kmem.h>
+#include <spl/kmem_cache.h>
+#include <spl/debug.h>
+#include <spl/mutex.h>
 #include <sys/vmmeter.h>
 
 
@@ -45,7 +45,7 @@
 
 #ifdef KMEM_DEBUG
 #include <sys/queue.h>
-#include <sys/stack.h>
+#include <spl/stack.h>
 #endif
 
 #ifdef _KERNEL
@@ -65,7 +65,7 @@ static struct mtx kmem_items_mtx;
 MTX_SYSINIT(kmem_items_mtx, &kmem_items_mtx, "kmem_items", MTX_DEF);
 #endif	/* KMEM_DEBUG */
 
-#include <sys/vmem.h>
+#include <spl/vmem.h>
 
 void *
 zfs_kmem_alloc(size_t size, int kmflags)

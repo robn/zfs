@@ -38,39 +38,39 @@
  *     under sponsorship from the FreeBSD Foundation.
  */
 
-#include <sys/dmu_objset.h>
-#include <sys/dsl_dataset.h>
-#include <sys/dsl_dir.h>
-#include <sys/dsl_prop.h>
-#include <sys/dsl_synctask.h>
-#include <sys/dmu_traverse.h>
-#include <sys/dmu_impl.h>
-#include <sys/dmu_tx.h>
-#include <sys/arc.h>
-#include <sys/zio.h>
-#include <sys/zap.h>
-#include <sys/zfeature.h>
-#include <sys/unique.h>
-#include <sys/zfs_context.h>
-#include <sys/zfs_ioctl.h>
-#include <sys/spa.h>
-#include <sys/spa_impl.h>
-#include <sys/vdev.h>
-#include <sys/zfs_znode.h>
-#include <sys/zfs_onexit.h>
-#include <sys/zvol.h>
-#include <sys/dsl_scan.h>
-#include <sys/dsl_deadlist.h>
-#include <sys/dsl_destroy.h>
-#include <sys/dsl_userhold.h>
-#include <sys/dsl_bookmark.h>
-#include <sys/policy.h>
-#include <sys/dmu_send.h>
-#include <sys/dmu_recv.h>
-#include <sys/zio_compress.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/dsl_dataset.h>
+#include <zfs/dsl_dir.h>
+#include <zfs/dsl_prop.h>
+#include <zfs/dsl_synctask.h>
+#include <zfs/dmu_traverse.h>
+#include <zfs/dmu_impl.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/arc.h>
+#include <zfs/zio.h>
+#include <zfs/zap.h>
+#include <zfs/zfeature.h>
+#include <zfs/unique.h>
+#include <zfs/zfs_context.h>
+#include <zfs/zfs_ioctl.h>
+#include <zfs/spa.h>
+#include <zfs/spa_impl.h>
+#include <zfs/vdev.h>
+#include <zfs/zfs_znode.h>
+#include <zfs/zfs_onexit.h>
+#include <zfs/zvol.h>
+#include <zfs/dsl_scan.h>
+#include <zfs/dsl_deadlist.h>
+#include <zfs/dsl_destroy.h>
+#include <zfs/dsl_userhold.h>
+#include <zfs/dsl_bookmark.h>
+#include <zfs/policy.h>
+#include <zfs/dmu_send.h>
+#include <zfs/dmu_recv.h>
+#include <zfs/zio_compress.h>
 #include <zfs_fletcher.h>
-#include <sys/zio_checksum.h>
-#include <sys/brt.h>
+#include <zfs/zio_checksum.h>
+#include <zfs/brt.h>
 
 /*
  * The SPA supports block sizes up to 16MB.  However, very large blocks

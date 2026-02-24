@@ -13,9 +13,9 @@
 #define lauxlib_c
 #define LUA_LIB
 
-#include <sys/lua/lua.h>
+#include <zfs/lua/lua.h>
 
-#include <sys/lua/lauxlib.h>
+#include <zfs/lua/lauxlib.h>
 
 
 /*
@@ -202,7 +202,7 @@ LUALIB_API int luaL_error (lua_State *L, const char *fmt, ...) {
 
 #if defined(LUA_USE_POSIX)
 
-#include <sys/wait.h>
+#include <spl/wait.h>
 
 /*
 ** use appropriate macros to interpret 'pclose' return status

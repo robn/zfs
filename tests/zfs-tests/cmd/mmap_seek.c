@@ -30,7 +30,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
-#include <sys/sysmacros.h>
+#include <spl/sysmacros.h>
 #include <errno.h>
 #ifdef __linux__
 #include <linux/fs.h>

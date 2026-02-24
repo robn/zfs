@@ -23,9 +23,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/uio.h>
+#include <spl/types.h>
+#include <spl/stat.h>
+#include <spl/uio.h>
 #include <unistd.h>
 #include "zed.h"
 #include "zed_conf.h"

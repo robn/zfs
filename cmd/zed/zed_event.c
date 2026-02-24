@@ -22,10 +22,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/zfs_ioctl.h>
+#include <zfs/zfs_ioctl.h>
 #include <time.h>
 #include <unistd.h>
-#include <sys/fm/fs/zfs.h>
+#include <zfs/fm/fs/zfs.h>
 #include "zed.h"
 #include "zed_conf.h"
 #include "zed_disk_event.h"

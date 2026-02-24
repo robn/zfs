@@ -28,7 +28,7 @@
 #ifndef HAVE_STRLCPY
 
 #include <string.h>
-#include <sys/types.h>
+#include <spl/types.h>
 
 /*
  * Copies src to the dstsize buffer at dst. The copy will never

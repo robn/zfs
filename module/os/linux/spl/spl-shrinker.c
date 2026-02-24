@@ -24,8 +24,8 @@
  *  Solaris Porting Layer (SPL) Shrinker Implementation.
  */
 
-#include <sys/kmem.h>
-#include <sys/shrinker.h>
+#include <spl/kmem.h>
+#include <spl/shrinker.h>
 
 struct shrinker *
 spl_register_shrinker(const char *name, spl_shrinker_cb countfunc,

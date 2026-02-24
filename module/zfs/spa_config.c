@@ -28,21 +28,21 @@
  * Copyright (c) 2021, Colm Buckley <colm@tuatha.org>
  */
 
-#include <sys/spa.h>
-#include <sys/file.h>
-#include <sys/fm/fs/zfs.h>
-#include <sys/spa_impl.h>
-#include <sys/nvpair.h>
-#include <sys/fs/zfs.h>
-#include <sys/vdev_impl.h>
-#include <sys/zfs_ioctl.h>
-#include <sys/systeminfo.h>
-#include <sys/sunddi.h>
-#include <sys/zfeature.h>
-#include <sys/zfs_file.h>
-#include <sys/zfs_context.h>
+#include <zfs/spa.h>
+#include <spl/file.h>
+#include <zfs/fm/fs/zfs.h>
+#include <zfs/spa_impl.h>
+#include <zfs/nvpair.h>
+#include <zfs/fs/zfs.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/zfs_ioctl.h>
+#include <spl/systeminfo.h>
+#include <spl/sunddi.h>
+#include <zfs/zfeature.h>
+#include <zfs/zfs_file.h>
+#include <zfs/zfs_context.h>
 #ifdef _KERNEL
-#include <sys/zone.h>
+#include <spl/zone.h>
 #endif
 
 /*

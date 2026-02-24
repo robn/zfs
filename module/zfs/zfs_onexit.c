@@ -24,14 +24,14 @@
  * Copyright (c) 2013, 2020 by Delphix. All rights reserved.
  */
 
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/errno.h>
-#include <sys/kmem.h>
-#include <sys/sunddi.h>
-#include <sys/zfs_ioctl.h>
-#include <sys/zfs_onexit.h>
-#include <sys/zvol.h>
+#include <spl/types.h>
+#include <spl/param.h>
+#include <spl/errno.h>
+#include <spl/kmem.h>
+#include <spl/sunddi.h>
+#include <zfs/zfs_ioctl.h>
+#include <zfs/zfs_onexit.h>
+#include <zfs/zvol.h>
 
 /*
  * ZFS kernel routines may add/delete callback routines to be invoked

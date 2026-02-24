@@ -21,8 +21,8 @@
  */
 
 #if defined(_KERNEL) && defined(HAVE_QAT)
-#include <sys/zfs_context.h>
-#include <sys/qat.h>
+#include <zfs/zfs_context.h>
+#include <zfs/qat.h>
 
 qat_stats_t qat_stats = {
 	{ "comp_requests",			KSTAT_DATA_UINT64 },

@@ -24,7 +24,7 @@
  *  Solaris Porting Layer (SPL) Credential Implementation.
  */
 
-#include <sys/cred.h>
+#include <spl/cred.h>
 
 static int
 cr_groups_search(const struct group_info *group_info, kgid_t grp)

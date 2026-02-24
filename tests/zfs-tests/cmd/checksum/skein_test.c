@@ -30,12 +30,12 @@
  * running in userspace, but we need -D_KERNEL for the remaining Skein code).
  */
 
-#include <sys/skein.h>
+#include <zfs/skein.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <sys/time.h>
-#include <sys/stdtypes.h>
+#include <spl/time.h>
+#include <spl/stdtypes.h>
 
 /*
  * Skein test suite using values from the Skein V1.3 specification found at:

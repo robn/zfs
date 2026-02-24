@@ -27,9 +27,9 @@
  * Copyright (c) 2013, 2019 by Delphix. All rights reserved.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/range_tree.h>
-#include <sys/space_reftree.h>
+#include <zfs/zfs_context.h>
+#include <zfs/range_tree.h>
+#include <zfs/space_reftree.h>
 
 /*
  * Space reference trees.

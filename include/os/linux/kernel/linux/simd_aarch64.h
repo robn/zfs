@@ -52,7 +52,7 @@
 #ifndef _LINUX_SIMD_AARCH64_H
 #define	_LINUX_SIMD_AARCH64_H
 
-#include <sys/types.h>
+#include <spl/types.h>
 #include <asm/neon.h>
 #include <asm/elf.h>
 #include <asm/hwcap.h>

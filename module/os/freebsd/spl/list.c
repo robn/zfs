@@ -28,11 +28,11 @@
  * Generic doubly-linked list implementation
  */
 
-#include <sys/param.h>
-#include <sys/list.h>
-#include <sys/list_impl.h>
-#include <sys/types.h>
-#include <sys/debug.h>
+#include <spl/param.h>
+#include <spl/list.h>
+#include <spl/list_impl.h>
+#include <spl/types.h>
+#include <spl/debug.h>
 
 #define	list_d2l(a, obj) ((list_node_t *)(((char *)obj) + (a)->list_offset))
 #define	list_object(a, node) ((void *)(((char *)node) - (a)->list_offset))

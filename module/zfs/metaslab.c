@@ -27,20 +27,20 @@
  * Copyright (c) 2017, Intel Corporation.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/brt.h>
-#include <sys/dmu.h>
-#include <sys/dmu_tx.h>
-#include <sys/space_map.h>
-#include <sys/metaslab_impl.h>
-#include <sys/vdev_impl.h>
-#include <sys/vdev_draid.h>
-#include <sys/zio.h>
-#include <sys/spa_impl.h>
-#include <sys/zfeature.h>
-#include <sys/vdev_indirect_mapping.h>
-#include <sys/zap.h>
-#include <sys/btree.h>
+#include <zfs/zfs_context.h>
+#include <zfs/brt.h>
+#include <zfs/dmu.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/space_map.h>
+#include <zfs/metaslab_impl.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/vdev_draid.h>
+#include <zfs/zio.h>
+#include <zfs/spa_impl.h>
+#include <zfs/zfeature.h>
+#include <zfs/vdev_indirect_mapping.h>
+#include <zfs/zap.h>
+#include <zfs/btree.h>
 
 #define	GANG_ALLOCATION(flags) \
 	((flags) & (METASLAB_GANG_CHILD | METASLAB_GANG_HEADER))

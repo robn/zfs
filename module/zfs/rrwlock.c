@@ -27,8 +27,8 @@
  * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
-#include <sys/rrwlock.h>
-#include <sys/trace_zfs.h>
+#include <zfs/rrwlock.h>
+#include <zfs/trace_zfs.h>
 
 /*
  * This file contains the implementation of a re-entrant read

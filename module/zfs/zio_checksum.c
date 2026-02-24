@@ -25,13 +25,13 @@
  * Copyright 2013 Saso Kiselkov. All rights reserved.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/spa.h>
-#include <sys/spa_impl.h>
-#include <sys/zio.h>
-#include <sys/zio_checksum.h>
-#include <sys/zil.h>
-#include <sys/abd.h>
+#include <zfs/zfs_context.h>
+#include <zfs/spa.h>
+#include <zfs/spa_impl.h>
+#include <zfs/zio.h>
+#include <zfs/zio_checksum.h>
+#include <zfs/zil.h>
+#include <zfs/abd.h>
 #include <zfs_fletcher.h>
 
 /*

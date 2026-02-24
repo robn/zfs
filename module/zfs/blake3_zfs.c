@@ -24,10 +24,10 @@
  * Copyright 2022 Tino Reichardt <milky-zfs@mcmilk.de>
  */
 
-#include <sys/zfs_context.h>
-#include <sys/zio_checksum.h>
-#include <sys/blake3.h>
-#include <sys/abd.h>
+#include <zfs/zfs_context.h>
+#include <zfs/zio_checksum.h>
+#include <zfs/blake3.h>
+#include <zfs/abd.h>
 
 static int
 blake3_incremental(void *buf, size_t size, void *arg)

@@ -30,11 +30,11 @@
  */
 
 #include "file_common.h"
-#include <sys/param.h>
+#include <spl/param.h>
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/stdtypes.h>
+#include <spl/stdtypes.h>
 #include <unistd.h>
 
 /*

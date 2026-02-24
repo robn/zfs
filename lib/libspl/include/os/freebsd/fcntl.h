@@ -29,6 +29,6 @@
 
 #include_next <fcntl.h>
 
-#include <sys/fcntl.h>
+#include <spl/fcntl.h>
 
 #endif	/* _LIBSPL_FCNTL_H_ */

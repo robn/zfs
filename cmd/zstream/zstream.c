@@ -18,8 +18,8 @@
  * Copyright (c) 2020 by Delphix. All rights reserved.
  * Copyright (c) 2020 by Datto Inc. All rights reserved.
  */
-#include <sys/types.h>
-#include <sys/stat.h>
+#include <spl/types.h>
+#include <spl/stat.h>
 #include <fcntl.h>
 #include <ctype.h>
 #include <stdio.h>

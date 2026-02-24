@@ -25,9 +25,9 @@
  * Use is subject to license terms.
  */
 
-#include <sys/nvpair.h>
-#include <sys/kmem.h>
-#include <sys/vmem.h>
+#include <zfs/nvpair.h>
+#include <spl/kmem.h>
+#include <spl/vmem.h>
 
 static void *
 nv_alloc_sleep_spl(nv_alloc_t *nva, size_t size)

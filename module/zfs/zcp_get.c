@@ -18,31 +18,31 @@
  * Copyright (c) 2016 by Delphix. All rights reserved.
  */
 
-#include <sys/lua/lua.h>
-#include <sys/lua/lualib.h>
-#include <sys/lua/lauxlib.h>
+#include <zfs/lua/lua.h>
+#include <zfs/lua/lualib.h>
+#include <zfs/lua/lauxlib.h>
 
 #include <zfs_prop.h>
 
-#include <sys/dsl_prop.h>
-#include <sys/dsl_synctask.h>
-#include <sys/dsl_dataset.h>
-#include <sys/dsl_dir.h>
-#include <sys/dmu_objset.h>
-#include <sys/mntent.h>
-#include <sys/sunddi.h>
-#include <sys/zap.h>
-#include <sys/zcp.h>
-#include <sys/zcp_iter.h>
-#include <sys/zcp_global.h>
-#include <sys/zcp_prop.h>
-#include <sys/zfs_ioctl.h>
-#include <sys/zfs_znode.h>
-#include <sys/zvol.h>
+#include <zfs/dsl_prop.h>
+#include <zfs/dsl_synctask.h>
+#include <zfs/dsl_dataset.h>
+#include <zfs/dsl_dir.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/mntent.h>
+#include <spl/sunddi.h>
+#include <zfs/zap.h>
+#include <zfs/zcp.h>
+#include <zfs/zcp_iter.h>
+#include <zfs/zcp_global.h>
+#include <zfs/zcp_prop.h>
+#include <zfs/zfs_ioctl.h>
+#include <zfs/zfs_znode.h>
+#include <zfs/zvol.h>
 
 #ifdef _KERNEL
-#include <sys/zfs_quota.h>
-#include <sys/zfs_vfsops.h>
+#include <zfs/zfs_quota.h>
+#include <zfs/zfs_vfsops.h>
 #endif
 
 static int

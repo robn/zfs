@@ -35,11 +35,11 @@
 extern "C" {
 #endif
 
-#include <sys/zfs_context.h>
-#include <sys/crypto/api.h>
+#include <zfs/zfs_context.h>
+#include <zfs/crypto/api.h>
 #include <sys/crypto/spi.h>
 #include <sys/crypto/impl.h>
-#include <sys/crypto/common.h>
+#include <zfs/crypto/common.h>
 
 typedef struct kcf_prov_tried {
 	kcf_provider_desc_t	*pt_pd;

@@ -22,7 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <libzfs_core.h>
-#include <sys/nvpair.h>
+#include <zfs/nvpair.h>
 
 static nvlist_t *nvl;
 static const char *pool;

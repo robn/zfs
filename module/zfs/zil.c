@@ -29,24 +29,24 @@
 
 /* Portions Copyright 2010 Robert Milkowski */
 
-#include <sys/zfs_context.h>
-#include <sys/spa.h>
-#include <sys/spa_impl.h>
-#include <sys/dmu.h>
-#include <sys/zap.h>
-#include <sys/arc.h>
-#include <sys/stat.h>
-#include <sys/zil.h>
-#include <sys/zil_impl.h>
-#include <sys/dsl_dataset.h>
-#include <sys/vdev_impl.h>
-#include <sys/dmu_tx.h>
-#include <sys/dsl_pool.h>
-#include <sys/metaslab.h>
-#include <sys/trace_zfs.h>
-#include <sys/abd.h>
-#include <sys/brt.h>
-#include <sys/wmsum.h>
+#include <zfs/zfs_context.h>
+#include <zfs/spa.h>
+#include <zfs/spa_impl.h>
+#include <zfs/dmu.h>
+#include <zfs/zap.h>
+#include <zfs/arc.h>
+#include <spl/stat.h>
+#include <zfs/zil.h>
+#include <zfs/zil_impl.h>
+#include <zfs/dsl_dataset.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/dsl_pool.h>
+#include <zfs/metaslab.h>
+#include <zfs/trace_zfs.h>
+#include <zfs/abd.h>
+#include <zfs/brt.h>
+#include <spl/wmsum.h>
 
 /*
  * The ZFS Intent Log (ZIL) saves "transaction records" (itxs) of system

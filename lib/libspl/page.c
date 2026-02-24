@@ -22,7 +22,7 @@
  */
 
 #include <unistd.h>
-#include <sys/param.h>
+#include <spl/param.h>
 
 static size_t pagesize = 0;
 

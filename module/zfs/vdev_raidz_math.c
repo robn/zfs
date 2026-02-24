@@ -23,14 +23,14 @@
  * Copyright (C) 2016 Gvozden Nešković. All rights reserved.
  */
 
-#include <sys/simd.h>
-#include <sys/zfs_context.h>
-#include <sys/types.h>
-#include <sys/zio.h>
-#include <sys/debug.h>
-#include <sys/zfs_debug.h>
-#include <sys/vdev_raidz.h>
-#include <sys/vdev_raidz_impl.h>
+#include <spl/simd.h>
+#include <zfs/zfs_context.h>
+#include <spl/types.h>
+#include <zfs/zio.h>
+#include <spl/debug.h>
+#include <zfs/zfs_debug.h>
+#include <zfs/vdev_raidz.h>
+#include <zfs/vdev_raidz_impl.h>
 
 /* Opaque implementation with NULL methods to represent original methods */
 static const raidz_impl_ops_t vdev_raidz_original_impl = {

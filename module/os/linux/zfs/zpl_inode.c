@@ -26,16 +26,16 @@
  */
 
 
-#include <sys/sysmacros.h>
-#include <sys/zfs_ctldir.h>
-#include <sys/zfs_vfsops.h>
-#include <sys/zfs_vnops.h>
-#include <sys/zfs_znode.h>
-#include <sys/dmu_objset.h>
-#include <sys/spa_impl.h>
-#include <sys/vfs.h>
-#include <sys/zpl.h>
-#include <sys/file.h>
+#include <spl/sysmacros.h>
+#include <zfs/zfs_ctldir.h>
+#include <zfs/zfs_vfsops.h>
+#include <zfs/zfs_vnops.h>
+#include <zfs/zfs_znode.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/spa_impl.h>
+#include <spl/vfs.h>
+#include <zfs/zpl.h>
+#include <spl/file.h>
 
 static struct dentry *
 zpl_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)

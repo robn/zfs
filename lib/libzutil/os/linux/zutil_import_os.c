@@ -56,12 +56,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/stat.h>
+#include <spl/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <sys/dktp/fdisk.h>
-#include <sys/vdev_impl.h>
-#include <sys/fs/zfs.h>
+#include <spl/dktp/fdisk.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/fs/zfs.h>
 
 #include <libzutil.h>
 #include <libnvpair.h>

@@ -25,17 +25,17 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
-#include <sys/param.h>
+#include <spl/types.h>
+#include <spl/param.h>
 #include <sys/priv.h>
-#include <sys/vnode.h>
-#include <sys/mntent.h>
-#include <sys/mount.h>
-#include <sys/stat.h>
+#include <spl/vnode.h>
+#include <zfs/mntent.h>
+#include <spl/mount.h>
+#include <spl/stat.h>
 #include <sys/jail.h>
-#include <sys/policy.h>
-#include <sys/zfs_vfsops.h>
-#include <sys/zfs_znode.h>
+#include <zfs/policy.h>
+#include <zfs/zfs_vfsops.h>
+#include <zfs/zfs_znode.h>
 
 
 int

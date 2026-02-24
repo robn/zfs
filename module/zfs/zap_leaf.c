@@ -32,15 +32,15 @@
  * the names are stored null-terminated.
  */
 
-#include <sys/zio.h>
-#include <sys/spa.h>
-#include <sys/dmu.h>
-#include <sys/zfs_context.h>
-#include <sys/fs/zfs.h>
-#include <sys/zap.h>
-#include <sys/zap_impl.h>
-#include <sys/zap_leaf.h>
-#include <sys/arc.h>
+#include <zfs/zio.h>
+#include <zfs/spa.h>
+#include <zfs/dmu.h>
+#include <zfs/zfs_context.h>
+#include <zfs/fs/zfs.h>
+#include <zfs/zap.h>
+#include <zfs/zap_impl.h>
+#include <zfs/zap_leaf.h>
+#include <zfs/arc.h>
 
 static uint16_t *zap_leaf_rehash_entry(zap_leaf_t *l, struct zap_leaf_entry *le,
     uint16_t entry);

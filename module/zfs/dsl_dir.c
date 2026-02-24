@@ -31,28 +31,28 @@
  * Copyright (c) 2025, Rob Norris <robn@despairlabs.com>
  */
 
-#include <sys/dmu.h>
-#include <sys/dmu_objset.h>
-#include <sys/dmu_tx.h>
-#include <sys/dsl_dataset.h>
-#include <sys/dsl_dir.h>
-#include <sys/dsl_prop.h>
-#include <sys/dsl_synctask.h>
-#include <sys/dsl_deleg.h>
-#include <sys/dmu_impl.h>
-#include <sys/spa.h>
-#include <sys/spa_impl.h>
-#include <sys/metaslab.h>
-#include <sys/zap.h>
-#include <sys/zio.h>
-#include <sys/arc.h>
-#include <sys/sunddi.h>
-#include <sys/zfeature.h>
-#include <sys/policy.h>
-#include <sys/zfs_vfsops.h>
-#include <sys/zfs_znode.h>
-#include <sys/zvol.h>
-#include <sys/zthr.h>
+#include <zfs/dmu.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/dsl_dataset.h>
+#include <zfs/dsl_dir.h>
+#include <zfs/dsl_prop.h>
+#include <zfs/dsl_synctask.h>
+#include <zfs/dsl_deleg.h>
+#include <zfs/dmu_impl.h>
+#include <zfs/spa.h>
+#include <zfs/spa_impl.h>
+#include <zfs/metaslab.h>
+#include <zfs/zap.h>
+#include <zfs/zio.h>
+#include <zfs/arc.h>
+#include <spl/sunddi.h>
+#include <zfs/zfeature.h>
+#include <zfs/policy.h>
+#include <zfs/zfs_vfsops.h>
+#include <zfs/zfs_znode.h>
+#include <zfs/zvol.h>
+#include <zfs/zthr.h>
 #include "zfs_namecheck.h"
 #include "zfs_prop.h"
 

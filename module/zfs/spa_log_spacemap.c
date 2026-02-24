@@ -24,14 +24,14 @@
  * Copyright (c) 2018, 2019 by Delphix. All rights reserved.
  */
 
-#include <sys/dmu_objset.h>
-#include <sys/metaslab.h>
-#include <sys/metaslab_impl.h>
-#include <sys/spa.h>
-#include <sys/spa_impl.h>
-#include <sys/spa_log_spacemap.h>
-#include <sys/vdev_impl.h>
-#include <sys/zap.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/metaslab.h>
+#include <zfs/metaslab_impl.h>
+#include <zfs/spa.h>
+#include <zfs/spa_impl.h>
+#include <zfs/spa_log_spacemap.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/zap.h>
 
 /*
  * Log Space Maps

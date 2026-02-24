@@ -26,19 +26,19 @@
  * Copyright 2016 Igor Kozhukhov <ikozhukhov@gmail.com>
  */
 
-#include <sys/zfs_context.h>
+#include <zfs/zfs_context.h>
 
 #if defined(_KERNEL)
-#include <sys/sunddi.h>
-#include <sys/ctype.h>
+#include <spl/sunddi.h>
+#include <spl/ctype.h>
 #else
 #include <stdio.h>
 #include <unistd.h>
 #include <libnvpair.h>
 #include <ctype.h>
 #endif
-#include <sys/string.h>
-#include <sys/dsl_deleg.h>
+#include <spl/string.h>
+#include <zfs/dsl_deleg.h>
 #include "zfs_prop.h"
 #include "zfs_deleg.h"
 #include "zfs_namecheck.h"

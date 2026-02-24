@@ -44,12 +44,12 @@
 #include <unistd.h>
 #include <stddef.h>
 #include <fcntl.h>
-#include <sys/mount.h>
-#include <sys/mntent.h>
-#include <sys/mnttab.h>
-#include <sys/avl.h>
-#include <sys/debug.h>
-#include <sys/stat.h>
+#include <spl/mount.h>
+#include <zfs/mntent.h>
+#include <spl/mnttab.h>
+#include <zfs/avl.h>
+#include <spl/debug.h>
+#include <spl/stat.h>
 #include <pthread.h>
 #include <umem.h>
 #include <time.h>
@@ -64,11 +64,11 @@
 #include "libzfs_impl.h"
 #include <cityhash.h>
 #include <zlib.h>
-#include <sys/zio_checksum.h>
-#include <sys/dsl_crypt.h>
-#include <sys/ddt.h>
+#include <zfs/zio_checksum.h>
+#include <zfs/dsl_crypt.h>
+#include <zfs/ddt.h>
 #include <sys/socket.h>
-#include <sys/sha2.h>
+#include <zfs/sha2.h>
 
 static int zfs_receive_impl(libzfs_handle_t *, const char *, const char *,
     recvflags_t *, int, const char *, nvlist_t *, avl_tree_t *, char **,

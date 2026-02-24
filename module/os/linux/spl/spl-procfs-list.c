@@ -23,10 +23,10 @@
  * Copyright (c) 2018 by Delphix. All rights reserved.
  */
 
-#include <sys/list.h>
-#include <sys/procfs_list.h>
+#include <spl/list.h>
+#include <spl/procfs_list.h>
 #include <linux/proc_fs.h>
-#include <sys/mutex.h>
+#include <spl/mutex.h>
 
 /*
  * A procfs_list is a wrapper around a linked list which implements the seq_file

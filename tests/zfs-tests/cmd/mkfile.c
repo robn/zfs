@@ -29,14 +29,14 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <unistd.h>
-#include <sys/stat.h>
+#include <spl/stat.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <libintl.h>
 #include <errno.h>
-#include <sys/stdtypes.h>
-#include <sys/sysmacros.h>
+#include <spl/stdtypes.h>
+#include <spl/sysmacros.h>
 
 #define	BLOCKSIZE	512		/* bytes */
 #define	KILOBYTE	1024

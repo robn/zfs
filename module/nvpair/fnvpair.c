@@ -24,10 +24,10 @@
  * Copyright (c) 2012, 2018 by Delphix. All rights reserved.
  */
 
-#include <sys/nvpair.h>
-#include <sys/kmem.h>
-#include <sys/debug.h>
-#include <sys/param.h>
+#include <zfs/nvpair.h>
+#include <spl/kmem.h>
+#include <spl/debug.h>
+#include <spl/param.h>
 #ifndef _KERNEL
 #include <stdlib.h>
 #endif

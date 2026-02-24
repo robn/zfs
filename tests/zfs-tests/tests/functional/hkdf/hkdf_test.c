@@ -20,9 +20,9 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <sys/crypto/icp.h>
-#include <sys/sha2.h>
-#include <sys/hkdf.h>
+#include <zfs/crypto/icp.h>
+#include <zfs/sha2.h>
+#include <zfs/hkdf.h>
 
 /*
  * Byte arrays are given as char pointers so that they

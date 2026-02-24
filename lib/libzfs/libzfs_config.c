@@ -41,7 +41,7 @@
  */
 
 #include <errno.h>
-#include <sys/stat.h>
+#include <spl/stat.h>
 #include <fcntl.h>
 #include <stddef.h>
 #include <string.h>

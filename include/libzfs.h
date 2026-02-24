@@ -38,11 +38,11 @@
 
 #include <assert.h>
 #include <libnvpair.h>
-#include <sys/mnttab.h>
-#include <sys/param.h>
-#include <sys/types.h>
-#include <sys/fs/zfs.h>
-#include <sys/avl.h>
+#include <spl/mnttab.h>
+#include <spl/param.h>
+#include <spl/types.h>
+#include <zfs/fs/zfs.h>
+#include <zfs/avl.h>
 #include <libzfs_core.h>
 
 #ifdef	__cplusplus

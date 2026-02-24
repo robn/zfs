@@ -27,27 +27,27 @@
  * Copyright (c) 2025, Klara, Inc.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/spa.h>
-#include <sys/spa_impl.h>
-#include <sys/zap.h>
-#include <sys/vdev_impl.h>
-#include <sys/metaslab_impl.h>
-#include <sys/zio.h>
-#include <sys/zio_checksum.h>
-#include <sys/dmu_tx.h>
-#include <sys/abd.h>
-#include <sys/zfs_rlock.h>
-#include <sys/fs/zfs.h>
-#include <sys/fm/fs/zfs.h>
-#include <sys/vdev_raidz.h>
-#include <sys/vdev_raidz_impl.h>
-#include <sys/vdev_draid.h>
-#include <sys/uberblock_impl.h>
-#include <sys/dsl_scan.h>
+#include <zfs/zfs_context.h>
+#include <zfs/spa.h>
+#include <zfs/spa_impl.h>
+#include <zfs/zap.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/metaslab_impl.h>
+#include <zfs/zio.h>
+#include <zfs/zio_checksum.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/abd.h>
+#include <zfs/zfs_rlock.h>
+#include <zfs/fs/zfs.h>
+#include <zfs/fm/fs/zfs.h>
+#include <zfs/vdev_raidz.h>
+#include <zfs/vdev_raidz_impl.h>
+#include <zfs/vdev_draid.h>
+#include <zfs/uberblock_impl.h>
+#include <zfs/dsl_scan.h>
 
 #ifdef ZFS_DEBUG
-#include <sys/vdev.h>	/* For vdev_xlate() in vdev_raidz_io_verify() */
+#include <zfs/vdev.h>	/* For vdev_xlate() in vdev_raidz_io_verify() */
 #endif
 
 /*

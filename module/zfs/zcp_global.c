@@ -18,10 +18,10 @@
  * Copyright (c) 2016, 2017 by Delphix. All rights reserved.
  */
 
-#include <sys/zcp_global.h>
+#include <zfs/zcp_global.h>
 
-#include <sys/lua/lua.h>
-#include <sys/lua/lauxlib.h>
+#include <zfs/lua/lua.h>
+#include <zfs/lua/lauxlib.h>
 
 typedef struct zcp_errno_global {
 	const char *zeg_name;

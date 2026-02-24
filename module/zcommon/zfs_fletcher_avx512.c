@@ -25,11 +25,11 @@
 
 #if defined(__x86_64) && HAVE_SIMD(AVX512F)
 
-#include <sys/byteorder.h>
-#include <sys/frame.h>
-#include <sys/spa_checksum.h>
-#include <sys/string.h>
-#include <sys/simd.h>
+#include <spl/byteorder.h>
+#include <zfs/frame.h>
+#include <zfs/spa_checksum.h>
+#include <spl/string.h>
+#include <spl/simd.h>
 #include <zfs_fletcher.h>
 
 #ifdef __linux__

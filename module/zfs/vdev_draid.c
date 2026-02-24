@@ -25,23 +25,23 @@
  * Copyright (c) 2025, Klara, Inc.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/spa.h>
-#include <sys/spa_impl.h>
-#include <sys/vdev_impl.h>
-#include <sys/vdev_draid.h>
-#include <sys/vdev_raidz.h>
-#include <sys/vdev_rebuild.h>
-#include <sys/abd.h>
-#include <sys/zio.h>
-#include <sys/nvpair.h>
-#include <sys/zio_checksum.h>
-#include <sys/fs/zfs.h>
-#include <sys/fm/fs/zfs.h>
+#include <zfs/zfs_context.h>
+#include <zfs/spa.h>
+#include <zfs/spa_impl.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/vdev_draid.h>
+#include <zfs/vdev_raidz.h>
+#include <zfs/vdev_rebuild.h>
+#include <zfs/abd.h>
+#include <zfs/zio.h>
+#include <zfs/nvpair.h>
+#include <zfs/zio_checksum.h>
+#include <zfs/fs/zfs.h>
+#include <zfs/fm/fs/zfs.h>
 #include <zfs_fletcher.h>
 
 #ifdef ZFS_DEBUG
-#include <sys/vdev.h>	/* For vdev_xlate() in vdev_draid_io_verify() */
+#include <zfs/vdev.h>	/* For vdev_xlate() in vdev_draid_io_verify() */
 #endif
 
 /*

@@ -20,7 +20,7 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
-#include <sys/param.h>
+#include <spl/param.h>
 
 static void
 usage(const char *msg, int exit_value)

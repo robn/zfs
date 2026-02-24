@@ -29,7 +29,7 @@
 #include <stdint.h>
 #include <fcntl.h>
 #include <assert.h>
-#include <sys/random.h>
+#include <spl/random.h>
 #include "libspl_impl.h"
 
 #define	RANDOM_PATH	"/dev/random"

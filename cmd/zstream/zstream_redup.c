@@ -31,10 +31,10 @@
 #include <string.h>
 #include <umem.h>
 #include <unistd.h>
-#include <sys/debug.h>
-#include <sys/stat.h>
-#include <sys/zfs_ioctl.h>
-#include <sys/zio_checksum.h>
+#include <spl/debug.h>
+#include <spl/stat.h>
+#include <zfs/zfs_ioctl.h>
+#include <zfs/zio_checksum.h>
 #include "zfs_fletcher.h"
 #include "zstream.h"
 #include "zstream_util.h"

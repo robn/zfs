@@ -39,18 +39,18 @@
  * Interface stability: Committed.
  */
 
-#include <sys/types.h>
-#include <sys/string.h>
-#include <sys/param.h>
-#include <sys/sysmacros.h>
-#include <sys/debug.h>
-#include <sys/kmem.h>
-#include <sys/sunddi.h>
-#include <sys/u8_textprep.h>
-#include <sys/byteorder.h>
-#include <sys/errno.h>
-#include <sys/u8_textprep_data.h>
-#include <sys/mod.h>
+#include <spl/types.h>
+#include <spl/string.h>
+#include <spl/param.h>
+#include <spl/sysmacros.h>
+#include <spl/debug.h>
+#include <spl/kmem.h>
+#include <spl/sunddi.h>
+#include <zfs/u8_textprep.h>
+#include <spl/byteorder.h>
+#include <spl/errno.h>
+#include <zfs/u8_textprep_data.h>
+#include <spl/mod.h>
 
 /* The maximum possible number of bytes in a UTF-8 character. */
 #define	U8_MB_CUR_MAX			(4)

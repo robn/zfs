@@ -22,10 +22,10 @@
  *  with the SPL.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <sys/debug.h>
-#include <sys/sysmacros.h>
-#include <sys/kmem.h>
-#include <sys/vmem.h>
+#include <spl/debug.h>
+#include <spl/sysmacros.h>
+#include <spl/kmem.h>
+#include <spl/vmem.h>
 
 /*
  * As a general rule kmem_alloc() allocations should be small, preferably

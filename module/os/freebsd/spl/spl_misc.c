@@ -25,17 +25,17 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
-#include <sys/param.h>
+#include <spl/types.h>
+#include <spl/param.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/libkern.h>
 #include <sys/limits.h>
-#include <sys/misc.h>
+#include <spl/misc.h>
 #include <sys/sysctl.h>
-#include <sys/vnode.h>
+#include <spl/vnode.h>
 
-#include <sys/zfs_context.h>
+#include <zfs/zfs_context.h>
 
 static struct opensolaris_utsname hw_utsname = {
 	.sysname = ostype,

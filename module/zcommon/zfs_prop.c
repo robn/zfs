@@ -32,17 +32,17 @@
 /* Portions Copyright 2010 Robert Milkowski */
 
 #if defined(_KERNEL)
-#include <sys/simd.h>
+#include <spl/simd.h>
 #endif
 
-#include <sys/zio.h>
-#include <sys/spa.h>
-#include <sys/u8_textprep.h>
-#include <sys/zfs_acl.h>
-#include <sys/zfs_ioctl.h>
-#include <sys/zfs_znode.h>
-#include <sys/dsl_crypt.h>
-#include <sys/simd.h>
+#include <zfs/zio.h>
+#include <zfs/spa.h>
+#include <zfs/u8_textprep.h>
+#include <zfs/zfs_acl.h>
+#include <zfs/zfs_ioctl.h>
+#include <zfs/zfs_znode.h>
+#include <zfs/dsl_crypt.h>
+#include <spl/simd.h>
 
 #include "zfs_prop.h"
 #include "zfs_deleg.h"

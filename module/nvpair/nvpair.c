@@ -35,20 +35,20 @@
  * [5] https://illumos.org/man/9f/nvpair_value_byte
  */
 
-#include <sys/debug.h>
-#include <sys/isa_defs.h>
-#include <sys/nvpair.h>
-#include <sys/nvpair_impl.h>
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/string.h>
+#include <spl/debug.h>
+#include <spl/isa_defs.h>
+#include <zfs/nvpair.h>
+#include <zfs/nvpair_impl.h>
+#include <spl/types.h>
+#include <spl/param.h>
+#include <spl/string.h>
 #include <rpc/types.h>
 #include <rpc/xdr.h>
-#include <sys/mod.h>
+#include <spl/mod.h>
 
 #if defined(_KERNEL)
-#include <sys/sunddi.h>
-#include <sys/sysmacros.h>
+#include <spl/sunddi.h>
+#include <spl/sysmacros.h>
 #else
 #include <stdarg.h>
 #include <stdlib.h>

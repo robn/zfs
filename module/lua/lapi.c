@@ -9,7 +9,7 @@
 #define lapi_c
 #define LUA_CORE
 
-#include <sys/lua/lua.h>
+#include <zfs/lua/lua.h>
 
 #include "lapi.h"
 #include "ldebug.h"

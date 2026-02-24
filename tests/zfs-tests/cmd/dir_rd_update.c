@@ -33,8 +33,8 @@
  *	on a UFS logging file system, but not on a ZFS file system.
  */
 
-#include <sys/types.h>
-#include <sys/stat.h>
+#include <spl/types.h>
+#include <spl/stat.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>

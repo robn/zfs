@@ -3,7 +3,7 @@
  * Copyright (c) 2016 by Delphix. All rights reserved.
  */
 
-#include <sys/lua/lua.h>
+#include <zfs/lua/lua.h>
 
 
 ssize_t

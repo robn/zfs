@@ -16,7 +16,7 @@
  * http://www.skein-hash.info/sites/default/files/skein1.3.pdf
  */
 
-#include <sys/skein.h>		/* get Skein macros and types */
+#include <zfs/skein.h>		/* get Skein macros and types */
 #include "skein_impl.h"		/* get internal definitions */
 
 #define	MK_64 SKEIN_MK_64

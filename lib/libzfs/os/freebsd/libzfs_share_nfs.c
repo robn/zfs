@@ -27,8 +27,8 @@
  * Copyright (c) 2020, 2022 by Delphix. All rights reserved.
  */
 
-#include <sys/param.h>
-#include <sys/vfs.h>
+#include <spl/param.h>
+#include <spl/vfs.h>
 
 #include <assert.h>
 #include <errno.h>

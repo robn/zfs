@@ -102,12 +102,12 @@
  * [1] https://illumos.org/man/9f/avl
  */
 
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/debug.h>
-#include <sys/avl.h>
-#include <sys/cmn_err.h>
-#include <sys/mod.h>
+#include <spl/types.h>
+#include <spl/param.h>
+#include <spl/debug.h>
+#include <zfs/avl.h>
+#include <spl/cmn_err.h>
+#include <spl/mod.h>
 
 #ifndef _KERNEL
 #include <string.h>

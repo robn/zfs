@@ -28,7 +28,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <fcntl.h>
-#include <sys/stat.h>
+#include <spl/stat.h>
 #include <sys/mman.h>
 
 #define	PAGES	(8)

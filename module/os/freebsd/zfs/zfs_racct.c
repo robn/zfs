@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/zfs_racct.h>
+#include <zfs/zfs_racct.h>
 #include <sys/racct.h>
 
 void

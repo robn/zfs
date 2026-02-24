@@ -24,11 +24,11 @@
  *  Solaris Porting Layer (SPL) Thread Implementation.
  */
 
-#include <sys/thread.h>
-#include <sys/kmem.h>
-#include <sys/tsd.h>
-#include <sys/string.h>
-#include <sys/misc.h>
+#include <spl/thread.h>
+#include <spl/kmem.h>
+#include <spl/tsd.h>
+#include <spl/string.h>
+#include <spl/misc.h>
 
 /*
  * Thread interfaces

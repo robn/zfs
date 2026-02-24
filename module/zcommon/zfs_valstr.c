@@ -24,11 +24,11 @@
  * Copyright (c) 2024, Klara Inc.
  */
 
-#include <sys/fs/zfs.h>
-#include <sys/types.h>
-#include <sys/sysmacros.h>
-#include <sys/string.h>
-#include <sys/debug.h>
+#include <zfs/fs/zfs.h>
+#include <spl/types.h>
+#include <spl/sysmacros.h>
+#include <spl/string.h>
+#include <spl/debug.h>
 #include "zfs_valstr.h"
 
 /*

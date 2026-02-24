@@ -186,7 +186,7 @@
 
 #if defined(lint) || defined(__lint)
 
-#include <sys/types.h>
+#include <spl/types.h>
 void
 aes_encrypt_amd64(const uint32_t rk[], int Nr, const uint32_t pt[4],
        uint32_t ct[4]) {
@@ -202,7 +202,7 @@ aes_decrypt_amd64(const uint32_t rk[], int Nr, const uint32_t ct[4],
 #else
 
 #define _ASM
-#include <sys/asm_linkage.h>
+#include <zfs/asm_linkage.h>
 
 #define	KS_LENGTH	60
 

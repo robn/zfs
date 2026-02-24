@@ -156,8 +156,8 @@
 #include <strings.h>
 #include <unistd.h>
 
-#include <sys/fs/zfs.h>
-#include <sys/mount.h>
+#include <zfs/fs/zfs.h>
+#include <spl/mount.h>
 
 #include <libzfs.h>
 

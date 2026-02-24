@@ -31,15 +31,15 @@
 #include <string.h>
 #include <linux/types.h>
 #include <sys/wait.h>
-#include <sys/stat.h>
-#include <sys/mount.h>
+#include <spl/stat.h>
+#include <spl/mount.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <sched.h>
 #include <syscall.h>
 #include <sys/socket.h>
 
-#include <sys/list.h>
+#include <spl/list.h>
 
 #ifndef UINT_MAX
 #define	UINT_MAX	4294967295U

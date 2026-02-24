@@ -36,7 +36,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <zone.h>
-#include <sys/avl.h>
+#include <zfs/avl.h>
 
 #include <libzfs.h>
 

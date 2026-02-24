@@ -31,8 +31,8 @@
  * CSPI: Cryptographic Service Provider Interface.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/crypto/common.h>
+#include <zfs/zfs_context.h>
+#include <zfs/crypto/common.h>
 
 #ifdef	__cplusplus
 extern "C" {

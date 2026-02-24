@@ -9,7 +9,7 @@
 #ifndef lzio_h
 #define lzio_h
 
-#include <sys/lua/lua.h>
+#include <zfs/lua/lua.h>
 
 #include "lmem.h"
 

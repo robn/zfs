@@ -27,12 +27,12 @@
  * Copyright (c) 2024, Rob Norris <robn@despairlabs.com>
  */
 
-#include <sys/systeminfo.h>
-#include <sys/kstat.h>
-#include <sys/kmem.h>
-#include <sys/kmem_cache.h>
-#include <sys/vmem.h>
-#include <sys/proc.h>
+#include <spl/systeminfo.h>
+#include <spl/kstat.h>
+#include <spl/kmem.h>
+#include <spl/kmem_cache.h>
+#include <spl/vmem.h>
+#include <spl/proc.h>
 #include <linux/ctype.h>
 #include <linux/kmod.h>
 #include <linux/seq_file.h>

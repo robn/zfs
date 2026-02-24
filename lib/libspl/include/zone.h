@@ -27,8 +27,8 @@
 #ifndef _LIBSPL_ZONE_H
 #define	_LIBSPL_ZONE_H
 
-#include <sys/types.h>
-#include <sys/zone.h>
+#include <spl/types.h>
+#include <spl/zone.h>
 
 #ifdef	__cplusplus
 extern "C" {
