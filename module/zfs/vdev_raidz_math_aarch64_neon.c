@@ -23,8 +23,8 @@
  * Copyright (C) 2016 Romain Dolbeau. All rights reserved.
  */
 
-#include <sys/isa_defs.h>
-#include <sys/types.h>
+#include <spl/isa_defs.h>
+#include <spl/types.h>
 
 #if defined(__aarch64__)
 
@@ -199,7 +199,7 @@
 #define	REC_PQR_YS		8, 9
 
 
-#include <sys/vdev_raidz_impl.h>
+#include <zfs/vdev_raidz_impl.h>
 #include "vdev_raidz_math_impl.h"
 
 DEFINE_GEN_METHODS(aarch64_neon);

@@ -29,8 +29,8 @@
  * Copyright (c) 2013 by Delphix. All rights reserved.
  */
 
-#include <sys/types.h>
-#include <sys/stat.h>
+#include <spl/types.h>
+#include <spl/stat.h>
 #include <fcntl.h>
 #include <pthread.h>
 #include <string.h>

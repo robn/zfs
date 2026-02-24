@@ -16,8 +16,8 @@
  */
 
 #include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/types.h>
+#include <spl/stat.h>
+#include <spl/types.h>
 #include <unistd.h>
 #include <errno.h>
 #include <stdio.h>

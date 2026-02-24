@@ -28,11 +28,11 @@
  * Copyright (c) 2012, 2016 by Delphix. All rights reserved.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/spa.h>
-#include <sys/vdev_impl.h>
-#include <sys/zio.h>
-#include <sys/fs/zfs.h>
+#include <zfs/zfs_context.h>
+#include <zfs/spa.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/zio.h>
+#include <zfs/fs/zfs.h>
 
 /*
  * Virtual device vector for the pool's root vdev.

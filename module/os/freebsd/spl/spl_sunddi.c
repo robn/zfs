@@ -25,14 +25,14 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
-#include <sys/param.h>
+#include <spl/types.h>
+#include <spl/param.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/libkern.h>
 #include <sys/limits.h>
-#include <sys/misc.h>
-#include <sys/sunddi.h>
+#include <spl/misc.h>
+#include <spl/sunddi.h>
 #include <sys/sysctl.h>
 
 int

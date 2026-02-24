@@ -30,8 +30,8 @@
 #include <pthread.h>
 #include <errno.h>
 #include <string.h>
-#include <sys/timer.h>
-#include <sys/condvar.h>
+#include <spl/timer.h>
+#include <spl/condvar.h>
 
 /*
  * =========================================================================

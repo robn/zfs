@@ -40,12 +40,12 @@
  *     under sponsorship from the FreeBSD Foundation.
  */
 
-#include <sys/param.h>
-#include <sys/sysmacros.h>
-#include <sys/zfs_context.h>
-#include <sys/zio_compress.h>
-#include <sys/spa.h>
-#include <sys/zstd/zstd.h>
+#include <spl/param.h>
+#include <spl/sysmacros.h>
+#include <zfs/zfs_context.h>
+#include <zfs/zio_compress.h>
+#include <zfs/spa.h>
+#include <zfs/zstd/zstd.h>
 
 #define	ZSTD_STATIC_LINKING_ONLY
 #include "lib/zstd.h"

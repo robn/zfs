@@ -30,7 +30,7 @@
 #include <pthread.h>
 #include <errno.h>
 #include <atomic.h>
-#include <sys/rwlock.h>
+#include <spl/rwlock.h>
 
 /*
  * =========================================================================

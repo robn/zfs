@@ -19,19 +19,19 @@
  * Copyrigh 2020 Joyent, Inc.
  */
 
-#include <sys/lua/lua.h>
-#include <sys/lua/lualib.h>
-#include <sys/lua/lauxlib.h>
+#include <zfs/lua/lua.h>
+#include <zfs/lua/lualib.h>
+#include <zfs/lua/lauxlib.h>
 
-#include <sys/dsl_prop.h>
-#include <sys/dsl_dir.h>
-#include <sys/dsl_synctask.h>
-#include <sys/dsl_dataset.h>
-#include <sys/zcp.h>
-#include <sys/zcp_set.h>
-#include <sys/zcp_iter.h>
-#include <sys/zcp_global.h>
-#include <sys/zvol.h>
+#include <zfs/dsl_prop.h>
+#include <zfs/dsl_dir.h>
+#include <zfs/dsl_synctask.h>
+#include <zfs/dsl_dataset.h>
+#include <zfs/zcp.h>
+#include <zfs/zcp_set.h>
+#include <zfs/zcp_iter.h>
+#include <zfs/zcp_global.h>
+#include <zfs/zvol.h>
 
 #include <zfs_prop.h>
 

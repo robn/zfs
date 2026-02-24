@@ -27,36 +27,36 @@
  * Copyright 2017 Nexenta Systems, Inc.  All rights reserved.
  */
 
-#include <sys/spa.h>
-#include <sys/zio.h>
-#include <sys/spa_impl.h>
-#include <sys/zio_compress.h>
-#include <sys/zio_checksum.h>
-#include <sys/zfs_context.h>
-#include <sys/arc.h>
-#include <sys/zfs_refcount.h>
-#include <sys/vdev.h>
-#include <sys/vdev_trim.h>
-#include <sys/vdev_impl.h>
-#include <sys/dsl_pool.h>
-#include <sys/multilist.h>
-#include <sys/abd.h>
-#include <sys/zil.h>
-#include <sys/fm/fs/zfs.h>
-#include <sys/shrinker.h>
-#include <sys/vmsystm.h>
-#include <sys/zpl.h>
+#include <zfs/spa.h>
+#include <zfs/zio.h>
+#include <zfs/spa_impl.h>
+#include <zfs/zio_compress.h>
+#include <zfs/zio_checksum.h>
+#include <zfs/zfs_context.h>
+#include <zfs/arc.h>
+#include <zfs/zfs_refcount.h>
+#include <zfs/vdev.h>
+#include <zfs/vdev_trim.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/dsl_pool.h>
+#include <zfs/multilist.h>
+#include <zfs/abd.h>
+#include <zfs/zil.h>
+#include <zfs/fm/fs/zfs.h>
+#include <spl/shrinker.h>
+#include <spl/vmsystm.h>
+#include <zfs/zpl.h>
 #include <linux/page_compat.h>
 #include <linux/notifier.h>
 #include <linux/memory.h>
 #include <linux/version.h>
-#include <sys/callb.h>
-#include <sys/kstat.h>
-#include <sys/zthr.h>
+#include <spl/callb.h>
+#include <spl/kstat.h>
+#include <zfs/zthr.h>
 #include <zfs_fletcher.h>
-#include <sys/arc_impl.h>
-#include <sys/trace_zfs.h>
-#include <sys/aggsum.h>
+#include <zfs/arc_impl.h>
+#include <zfs/trace_zfs.h>
+#include <zfs/aggsum.h>
 
 /*
  * This is a limit on how many pages the ARC shrinker makes available for

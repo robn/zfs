@@ -13,12 +13,12 @@
  * Copyright 2020 Toomas Soome <tsoome@me.com>
  */
 
-#include <sys/types.h>
+#include <spl/types.h>
 #include <string.h>
 #include <libzfs.h>
 #include <libzfsbootenv.h>
-#include <sys/zfs_bootenv.h>
-#include <sys/vdev_impl.h>
+#include <zfs/zfs_bootenv.h>
+#include <zfs/vdev_impl.h>
 
 /*
  * Store device name to zpool label bootenv area.

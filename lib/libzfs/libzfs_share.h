@@ -31,7 +31,7 @@
 #ifndef _LIBZFS_SHARE_H
 #define	_LIBZFS_SHARE_H
 
-#include <sys/types.h>
+#include <spl/types.h>
 
 /*
  * defined error values

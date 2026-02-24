@@ -26,16 +26,16 @@
  * Copyright (c) 2025, Klara, Inc.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/txg_impl.h>
-#include <sys/dmu_impl.h>
-#include <sys/spa_impl.h>
-#include <sys/dmu_tx.h>
-#include <sys/dsl_pool.h>
-#include <sys/dsl_scan.h>
-#include <sys/zil.h>
-#include <sys/callb.h>
-#include <sys/trace_zfs.h>
+#include <zfs/zfs_context.h>
+#include <zfs/txg_impl.h>
+#include <zfs/dmu_impl.h>
+#include <zfs/spa_impl.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/dsl_pool.h>
+#include <zfs/dsl_scan.h>
+#include <zfs/zil.h>
+#include <spl/callb.h>
+#include <zfs/trace_zfs.h>
 
 /*
  * ZFS Transaction Groups

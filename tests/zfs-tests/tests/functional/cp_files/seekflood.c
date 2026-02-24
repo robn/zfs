@@ -33,7 +33,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <sys/stat.h>
+#include <spl/stat.h>
 #include <sys/wait.h>
 
 /* some older uClibc's lack the defines, so we'll manually define them */

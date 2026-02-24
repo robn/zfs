@@ -9,8 +9,8 @@
 #define ldo_c
 #define LUA_CORE
 
-#include <sys/lua/lua.h>
-#include <sys/asm_linkage.h>
+#include <zfs/lua/lua.h>
+#include <zfs/asm_linkage.h>
 
 #include "lapi.h"
 #include "ldebug.h"

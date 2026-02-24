@@ -24,8 +24,8 @@
  * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/kstat.h>
+#include <zfs/zfs_context.h>
+#include <spl/kstat.h>
 
 typedef struct zfs_dbgmsg {
 	list_node_t zdm_node;

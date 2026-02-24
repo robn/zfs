@@ -39,7 +39,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
-#include <sys/stat.h>
+#include <spl/stat.h>
 #include <sys/mman.h>
 
 #if defined(_GNU_SOURCE) && defined(__linux__)

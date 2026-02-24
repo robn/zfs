@@ -33,7 +33,7 @@
 #include <err.h>
 #include <unistd.h>
 #include <string.h>
-#include <sys/param.h>
+#include <spl/param.h>
 #include <libzutil.h>
 
 static struct {

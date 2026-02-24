@@ -37,11 +37,11 @@
  * won't be able to open the pool anyway.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/spa.h>
-#include <sys/vdev_impl.h>
-#include <sys/fs/zfs.h>
-#include <sys/zio.h>
+#include <zfs/zfs_context.h>
+#include <zfs/spa.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/fs/zfs.h>
+#include <zfs/zio.h>
 
 static int
 vdev_missing_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,

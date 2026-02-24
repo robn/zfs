@@ -30,7 +30,7 @@
  */
 
 #include "file_common.h"
-#include <sys/types.h>
+#include <spl/types.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>

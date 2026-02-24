@@ -70,18 +70,18 @@
 #include <libnvpair.h>
 #include <libzutil.h>
 #include <limits.h>
-#include <sys/spa.h>
+#include <zfs/spa.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 #include <paths.h>
-#include <sys/stat.h>
+#include <spl/stat.h>
 #include <sys/disk.h>
-#include <sys/mntent.h>
+#include <zfs/mntent.h>
 #include <libgeom.h>
 
 #include "zpool_util.h"
-#include <sys/zfs_context.h>
+#include <zfs/zfs_context.h>
 
 int
 check_device(const char *name, boolean_t force, boolean_t isspare,

@@ -26,7 +26,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include <sys/param.h>
+#include <spl/param.h>
 #include <stdlib.h>
 
 /*

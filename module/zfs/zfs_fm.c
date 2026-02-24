@@ -28,17 +28,17 @@
  * Copyright (c) 2012,2021 by Delphix. All rights reserved.
  */
 
-#include <sys/spa.h>
-#include <sys/spa_impl.h>
-#include <sys/vdev.h>
-#include <sys/vdev_impl.h>
-#include <sys/zio.h>
-#include <sys/zio_checksum.h>
+#include <zfs/spa.h>
+#include <zfs/spa_impl.h>
+#include <zfs/vdev.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/zio.h>
+#include <zfs/zio_checksum.h>
 
-#include <sys/fm/fs/zfs.h>
-#include <sys/fm/protocol.h>
-#include <sys/fm/util.h>
-#include <sys/sysevent.h>
+#include <zfs/fm/fs/zfs.h>
+#include <zfs/fm/protocol.h>
+#include <zfs/fm/util.h>
+#include <zfs/sysevent.h>
 
 /*
  * This general routine is responsible for generating all the different ZFS

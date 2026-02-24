@@ -28,8 +28,8 @@
 #ifndef	_SYS_ATOMIC_H
 #define	_SYS_ATOMIC_H
 
-#include <sys/types.h>
-#include <sys/inttypes.h>
+#include <spl/types.h>
+#include <spl/inttypes.h>
 
 #ifdef	__cplusplus
 extern "C" {

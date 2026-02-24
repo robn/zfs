@@ -23,12 +23,12 @@
  * Copyright (C) 2016 Gvozden Nešković. All rights reserved.
  */
 
-#include <sys/isa_defs.h>
+#include <spl/isa_defs.h>
 
 #if defined(__x86_64) && HAVE_SIMD(AVX2)
 
-#include <sys/types.h>
-#include <sys/simd.h>
+#include <spl/types.h>
+#include <spl/simd.h>
 
 #ifdef __linux__
 #define	__asm __asm__ __volatile__
@@ -391,7 +391,7 @@ static const uint8_t __attribute__((aligned(32))) _mul_mask = 0x0F;
 #define	REC_PQR_YS		8, 9
 
 
-#include <sys/vdev_raidz_impl.h>
+#include <zfs/vdev_raidz_impl.h>
 #include "vdev_raidz_math_impl.h"
 
 DEFINE_GEN_METHODS(avx2);

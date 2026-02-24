@@ -87,11 +87,11 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <libzutil.h>
-#include <sys/nvpair.h>
-#include <sys/param.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/zfs_ioctl.h>
+#include <zfs/nvpair.h>
+#include <spl/param.h>
+#include <spl/types.h>
+#include <spl/stat.h>
+#include <zfs/zfs_ioctl.h>
 #if __FreeBSD__
 #define	BIG_PIPE_SIZE (64 * 1024) /* From sys/pipe.h */
 #endif

@@ -32,7 +32,7 @@
  * this functionality.
  */
 
-#include <sys/policy.h>
+#include <zfs/policy.h>
 #include <linux/security.h>
 #include <linux/vfs_compat.h>
 

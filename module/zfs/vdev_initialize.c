@@ -24,15 +24,15 @@
  * Copyright (c) 2016, 2024 by Delphix. All rights reserved.
  */
 
-#include <sys/spa.h>
-#include <sys/spa_impl.h>
-#include <sys/txg.h>
-#include <sys/vdev_impl.h>
-#include <sys/metaslab_impl.h>
-#include <sys/dsl_synctask.h>
-#include <sys/zap.h>
-#include <sys/dmu_tx.h>
-#include <sys/vdev_initialize.h>
+#include <zfs/spa.h>
+#include <zfs/spa_impl.h>
+#include <zfs/txg.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/metaslab_impl.h>
+#include <zfs/dsl_synctask.h>
+#include <zfs/zap.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/vdev_initialize.h>
 
 /*
  * Value that is written to disk during initialization.

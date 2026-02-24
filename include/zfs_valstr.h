@@ -27,8 +27,8 @@
 #ifndef	_ZFS_VALSTR_H
 #define	_ZFS_VALSTR_H extern __attribute__((visibility("default")))
 
-#include <sys/fs/zfs.h>
-#include <sys/types.h>
+#include <zfs/fs/zfs.h>
+#include <spl/types.h>
 
 #ifdef	__cplusplus
 extern "C" {

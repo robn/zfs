@@ -24,13 +24,13 @@
  * Copyright (c) 2021-2022 Tino Reichardt <milky-zfs@mcmilk.de>
  */
 
-#include <sys/zio_checksum.h>
-#include <sys/zfs_context.h>
-#include <sys/zfs_chksum.h>
-#include <sys/zfs_impl.h>
+#include <zfs/zio_checksum.h>
+#include <zfs/zfs_context.h>
+#include <zfs/zfs_chksum.h>
+#include <zfs/zfs_impl.h>
 
-#include <sys/blake3.h>
-#include <sys/sha2.h>
+#include <zfs/blake3.h>
+#include <zfs/sha2.h>
 
 typedef struct {
 	const char *name;

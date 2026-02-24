@@ -30,11 +30,11 @@
  * layer, between the kernel API/ioctls and the SPI.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/crypto/common.h>
+#include <zfs/zfs_context.h>
+#include <zfs/crypto/common.h>
 #include <sys/crypto/impl.h>
 #include <sys/crypto/sched_impl.h>
-#include <sys/crypto/api.h>
+#include <zfs/crypto/api.h>
 
 /* kmem caches used by the scheduler */
 static kmem_cache_t *kcf_context_cache;

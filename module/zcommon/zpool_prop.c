@@ -27,11 +27,11 @@
  * Copyright (c) 2021, 2023, Klara Inc.
  */
 
-#include <sys/zio.h>
-#include <sys/spa.h>
-#include <sys/zfs_acl.h>
-#include <sys/zfs_ioctl.h>
-#include <sys/fs/zfs.h>
+#include <zfs/zio.h>
+#include <zfs/spa.h>
+#include <zfs/zfs_acl.h>
+#include <zfs/zfs_ioctl.h>
+#include <zfs/fs/zfs.h>
 
 #include "zfs_prop.h"
 

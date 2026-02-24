@@ -30,10 +30,10 @@
 #ifdef HAVE_VFS_SPLICE_COPY_FILE_RANGE
 #include <linux/splice.h>
 #endif
-#include <sys/file.h>
-#include <sys/zfs_znode.h>
-#include <sys/zfs_vnops.h>
-#include <sys/zfeature.h>
+#include <spl/file.h>
+#include <zfs/zfs_znode.h>
+#include <zfs/zfs_vnops.h>
+#include <zfs/zfeature.h>
 
 /*
  * Clone part of a file via block cloning.

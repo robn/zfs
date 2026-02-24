@@ -66,28 +66,28 @@
  * so that it cannot be freed until all snapshots have been unmounted.
  */
 
-#include <sys/types.h>
-#include <sys/param.h>
+#include <spl/types.h>
+#include <spl/param.h>
 #include <sys/libkern.h>
-#include <sys/dirent.h>
-#include <sys/zfs_context.h>
-#include <sys/zfs_ctldir.h>
-#include <sys/zfs_ioctl.h>
-#include <sys/zfs_vfsops.h>
+#include <spl/dirent.h>
+#include <zfs/zfs_context.h>
+#include <zfs/zfs_ctldir.h>
+#include <zfs/zfs_ioctl.h>
+#include <zfs/zfs_vfsops.h>
 #include <sys/namei.h>
-#include <sys/stat.h>
-#include <sys/dmu.h>
-#include <sys/dsl_dataset.h>
-#include <sys/dsl_destroy.h>
-#include <sys/dsl_deleg.h>
-#include <sys/mount.h>
-#include <sys/zap.h>
+#include <spl/stat.h>
+#include <zfs/dmu.h>
+#include <zfs/dsl_dataset.h>
+#include <zfs/dsl_destroy.h>
+#include <zfs/dsl_deleg.h>
+#include <spl/mount.h>
+#include <zfs/zap.h>
 #include <sys/sysproto.h>
 
 #include "zfs_namecheck.h"
 
 #include <sys/kernel.h>
-#include <sys/ccompat.h>
+#include <spl/ccompat.h>
 
 /* Common access mode for all virtual directories under the ctldir */
 const uint16_t zfsctl_ctldir_mode = S_IRUSR | S_IXUSR | S_IRGRP | S_IXGRP |
@@ -519,7 +519,7 @@ zfsctl_common_getattr(vnode_t *vp, vattr_t *vap)
 	vap->va_nlink = 2;
 }
 
-#ifndef _OPENSOLARIS_SYS_VNODE_H_
+#ifndef _SPL_VNODE_H
 struct vop_fid_args {
 	struct vnode *a_vp;
 	struct fid *a_fid;

@@ -23,18 +23,18 @@
  * Copyright (c) 2017, 2018 by Delphix. All rights reserved.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/txg.h>
-#include <sys/dmu_objset.h>
-#include <sys/dmu_traverse.h>
-#include <sys/dmu_redact.h>
-#include <sys/bqueue.h>
-#include <sys/objlist.h>
-#include <sys/dmu_tx.h>
+#include <zfs/zfs_context.h>
+#include <zfs/txg.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/dmu_traverse.h>
+#include <zfs/dmu_redact.h>
+#include <zfs/bqueue.h>
+#include <zfs/objlist.h>
+#include <zfs/dmu_tx.h>
 #ifdef _KERNEL
-#include <sys/zfs_vfsops.h>
-#include <sys/zap.h>
-#include <sys/zfs_znode.h>
+#include <zfs/zfs_vfsops.h>
+#include <zfs/zap.h>
+#include <zfs/zfs_znode.h>
 #endif
 
 /*

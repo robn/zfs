@@ -59,9 +59,9 @@
  *
  */
 
-#include <sys/kmem.h>
-#include <sys/thread.h>
-#include <sys/tsd.h>
+#include <spl/kmem.h>
+#include <spl/thread.h>
+#include <spl/tsd.h>
 #include <linux/hash.h>
 
 typedef struct tsd_hash_bin {

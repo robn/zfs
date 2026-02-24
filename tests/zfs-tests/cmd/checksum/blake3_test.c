@@ -29,10 +29,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <sys/time.h>
-#include <sys/blake3.h>
+#include <spl/time.h>
+#include <zfs/blake3.h>
 
-#include <sys/zfs_impl.h>
+#include <zfs/zfs_impl.h>
 
 /*
  * set it to a define for debugging

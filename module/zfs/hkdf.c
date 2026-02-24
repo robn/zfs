@@ -18,9 +18,9 @@
  * Copyright (c) 2017, Datto, Inc. All rights reserved.
  */
 
-#include <sys/crypto/api.h>
-#include <sys/sha2.h>
-#include <sys/hkdf.h>
+#include <zfs/crypto/api.h>
+#include <zfs/sha2.h>
+#include <zfs/hkdf.h>
 
 static int
 hkdf_sha512_extract(uint8_t *salt, uint_t salt_len, uint8_t *key_material,

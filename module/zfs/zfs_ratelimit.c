@@ -24,7 +24,7 @@
  * Copyright (c) 2017, Lawrence Livermore National Security, LLC.
  */
 
-#include <sys/zfs_ratelimit.h>
+#include <zfs/zfs_ratelimit.h>
 
 /*
  * Initialize rate limit struct

@@ -27,7 +27,7 @@
 #ifndef HAVE_STRLCAT
 
 #include <string.h>
-#include <sys/types.h>
+#include <spl/types.h>
 
 /*
  * Appends src to the dstsize buffer at dst. The append will never

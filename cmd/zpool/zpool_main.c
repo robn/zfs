@@ -58,15 +58,15 @@
 #include <zone.h>
 #include <sys/wait.h>
 #include <zfs_prop.h>
-#include <sys/fs/zfs.h>
-#include <sys/stat.h>
-#include <sys/systeminfo.h>
-#include <sys/fm/fs/zfs.h>
-#include <sys/fm/util.h>
-#include <sys/fm/protocol.h>
-#include <sys/zfs_ioctl.h>
-#include <sys/mount.h>
-#include <sys/sysmacros.h>
+#include <zfs/fs/zfs.h>
+#include <spl/stat.h>
+#include <spl/systeminfo.h>
+#include <zfs/fm/fs/zfs.h>
+#include <zfs/fm/util.h>
+#include <zfs/fm/protocol.h>
+#include <zfs/zfs_ioctl.h>
+#include <spl/mount.h>
+#include <spl/sysmacros.h>
 #include <string.h>
 #include <math.h>
 

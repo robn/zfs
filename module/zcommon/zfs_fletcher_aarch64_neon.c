@@ -44,9 +44,9 @@
 
 #if defined(__aarch64__)
 
-#include <sys/simd.h>
-#include <sys/spa_checksum.h>
-#include <sys/string.h>
+#include <spl/simd.h>
+#include <zfs/spa_checksum.h>
+#include <spl/string.h>
 #include <zfs_fletcher.h>
 
 static void

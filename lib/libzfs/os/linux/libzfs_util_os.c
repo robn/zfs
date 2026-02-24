@@ -35,11 +35,11 @@
 #include <stdlib.h>
 #include <strings.h>
 #include <sys/inotify.h>
-#include <sys/mntent.h>
-#include <sys/mnttab.h>
-#include <sys/stat.h>
+#include <zfs/mntent.h>
+#include <spl/mnttab.h>
+#include <spl/stat.h>
 #include <sys/timerfd.h>
-#include <sys/types.h>
+#include <spl/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -49,7 +49,7 @@
 #include "../../libzfs_impl.h"
 #include "zfs_prop.h"
 #include <libzutil.h>
-#include <sys/zfs_sysfs.h>
+#include <zfs/zfs_sysfs.h>
 
 #define	ZDIFF_SHARESDIR		"/.zfs/shares/"
 

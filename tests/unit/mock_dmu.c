@@ -19,13 +19,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <sys/zfs_context.h>
-#include <sys/dmu.h>
-#include <sys/dmu_tx.h>
-#include <sys/dnode.h>
-#include <sys/dsl_dataset.h>
-#include <sys/spa.h>
-#include <sys/zfeature.h>
+#include <zfs/zfs_context.h>
+#include <zfs/dmu.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/dnode.h>
+#include <zfs/dsl_dataset.h>
+#include <zfs/spa.h>
+#include <zfs/zfeature.h>
 
 #include "mock_dmu.h"
 #include "unit.h"

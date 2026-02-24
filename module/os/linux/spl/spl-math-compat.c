@@ -24,8 +24,8 @@
  *  Solaris Porting Layer (SPL) Generic Implementation.
  */
 
-#include <sys/isa_defs.h>
-#include <sys/sysmacros.h>
+#include <spl/isa_defs.h>
+#include <spl/sysmacros.h>
 
 /*
  * 64-bit math support for 32-bit platforms. Compilers will generatee

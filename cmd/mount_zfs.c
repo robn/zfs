@@ -27,10 +27,10 @@
 
 #include <libintl.h>
 #include <unistd.h>
-#include <sys/file.h>
-#include <sys/mount.h>
-#include <sys/mntent.h>
-#include <sys/stat.h>
+#include <spl/file.h>
+#include <spl/mount.h>
+#include <zfs/mntent.h>
+#include <spl/stat.h>
 #include <libzfs.h>
 #include <libzutil.h>
 #include <locale.h>

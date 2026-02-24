@@ -25,8 +25,8 @@
  * source file, so this dummy file exists for that purpose.
  */
 
-#include <sys/taskq.h>
+#include <spl/taskq.h>
 
 #define	CREATE_TRACE_POINTS
-#include <sys/trace.h>
-#include <sys/trace_taskq.h>
+#include <spl/trace.h>
+#include <spl/trace_taskq.h>

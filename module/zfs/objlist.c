@@ -17,8 +17,8 @@
  * Copyright (c) 2018 by Delphix. All rights reserved.
  */
 
-#include	<sys/objlist.h>
-#include	<sys/zfs_context.h>
+#include	<zfs/objlist.h>
+#include	<zfs/zfs_context.h>
 
 objlist_t *
 objlist_create(void)

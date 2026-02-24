@@ -16,7 +16,7 @@
 #ifndef	ZED_FILE_H
 #define	ZED_FILE_H
 
-#include <sys/types.h>
+#include <spl/types.h>
 #include <unistd.h>
 
 int zed_file_lock(int fd);

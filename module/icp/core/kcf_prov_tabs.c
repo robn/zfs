@@ -40,8 +40,8 @@
  * provider descriptors.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/crypto/common.h>
+#include <zfs/zfs_context.h>
+#include <zfs/crypto/common.h>
 #include <sys/crypto/impl.h>
 #include <sys/crypto/sched_impl.h>
 #include <sys/crypto/spi.h>

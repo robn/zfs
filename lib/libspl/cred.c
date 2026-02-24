@@ -26,7 +26,7 @@
  * Copyright (c) 2025, Klara, Inc.
  */
 
-#include <sys/cred.h>
+#include <spl/cred.h>
 
 uid_t
 crgetuid(cred_t *cr)

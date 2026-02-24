@@ -33,18 +33,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/file.h>
-#include <sys/mntent.h>
-#include <sys/mnttab.h>
-#include <sys/param.h>
-#include <sys/stat.h>
+#include <spl/file.h>
+#include <zfs/mntent.h>
+#include <spl/mnttab.h>
+#include <spl/param.h>
+#include <spl/stat.h>
 
-#include <sys/dmu.h>
-#include <sys/dmu_objset.h>
-#include <sys/dnode.h>
-#include <sys/vdev_impl.h>
+#include <zfs/dmu.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/dnode.h>
+#include <zfs/vdev_impl.h>
 
-#include <sys/mkdev.h>
+#include <spl/mkdev.h>
 
 #include "zinject.h"
 

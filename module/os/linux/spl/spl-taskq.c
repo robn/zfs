@@ -28,13 +28,13 @@
  * Copyright (c) 2024, Syneto
  */
 
-#include <sys/timer.h>
-#include <sys/taskq.h>
-#include <sys/kmem.h>
-#include <sys/tsd.h>
-#include <sys/time.h>
-#include <sys/atomic.h>
-#include <sys/kstat.h>
+#include <spl/timer.h>
+#include <spl/taskq.h>
+#include <spl/kmem.h>
+#include <spl/tsd.h>
+#include <spl/time.h>
+#include <spl/atomic.h>
+#include <spl/kstat.h>
 #include <linux/cpuhotplug.h>
 #include <linux/mod_compat.h>
 

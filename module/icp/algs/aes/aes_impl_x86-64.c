@@ -25,7 +25,7 @@
 
 #if defined(__x86_64)
 
-#include <sys/simd.h>
+#include <spl/simd.h>
 #include <aes/aes_impl.h>
 
 /*

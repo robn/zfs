@@ -26,7 +26,7 @@
 #ifndef	_ZINJECT_H
 #define	_ZINJECT_H
 
-#include <sys/zfs_ioctl.h>
+#include <zfs/zfs_ioctl.h>
 
 #ifdef	__cplusplus
 extern "C" {

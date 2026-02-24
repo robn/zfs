@@ -25,33 +25,33 @@
  * Copyright 2017 Nexenta Systems, Inc.  All rights reserved.
  */
 
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/time.h>
-#include <sys/systm.h>
-#include <sys/sysmacros.h>
+#include <spl/types.h>
+#include <spl/param.h>
+#include <spl/time.h>
+#include <spl/systm.h>
+#include <spl/sysmacros.h>
 #include <sys/resource.h>
-#include <sys/vfs.h>
-#include <sys/vnode.h>
-#include <sys/file.h>
-#include <sys/stat.h>
-#include <sys/kmem.h>
-#include <sys/cmn_err.h>
-#include <sys/errno.h>
+#include <spl/vfs.h>
+#include <spl/vnode.h>
+#include <spl/file.h>
+#include <spl/stat.h>
+#include <spl/kmem.h>
+#include <spl/cmn_err.h>
+#include <spl/errno.h>
 #include <sys/unistd.h>
 #include <sys/sdt.h>
-#include <sys/fs/zfs.h>
-#include <sys/policy.h>
-#include <sys/zfs_znode.h>
-#include <sys/zfs_fuid.h>
-#include <sys/zfs_acl.h>
-#include <sys/zfs_dir.h>
-#include <sys/zfs_quota.h>
-#include <sys/zfs_vfsops.h>
-#include <sys/dmu.h>
-#include <sys/dnode.h>
-#include <sys/zap.h>
-#include <sys/sa.h>
+#include <zfs/fs/zfs.h>
+#include <zfs/policy.h>
+#include <zfs/zfs_znode.h>
+#include <zfs/zfs_fuid.h>
+#include <zfs/zfs_acl.h>
+#include <zfs/zfs_dir.h>
+#include <zfs/zfs_quota.h>
+#include <zfs/zfs_vfsops.h>
+#include <zfs/dmu.h>
+#include <zfs/dnode.h>
+#include <zfs/zap.h>
+#include <zfs/sa.h>
 #include <acl/acl_common.h>
 
 

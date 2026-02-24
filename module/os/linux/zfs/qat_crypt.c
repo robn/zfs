@@ -32,11 +32,11 @@
 #include <linux/vmalloc.h>
 #include <linux/pagemap.h>
 #include <linux/completion.h>
-#include <sys/zfs_context.h>
-#include <sys/zio_crypt.h>
+#include <zfs/zfs_context.h>
+#include <zfs/zio_crypt.h>
 #include "lac/cpa_cy_im.h"
 #include "lac/cpa_cy_common.h"
-#include <sys/qat.h>
+#include <zfs/qat.h>
 
 /*
  * Max instances in a QAT device, each instance is a channel to submit

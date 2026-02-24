@@ -20,9 +20,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stddef.h>
-#include <sys/avl.h>
+#include <zfs/avl.h>
 #include <sys/resource.h>
-#include <sys/stat.h>
+#include <spl/stat.h>
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>

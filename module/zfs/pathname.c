@@ -38,10 +38,10 @@
  */
 
 
-#include <sys/types.h>
-#include <sys/pathname.h>
-#include <sys/kmem.h>
-#include <sys/sysmacros.h>
+#include <spl/types.h>
+#include <zfs/pathname.h>
+#include <spl/kmem.h>
+#include <spl/sysmacros.h>
 
 /*
  * Pathname utilities.

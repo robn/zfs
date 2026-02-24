@@ -26,7 +26,7 @@
  * Copyright (c) 2025, Klara, Inc.
  */
 
-#include <sys/kmem.h>
+#include <spl/kmem.h>
 
 char *
 kmem_vasprintf(const char *fmt, va_list adx)

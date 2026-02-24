@@ -44,10 +44,10 @@
 
 #if HAVE_SIMD(SSE2)
 
-#include <sys/simd.h>
-#include <sys/spa_checksum.h>
-#include <sys/string.h>
-#include <sys/byteorder.h>
+#include <spl/simd.h>
+#include <zfs/spa_checksum.h>
+#include <spl/string.h>
+#include <spl/byteorder.h>
 #include <zfs_fletcher.h>
 
 static void

@@ -27,8 +27,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/nvpair.h>
-#include <sys/fs/zfs.h>
+#include <zfs/nvpair.h>
+#include <zfs/fs/zfs.h>
 #include <math.h>
 
 #include <libzutil.h>

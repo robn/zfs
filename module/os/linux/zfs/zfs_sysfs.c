@@ -23,13 +23,13 @@
  * Copyright (c) 2018, 2019 by Delphix. All rights reserved.
  */
 
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/zfeature.h>
-#include <sys/zfs_ioctl.h>
-#include <sys/zfs_sysfs.h>
-#include <sys/kmem.h>
-#include <sys/fs/zfs.h>
+#include <spl/types.h>
+#include <spl/param.h>
+#include <zfs/zfeature.h>
+#include <zfs/zfs_ioctl.h>
+#include <zfs/zfs_sysfs.h>
+#include <spl/kmem.h>
+#include <zfs/fs/zfs.h>
 #include <linux/kobject.h>
 
 #include "zfs_prop.h"

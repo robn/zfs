@@ -28,36 +28,36 @@
  * Copyright 2019 Joyent, Inc.
  */
 
-#include <sys/dsl_scan.h>
-#include <sys/dsl_pool.h>
-#include <sys/dsl_dataset.h>
-#include <sys/dsl_prop.h>
-#include <sys/dsl_dir.h>
-#include <sys/dsl_synctask.h>
-#include <sys/dnode.h>
-#include <sys/dmu_tx.h>
-#include <sys/dmu_objset.h>
-#include <sys/arc.h>
-#include <sys/arc_impl.h>
-#include <sys/zap.h>
-#include <sys/zio.h>
-#include <sys/zfs_context.h>
-#include <sys/fs/zfs.h>
-#include <sys/zfs_znode.h>
-#include <sys/spa_impl.h>
-#include <sys/vdev_impl.h>
-#include <sys/zil_impl.h>
-#include <sys/zio_checksum.h>
-#include <sys/brt.h>
-#include <sys/ddt.h>
-#include <sys/sa.h>
-#include <sys/sa_impl.h>
-#include <sys/zfeature.h>
-#include <sys/abd.h>
-#include <sys/range_tree.h>
-#include <sys/dbuf.h>
+#include <zfs/dsl_scan.h>
+#include <zfs/dsl_pool.h>
+#include <zfs/dsl_dataset.h>
+#include <zfs/dsl_prop.h>
+#include <zfs/dsl_dir.h>
+#include <zfs/dsl_synctask.h>
+#include <zfs/dnode.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/arc.h>
+#include <zfs/arc_impl.h>
+#include <zfs/zap.h>
+#include <zfs/zio.h>
+#include <zfs/zfs_context.h>
+#include <zfs/fs/zfs.h>
+#include <zfs/zfs_znode.h>
+#include <zfs/spa_impl.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/zil_impl.h>
+#include <zfs/zio_checksum.h>
+#include <zfs/brt.h>
+#include <zfs/ddt.h>
+#include <zfs/sa.h>
+#include <zfs/sa_impl.h>
+#include <zfs/zfeature.h>
+#include <zfs/abd.h>
+#include <zfs/range_tree.h>
+#include <zfs/dbuf.h>
 #ifdef _KERNEL
-#include <sys/zfs_vfsops.h>
+#include <zfs/zfs_vfsops.h>
 #endif
 
 /*

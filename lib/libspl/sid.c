@@ -26,7 +26,7 @@
  * Copyright (c) 2025, Klara, Inc.
  */
 
-#include <sys/sid.h>
+#include <spl/sid.h>
 #include <umem.h>
 
 ksiddomain_t *

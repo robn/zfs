@@ -35,14 +35,14 @@
 #include <string.h>
 #include <dirent.h>
 #include <search.h>
-#include <sys/stat.h>
+#include <spl/stat.h>
 #endif
-#include <sys/debug.h>
-#include <sys/fs/zfs.h>
-#include <sys/inttypes.h>
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/zfs_sysfs.h>
+#include <spl/debug.h>
+#include <zfs/fs/zfs.h>
+#include <spl/inttypes.h>
+#include <spl/types.h>
+#include <spl/param.h>
+#include <zfs/zfs_sysfs.h>
 #include "zfeature_common.h"
 
 /*

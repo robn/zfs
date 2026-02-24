@@ -24,9 +24,9 @@
  *  Solaris Porting Layer (SPL) Condition Variables Implementation.
  */
 
-#include <sys/condvar.h>
-#include <sys/time.h>
-#include <sys/sysmacros.h>
+#include <spl/condvar.h>
+#include <spl/time.h>
+#include <spl/sysmacros.h>
 #include <linux/hrtimer.h>
 #include <linux/compiler_compat.h>
 #include <linux/mod_compat.h>

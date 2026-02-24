@@ -27,8 +27,8 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
-#include <sys/param.h>
+#include <spl/types.h>
+#include <spl/param.h>
 #include <sys/queue.h>
 #include <sys/sdt.h>
 

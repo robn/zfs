@@ -30,12 +30,12 @@
  * running in userspace, but we need -D_KERNEL for the remaining Edon-R code).
  */
 
-#include <sys/edonr.h>
+#include <zfs/edonr.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <sys/time.h>
-#include <sys/stdtypes.h>
+#include <spl/time.h>
+#include <spl/stdtypes.h>
 
 /*
  * Test messages from:

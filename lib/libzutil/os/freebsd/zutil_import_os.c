@@ -43,10 +43,10 @@
  * using our derived config, and record the results.
  */
 
-#include <sys/types.h>
+#include <spl/types.h>
 #include <sys/disk.h>
 #include <sys/ioctl.h>
-#include <sys/stat.h>
+#include <spl/stat.h>
 #include <sys/sysctl.h>
 
 #include <aio.h>
@@ -61,10 +61,10 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#include <sys/efi_partition.h>
+#include <zfs/efi_partition.h>
 #include <libgeom.h>
 
-#include <sys/vdev_impl.h>
+#include <zfs/vdev_impl.h>
 
 #include <libzutil.h>
 

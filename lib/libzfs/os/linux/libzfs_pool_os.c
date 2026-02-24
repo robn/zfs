@@ -39,11 +39,11 @@
 #include <unistd.h>
 #include <libgen.h>
 #include <zone.h>
-#include <sys/stat.h>
-#include <sys/efi_partition.h>
-#include <sys/systeminfo.h>
-#include <sys/zfs_ioctl.h>
-#include <sys/vdev_disk.h>
+#include <spl/stat.h>
+#include <zfs/efi_partition.h>
+#include <spl/systeminfo.h>
+#include <zfs/zfs_ioctl.h>
+#include <zfs/vdev_disk.h>
 #include <dlfcn.h>
 #include <libzutil.h>
 

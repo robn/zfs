@@ -27,16 +27,16 @@
  * Copyright 2023 RackTop Systems, Inc.
  */
 
-#include <sys/spa.h>
-#include <sys/spa_impl.h>
-#include <sys/txg.h>
-#include <sys/vdev_impl.h>
-#include <sys/vdev_trim.h>
-#include <sys/metaslab_impl.h>
-#include <sys/dsl_synctask.h>
-#include <sys/zap.h>
-#include <sys/dmu_tx.h>
-#include <sys/arc_impl.h>
+#include <zfs/spa.h>
+#include <zfs/spa_impl.h>
+#include <zfs/txg.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/vdev_trim.h>
+#include <zfs/metaslab_impl.h>
+#include <zfs/dsl_synctask.h>
+#include <zfs/zap.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/arc_impl.h>
 
 /*
  * TRIM is a feature which is used to notify a SSD that some previously

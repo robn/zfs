@@ -33,34 +33,34 @@
 /* Portions Copyright 2007 Jeremy Teo */
 /* Portions Copyright 2010 Robert Milkowski */
 
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/time.h>
-#include <sys/sysmacros.h>
-#include <sys/vfs.h>
-#include <sys/file.h>
-#include <sys/stat.h>
-#include <sys/kmem.h>
-#include <sys/cmn_err.h>
-#include <sys/errno.h>
-#include <sys/zfs_dir.h>
-#include <sys/zfs_acl.h>
-#include <sys/zfs_ioctl.h>
-#include <sys/fs/zfs.h>
-#include <sys/dmu.h>
-#include <sys/dmu_objset.h>
-#include <sys/dsl_crypt.h>
-#include <sys/dsl_dataset.h>
-#include <sys/spa.h>
-#include <sys/txg.h>
-#include <sys/brt.h>
-#include <sys/dbuf.h>
-#include <sys/policy.h>
-#include <sys/zfeature.h>
-#include <sys/zfs_vnops.h>
-#include <sys/zfs_quota.h>
-#include <sys/zfs_vfsops.h>
-#include <sys/zfs_znode.h>
+#include <spl/types.h>
+#include <spl/param.h>
+#include <spl/time.h>
+#include <spl/sysmacros.h>
+#include <spl/vfs.h>
+#include <spl/file.h>
+#include <spl/stat.h>
+#include <spl/kmem.h>
+#include <spl/cmn_err.h>
+#include <spl/errno.h>
+#include <zfs/zfs_dir.h>
+#include <zfs/zfs_acl.h>
+#include <zfs/zfs_ioctl.h>
+#include <zfs/fs/zfs.h>
+#include <zfs/dmu.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/dsl_crypt.h>
+#include <zfs/dsl_dataset.h>
+#include <zfs/spa.h>
+#include <zfs/txg.h>
+#include <zfs/brt.h>
+#include <zfs/dbuf.h>
+#include <zfs/policy.h>
+#include <zfs/zfeature.h>
+#include <zfs/zfs_vnops.h>
+#include <zfs/zfs_quota.h>
+#include <zfs/zfs_vfsops.h>
+#include <zfs/zfs_znode.h>
 
 /*
  * Enables access to the block cloning feature. If this setting is 0, then even

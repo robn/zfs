@@ -42,15 +42,15 @@
 
 #ifdef _KERNEL
 
-#include <sys/errno.h>
-#include <sys/vmem.h>
-#include <sys/sysmacros.h>
-#include <sys/types.h>
-#include <sys/uio_impl.h>
-#include <sys/sysmacros.h>
-#include <sys/string.h>
-#include <sys/zfs_refcount.h>
-#include <sys/zfs_debug.h>
+#include <spl/errno.h>
+#include <spl/vmem.h>
+#include <spl/sysmacros.h>
+#include <spl/types.h>
+#include <zfs/uio_impl.h>
+#include <spl/sysmacros.h>
+#include <spl/string.h>
+#include <zfs/zfs_refcount.h>
+#include <zfs/zfs_debug.h>
 #include <linux/kmap_compat.h>
 #include <linux/uaccess.h>
 #include <linux/pagemap.h>

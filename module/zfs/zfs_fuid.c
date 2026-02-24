@@ -23,17 +23,17 @@
  * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/dmu.h>
-#include <sys/avl.h>
-#include <sys/zap.h>
-#include <sys/nvpair.h>
-#include <sys/sid.h>
+#include <zfs/zfs_context.h>
+#include <zfs/dmu.h>
+#include <zfs/avl.h>
+#include <zfs/zap.h>
+#include <zfs/nvpair.h>
+#include <spl/sid.h>
 #ifdef _KERNEL
-#include <sys/zfs_vfsops.h>
-#include <sys/zfs_znode.h>
+#include <zfs/zfs_vfsops.h>
+#include <zfs/zfs_znode.h>
 #endif
-#include <sys/zfs_fuid.h>
+#include <zfs/zfs_fuid.h>
 
 /*
  * FUID Domain table(s).

@@ -25,11 +25,11 @@
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
  */
 
-#include <sys/dmu.h>
-#include <sys/zap.h>
-#include <sys/zfs_context.h>
-#include <sys/dsl_pool.h>
-#include <sys/dsl_dataset.h>
+#include <zfs/dmu.h>
+#include <zfs/zap.h>
+#include <zfs/zfs_context.h>
+#include <zfs/dsl_pool.h>
+#include <zfs/dsl_dataset.h>
 
 /*
  * Deadlist concurrency:

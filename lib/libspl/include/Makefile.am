@@ -23,94 +23,92 @@ libspl_rpc_HEADERS = \
 	%D%/rpc/xdr.h
 
 
-libspl_sysdir = $(libspldir)/sys
-libspl_sys_HEADERS = \
-	%D%/sys/acl.h \
-	%D%/sys/acl_impl.h \
-	%D%/sys/asm_linkage.h \
-	%D%/sys/backtrace.h \
-	%D%/sys/callb.h \
-	%D%/sys/cmn_err.h \
-	%D%/sys/condvar.h \
-	%D%/sys/cred.h \
-	%D%/sys/debug.h \
-	%D%/sys/dkio.h \
-	%D%/sys/dklabel.h \
-	%D%/sys/feature_tests.h \
-	%D%/sys/inttypes.h \
-	%D%/sys/isa_defs.h \
-	%D%/sys/kmem.h \
-	%D%/sys/kstat.h \
-	%D%/sys/list.h \
-	%D%/sys/list_impl.h \
-	%D%/sys/misc.h \
-	%D%/sys/mhd.h \
-	%D%/sys/mkdev.h \
-	%D%/sys/mod.h \
-	%D%/sys/mutex.h \
-	%D%/sys/policy.h \
-	%D%/sys/poll.h \
-	%D%/sys/priv.h \
-	%D%/sys/processor.h \
-	%D%/sys/procfs_list.h \
-	%D%/sys/random.h \
-	%D%/sys/rwlock.h \
-	%D%/sys/sid.h \
-	%D%/sys/simd.h \
-	%D%/sys/stack.h \
-	%D%/sys/stdtypes.h \
-	%D%/sys/string.h \
-	%D%/sys/sunddi.h \
-	%D%/sys/sysmacros.h \
-	%D%/sys/systeminfo.h \
-	%D%/sys/systm.h \
-	%D%/sys/thread.h \
-	%D%/sys/taskq.h \
-	%D%/sys/time.h \
-	%D%/sys/timer.h \
-	%D%/sys/trace.h \
-	%D%/sys/tsd.h \
-	%D%/sys/tunables.h \
-	%D%/sys/types.h \
-	%D%/sys/types32.h \
-	%D%/sys/uio.h \
-	%D%/sys/vnode.h \
-	%D%/sys/wmsum.h \
-	%D%/sys/zone.h
+libspl_spldir = $(libspldir)/spl
+libspl_spl_HEADERS = \
+	%D%/spl/acl.h \
+	%D%/spl/acl_impl.h \
+	%D%/spl/asm_linkage.h \
+	%D%/spl/backtrace.h \
+	%D%/spl/callb.h \
+	%D%/spl/cmn_err.h \
+	%D%/spl/condvar.h \
+	%D%/spl/cred.h \
+	%D%/spl/debug.h \
+	%D%/spl/dkio.h \
+	%D%/spl/dklabel.h \
+	%D%/spl/feature_tests.h \
+	%D%/spl/inttypes.h \
+	%D%/spl/isa_defs.h \
+	%D%/spl/kmem.h \
+	%D%/spl/kstat.h \
+	%D%/spl/list.h \
+	%D%/spl/list_impl.h \
+	%D%/spl/misc.h \
+	%D%/spl/mhd.h \
+	%D%/spl/mkdev.h \
+	%D%/spl/mod.h \
+	%D%/spl/mutex.h \
+	%D%/spl/poll.h \
+	%D%/spl/processor.h \
+	%D%/spl/procfs_list.h \
+	%D%/spl/random.h \
+	%D%/spl/rwlock.h \
+	%D%/spl/sid.h \
+	%D%/spl/simd.h \
+	%D%/spl/stack.h \
+	%D%/spl/stdtypes.h \
+	%D%/spl/string.h \
+	%D%/spl/sunddi.h \
+	%D%/spl/sysmacros.h \
+	%D%/spl/systeminfo.h \
+	%D%/spl/systm.h \
+	%D%/spl/thread.h \
+	%D%/spl/taskq.h \
+	%D%/spl/time.h \
+	%D%/spl/timer.h \
+	%D%/spl/trace.h \
+	%D%/spl/tsd.h \
+	%D%/spl/tunables.h \
+	%D%/spl/types.h \
+	%D%/spl/types32.h \
+	%D%/spl/uio.h \
+	%D%/spl/vnode.h \
+	%D%/spl/wmsum.h \
+	%D%/spl/zone.h
 
-libspl_ia32dir = $(libspldir)/sys/ia32
+libspl_ia32dir = $(libspl_spldir)/ia32
 
 if BUILD_LINUX
-libspl_sys_HEADERS += \
-	%D%/os/linux/sys/byteorder.h \
-	%D%/os/linux/sys/errno.h \
-	%D%/os/linux/sys/mnttab.h \
-	%D%/os/linux/sys/mount.h \
-	%D%/os/linux/sys/param.h \
-	%D%/os/linux/sys/stat.h \
-	%D%/os/linux/sys/vfs.h
+libspl_spl_HEADERS += \
+	%D%/os/linux/spl/byteorder.h \
+	%D%/os/linux/spl/errno.h \
+	%D%/os/linux/spl/mnttab.h \
+	%D%/os/linux/spl/mount.h \
+	%D%/os/linux/spl/param.h \
+	%D%/os/linux/spl/stat.h \
+	%D%/os/linux/spl/vfs.h
 
 libspl_ia32_HEADERS = \
-	%D%/os/linux/sys/ia32/asm_linkage.h
+	%D%/os/linux/spl/ia32/asm_linkage.h
 endif
 
 if BUILD_FREEBSD
-libspl_sys_HEADERS += \
-	%D%/os/freebsd/sys/byteorder.h \
-	%D%/os/freebsd/sys/fcntl.h \
-	%D%/os/freebsd/sys/file.h \
-	%D%/os/freebsd/sys/mnttab.h \
-	%D%/os/freebsd/sys/mount.h \
-	%D%/os/freebsd/sys/param.h \
-	%D%/os/freebsd/sys/stat.h \
-	%D%/os/freebsd/sys/vfs.h
+libspl_spl_HEADERS += \
+	%D%/os/freebsd/spl/byteorder.h \
+	%D%/os/freebsd/spl/fcntl.h \
+	%D%/os/freebsd/spl/file.h \
+	%D%/os/freebsd/spl/mnttab.h \
+	%D%/os/freebsd/spl/mount.h \
+	%D%/os/freebsd/spl/param.h \
+	%D%/os/freebsd/spl/stat.h \
+	%D%/os/freebsd/spl/vfs.h
 
 libspl_ia32_HEADERS = \
-	%D%/os/freebsd/sys/ia32/asm_linkage.h
+	%D%/os/freebsd/spl/ia32/asm_linkage.h
 endif
 
 
-libspl_sys_dktpdir = $(libspl_sysdir)/dktp
-libspl_sys_dktp_HEADERS = \
-	%D%/sys/dktp/fdisk.h
+libspl_dktpdir = $(libspl_spldir)/dktp
+libspl_dktp_HEADERS = \
+	%D%/spl/dktp/fdisk.h
 

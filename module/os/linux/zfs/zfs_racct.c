@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/zfs_racct.h>
+#include <zfs/zfs_racct.h>
 
 #ifdef _KERNEL
 #include <linux/task_io_accounting_ops.h>

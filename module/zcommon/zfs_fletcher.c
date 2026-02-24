@@ -134,13 +134,13 @@
  * than sha-256, and slower than 'off', which doesn't touch the data at all.
  */
 
-#include <sys/types.h>
-#include <sys/sysmacros.h>
-#include <sys/byteorder.h>
-#include <sys/simd.h>
-#include <sys/spa.h>
-#include <sys/zio_checksum.h>
-#include <sys/zfs_context.h>
+#include <spl/types.h>
+#include <spl/sysmacros.h>
+#include <spl/byteorder.h>
+#include <spl/simd.h>
+#include <zfs/spa.h>
+#include <zfs/zio_checksum.h>
+#include <zfs/zfs_context.h>
 #include <zfs_fletcher.h>
 
 #define	FLETCHER_MIN_SIMD_SIZE	64

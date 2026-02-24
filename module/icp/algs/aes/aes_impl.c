@@ -23,10 +23,10 @@
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/crypto/icp.h>
+#include <zfs/zfs_context.h>
+#include <zfs/crypto/icp.h>
 #include <sys/crypto/spi.h>
-#include <sys/simd.h>
+#include <spl/simd.h>
 #include <modes/modes.h>
 #include <aes/aes_impl.h>
 

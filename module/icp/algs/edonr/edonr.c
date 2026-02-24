@@ -27,9 +27,9 @@
  * Copyright (c) 2023 Tino Reichardt <milky-zfs@mcmilk.de>
  */
 
-#include <sys/zfs_context.h>
-#include <sys/string.h>
-#include <sys/edonr.h>
+#include <zfs/zfs_context.h>
+#include <spl/string.h>
+#include <zfs/edonr.h>
 
 /*
  * We need 1196 byte stack for Q512() on i386

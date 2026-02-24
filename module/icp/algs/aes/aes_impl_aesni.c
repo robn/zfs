@@ -25,9 +25,9 @@
 
 #if defined(__x86_64) && HAVE_SIMD(AES)
 
-#include <sys/simd.h>
-#include <sys/types.h>
-#include <sys/asm_linkage.h>
+#include <spl/simd.h>
+#include <spl/types.h>
+#include <zfs/asm_linkage.h>
 
 /* These functions are used to execute AES-NI instructions: */
 extern ASMABI int rijndael_key_setup_enc_intel(uint32_t rk[],

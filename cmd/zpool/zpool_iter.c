@@ -37,7 +37,7 @@
 
 #include <libzfs.h>
 #include <libzutil.h>
-#include <sys/zfs_context.h>
+#include <zfs/zfs_context.h>
 #include <sys/wait.h>
 
 #include "zpool_util.h"

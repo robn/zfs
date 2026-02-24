@@ -28,15 +28,15 @@
  * Copyright (c) 2013, 2017 by Delphix. All rights reserved.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/arc_impl.h>
-#include <sys/dnode.h>
-#include <sys/dmu_objset.h>
-#include <sys/dmu_zfetch.h>
-#include <sys/dmu.h>
-#include <sys/dbuf.h>
-#include <sys/kstat.h>
-#include <sys/wmsum.h>
+#include <zfs/zfs_context.h>
+#include <zfs/arc_impl.h>
+#include <zfs/dnode.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/dmu_zfetch.h>
+#include <zfs/dmu.h>
+#include <zfs/dbuf.h>
+#include <spl/kstat.h>
+#include <spl/wmsum.h>
 
 /*
  * This tunable disables predictive prefetch.  Note that it leaves "prescient"

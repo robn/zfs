@@ -35,7 +35,7 @@
 #ifdef __x86_64__
 
 #define _ASM
-#include <sys/asm_linkage.h>
+#include <zfs/asm_linkage.h>
 
 ENTRY_ALIGN(setjmp, 8)
 	movq	%rsp, 0(%rdi)

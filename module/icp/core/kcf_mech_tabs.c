@@ -24,9 +24,9 @@
  * Use is subject to license terms.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/crypto/common.h>
-#include <sys/crypto/api.h>
+#include <zfs/zfs_context.h>
+#include <zfs/crypto/common.h>
+#include <zfs/crypto/api.h>
 #include <sys/crypto/impl.h>
 
 /* Cryptographic mechanisms tables and their access functions */

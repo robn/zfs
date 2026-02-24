@@ -29,8 +29,8 @@
 #ifndef	_FMD_API_H
 #define	_FMD_API_H
 
-#include <sys/types.h>
-#include <sys/time.h>
+#include <spl/types.h>
+#include <spl/time.h>
 #include <time.h>
 #include <libnvpair.h>
 #include <stdarg.h>

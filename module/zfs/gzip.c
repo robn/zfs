@@ -27,14 +27,14 @@
 
 
 
-#include <sys/debug.h>
-#include <sys/types.h>
-#include <sys/qat.h>
-#include <sys/zio_compress.h>
+#include <spl/debug.h>
+#include <spl/types.h>
+#include <zfs/qat.h>
+#include <zfs/zio_compress.h>
 
 #ifdef _KERNEL
 
-#include <sys/zmod.h>
+#include <spl/zmod.h>
 typedef size_t zlen_t;
 #define	compress_func	z_compress_level
 #define	uncompress_func	z_uncompress

@@ -30,8 +30,8 @@
  */
 
 
-#include <sys/types.h>
-#include <sys/stat.h>
+#include <spl/types.h>
+#include <spl/stat.h>
 #ifndef __FreeBSD__
 #include <sys/xattr.h>
 #endif

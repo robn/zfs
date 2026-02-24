@@ -26,9 +26,9 @@
  *
  */
 
-#include <sys/list.h>
-#include <sys/mutex.h>
-#include <sys/procfs_list.h>
+#include <spl/list.h>
+#include <spl/mutex.h>
+#include <spl/procfs_list.h>
 
 typedef struct procfs_list_iter {
 	procfs_list_t *pli_pl;

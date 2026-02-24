@@ -26,11 +26,11 @@
  * Copyright (c) 2016 by Delphix. All rights reserved.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/zio_checksum.h>
-#include <sys/sha2.h>
-#include <sys/abd.h>
-#include <sys/qat.h>
+#include <zfs/zfs_context.h>
+#include <zfs/zio_checksum.h>
+#include <zfs/sha2.h>
+#include <zfs/abd.h>
+#include <zfs/qat.h>
 
 static int
 sha_incremental(void *buf, size_t size, void *arg)

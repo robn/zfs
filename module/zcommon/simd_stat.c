@@ -22,9 +22,9 @@
 /*
  * Copyright 2024 Google, Inc.  All rights reserved.
  */
-#include <sys/zfs_context.h>
-#include <sys/kstat.h>
-#include <sys/simd.h>
+#include <zfs/zfs_context.h>
+#include <spl/kstat.h>
+#include <spl/simd.h>
 
 
 #ifdef _KERNEL

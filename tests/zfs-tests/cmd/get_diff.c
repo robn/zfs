@@ -20,9 +20,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include <sys/param.h>
-#include <sys/types.h>
-#include <sys/stat.h>
+#include <spl/param.h>
+#include <spl/types.h>
+#include <spl/stat.h>
 #include <errno.h>
 
 static void

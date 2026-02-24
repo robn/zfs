@@ -30,29 +30,29 @@
  * Copyright (c) 2021, 2024 by George Melikov. All rights reserved.
  */
 
-#include <sys/sysmacros.h>
-#include <sys/zfs_context.h>
-#include <sys/fm/fs/zfs.h>
-#include <sys/spa.h>
-#include <sys/txg.h>
-#include <sys/spa_impl.h>
-#include <sys/vdev_impl.h>
-#include <sys/vdev_trim.h>
-#include <sys/zio_impl.h>
-#include <sys/zio_compress.h>
-#include <sys/zio_checksum.h>
-#include <sys/dmu_objset.h>
-#include <sys/arc.h>
-#include <sys/brt.h>
-#include <sys/ddt.h>
-#include <sys/blkptr.h>
-#include <sys/zfeature.h>
-#include <sys/dsl_scan.h>
-#include <sys/metaslab_impl.h>
-#include <sys/time.h>
-#include <sys/trace_zfs.h>
-#include <sys/abd.h>
-#include <sys/dsl_crypt.h>
+#include <spl/sysmacros.h>
+#include <zfs/zfs_context.h>
+#include <zfs/fm/fs/zfs.h>
+#include <zfs/spa.h>
+#include <zfs/txg.h>
+#include <zfs/spa_impl.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/vdev_trim.h>
+#include <zfs/zio_impl.h>
+#include <zfs/zio_compress.h>
+#include <zfs/zio_checksum.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/arc.h>
+#include <zfs/brt.h>
+#include <zfs/ddt.h>
+#include <zfs/blkptr.h>
+#include <zfs/zfeature.h>
+#include <zfs/dsl_scan.h>
+#include <zfs/metaslab_impl.h>
+#include <spl/time.h>
+#include <zfs/trace_zfs.h>
+#include <zfs/abd.h>
+#include <zfs/dsl_crypt.h>
 #include <cityhash.h>
 
 /*

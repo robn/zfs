@@ -25,15 +25,15 @@
  * Copyright (c) 2025, Klara, Inc.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/spa.h>
-#include <sys/vdev_file.h>
-#include <sys/vdev_impl.h>
-#include <sys/zio.h>
-#include <sys/fs/zfs.h>
-#include <sys/fm/fs/zfs.h>
-#include <sys/abd.h>
-#include <sys/stat.h>
+#include <zfs/zfs_context.h>
+#include <zfs/spa.h>
+#include <zfs/vdev_file.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/zio.h>
+#include <zfs/fs/zfs.h>
+#include <zfs/fm/fs/zfs.h>
+#include <zfs/abd.h>
+#include <spl/stat.h>
 
 /*
  * Virtual device vector for files.

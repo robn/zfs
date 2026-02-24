@@ -6,9 +6,9 @@
  */
 /* Copyright 2013 Doug Whiting. This code is released to the public domain. */
 
-#include <sys/sysmacros.h>
-#include <sys/types.h>
-#include <sys/skein.h>		/* get the Skein API definitions   */
+#include <spl/sysmacros.h>
+#include <spl/types.h>
+#include <zfs/skein.h>		/* get the Skein API definitions   */
 #include "skein_impl.h"		/* get internal definitions */
 
 /* 256-bit Skein */

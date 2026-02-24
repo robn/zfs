@@ -29,10 +29,10 @@
  * This file implements Solaris compatible hasmntopt() functions.
  */
 
-#include <sys/param.h>
-#include <sys/mount.h>
-#include <sys/mntent.h>
-#include <sys/mnttab.h>
+#include <spl/param.h>
+#include <spl/mount.h>
+#include <zfs/mntent.h>
+#include <spl/mnttab.h>
 
 #include <ctype.h>
 #include <errno.h>

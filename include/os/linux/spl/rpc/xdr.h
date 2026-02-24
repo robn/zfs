@@ -22,7 +22,7 @@
 #ifndef _SPL_RPC_XDR_H
 #define	_SPL_RPC_XDR_H
 
-#include <sys/types.h>
+#include <spl/types.h>
 
 /*
  * XDR enums and types.

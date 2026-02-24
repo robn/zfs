@@ -77,7 +77,7 @@
 /* only for __x86 */
 #if defined(__x86)
 
-#include <sys/types.h>
+#include <spl/types.h>
 #include <asm/cpufeature.h>
 
 /*

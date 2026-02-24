@@ -26,10 +26,10 @@
  *
  */
 
-#include <sys/types.h>
-#include <sys/kmem.h>
-#include <sys/kmem_cache.h>
-#include <sys/zmod.h>
+#include <spl/types.h>
+#include <spl/kmem.h>
+#include <spl/kmem_cache.h>
+#include <spl/zmod.h>
 #include <contrib/zlib/zlib.h>
 #include <sys/kobj.h>
 

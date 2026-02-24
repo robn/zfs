@@ -41,8 +41,8 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/types.h>
-#include <sys/mnttab.h>
+#include <spl/types.h>
+#include <spl/mnttab.h>
 #include <libzfs.h>
 
 int

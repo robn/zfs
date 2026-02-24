@@ -42,8 +42,8 @@
 #include <pthread.h>
 #include <string.h>
 #include <errno.h>
-#include <sys/types.h>
-#include <sys/stat.h>
+#include <spl/types.h>
+#include <spl/stat.h>
 #include <stdlib.h>
 #include <unistd.h>
 

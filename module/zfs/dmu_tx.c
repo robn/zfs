@@ -26,21 +26,21 @@
  * Copyright (c) 2024, 2025, Klara, Inc.
  */
 
-#include <sys/dmu.h>
-#include <sys/dmu_impl.h>
-#include <sys/dbuf.h>
-#include <sys/dmu_tx.h>
-#include <sys/dmu_objset.h>
-#include <sys/dsl_dataset.h>
-#include <sys/dsl_dir.h>
-#include <sys/dsl_pool.h>
-#include <sys/zap_impl.h>
-#include <sys/spa.h>
-#include <sys/brt_impl.h>
-#include <sys/sa.h>
-#include <sys/sa_impl.h>
-#include <sys/zfs_context.h>
-#include <sys/trace_zfs.h>
+#include <zfs/dmu.h>
+#include <zfs/dmu_impl.h>
+#include <zfs/dbuf.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/dsl_dataset.h>
+#include <zfs/dsl_dir.h>
+#include <zfs/dsl_pool.h>
+#include <zfs/zap_impl.h>
+#include <zfs/spa.h>
+#include <zfs/brt_impl.h>
+#include <zfs/sa.h>
+#include <zfs/sa_impl.h>
+#include <zfs/zfs_context.h>
+#include <zfs/trace_zfs.h>
 
 typedef void (*dmu_tx_hold_func_t)(dmu_tx_t *tx, struct dnode *dn,
     uint64_t arg1, uint64_t arg2);

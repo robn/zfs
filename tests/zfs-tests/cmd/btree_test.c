@@ -17,9 +17,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/avl.h>
-#include <sys/btree.h>
-#include <sys/time.h>
+#include <zfs/avl.h>
+#include <zfs/btree.h>
+#include <spl/time.h>
 #include <sys/resource.h>
 
 #define	BUFSIZE 256

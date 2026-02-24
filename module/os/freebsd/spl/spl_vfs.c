@@ -25,22 +25,22 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
-#include <sys/param.h>
+#include <spl/types.h>
+#include <spl/param.h>
 #include <sys/kernel.h>
-#include <sys/systm.h>
+#include <spl/systm.h>
 #include <sys/malloc.h>
-#include <sys/mount.h>
-#include <sys/cred.h>
-#include <sys/vfs.h>
+#include <spl/mount.h>
+#include <spl/cred.h>
+#include <spl/vfs.h>
 #include <sys/priv.h>
 #include <sys/libkern.h>
 
-#include <sys/mutex.h>
-#include <sys/vnode.h>
-#include <sys/taskq.h>
+#include <spl/mutex.h>
+#include <spl/vnode.h>
+#include <spl/taskq.h>
 
-#include <sys/ccompat.h>
+#include <spl/ccompat.h>
 
 MALLOC_DECLARE(M_MOUNT);
 

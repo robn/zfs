@@ -20,9 +20,9 @@
  * CDDL HEADER END
  */
 
-#include <sys/zfs_context.h>
-#include <sys/dbuf.h>
-#include <sys/dmu_objset.h>
+#include <zfs/zfs_context.h>
+#include <zfs/dbuf.h>
+#include <zfs/dmu_objset.h>
 
 /*
  * Calculate the index of the arc header for the state, disabled by default.

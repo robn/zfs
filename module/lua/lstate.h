@@ -8,7 +8,7 @@
 #ifndef lstate_h
 #define lstate_h
 
-#include <sys/lua/lua.h>
+#include <zfs/lua/lua.h>
 
 #include "lobject.h"
 #include "ltm.h"

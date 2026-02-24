@@ -28,7 +28,7 @@
 #ifndef	_SHA2_IMPL_H
 #define	_SHA2_IMPL_H
 
-#include <sys/sha2.h>
+#include <zfs/sha2.h>
 
 #ifdef __cplusplus
 extern "C" {

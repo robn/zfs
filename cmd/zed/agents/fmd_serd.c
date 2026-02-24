@@ -31,8 +31,8 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/list.h>
-#include <sys/time.h>
+#include <spl/list.h>
+#include <spl/time.h>
 
 #include "fmd_api.h"
 #include "fmd_serd.h"

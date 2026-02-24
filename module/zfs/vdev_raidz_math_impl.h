@@ -26,8 +26,8 @@
 #ifndef _VDEV_RAIDZ_MATH_IMPL_H
 #define	_VDEV_RAIDZ_MATH_IMPL_H
 
-#include <sys/types.h>
-#include <sys/vdev_raidz_impl.h>
+#include <spl/types.h>
+#include <zfs/vdev_raidz_impl.h>
 
 #define	raidz_inline inline __attribute__((always_inline))
 #ifndef noinline

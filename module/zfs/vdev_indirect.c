@@ -20,22 +20,22 @@
  * Copyright (c) 2014, 2020 by Delphix. All rights reserved.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/spa.h>
-#include <sys/spa_impl.h>
-#include <sys/vdev_impl.h>
-#include <sys/fs/zfs.h>
-#include <sys/zio.h>
-#include <sys/zio_checksum.h>
-#include <sys/metaslab.h>
-#include <sys/dmu.h>
-#include <sys/vdev_indirect_mapping.h>
-#include <sys/dmu_tx.h>
-#include <sys/dsl_synctask.h>
-#include <sys/zap.h>
-#include <sys/abd.h>
-#include <sys/zthr.h>
-#include <sys/fm/fs/zfs.h>
+#include <zfs/zfs_context.h>
+#include <zfs/spa.h>
+#include <zfs/spa_impl.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/fs/zfs.h>
+#include <zfs/zio.h>
+#include <zfs/zio_checksum.h>
+#include <zfs/metaslab.h>
+#include <zfs/dmu.h>
+#include <zfs/vdev_indirect_mapping.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/dsl_synctask.h>
+#include <zfs/zap.h>
+#include <zfs/abd.h>
+#include <zfs/zthr.h>
+#include <zfs/fm/fs/zfs.h>
 
 /*
  * An indirect vdev corresponds to a vdev that has been removed.  Since

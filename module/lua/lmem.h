@@ -10,7 +10,7 @@
 
 
 #include "llimits.h"
-#include <sys/lua/lua.h>
+#include <zfs/lua/lua.h>
 
 
 /*

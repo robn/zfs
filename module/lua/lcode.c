@@ -12,7 +12,7 @@
 #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
 #endif
 
-#include <sys/lua/lua.h>
+#include <zfs/lua/lua.h>
 
 #include "lcode.h"
 #include "ldebug.h"

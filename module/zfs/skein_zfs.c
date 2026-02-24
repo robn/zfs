@@ -23,12 +23,12 @@
  * Copyright 2013 Saso Kiselkov.  All rights reserved.
  * Copyright (c) 2016 by Delphix. All rights reserved.
  */
-#include <sys/zfs_context.h>
-#include <sys/zio.h>
-#include <sys/zio_checksum.h>
-#include <sys/skein.h>
+#include <zfs/zfs_context.h>
+#include <zfs/zio.h>
+#include <zfs/zio_checksum.h>
+#include <zfs/skein.h>
 
-#include <sys/abd.h>
+#include <zfs/abd.h>
 
 static int
 skein_incremental(void *buf, size_t size, void *arg)

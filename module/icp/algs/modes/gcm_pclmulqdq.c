@@ -25,9 +25,9 @@
 
 #if defined(__x86_64) && HAVE_SIMD(PCLMULQDQ)
 
-#include <sys/types.h>
-#include <sys/simd.h>
-#include <sys/asm_linkage.h>
+#include <spl/types.h>
+#include <spl/simd.h>
+#include <zfs/asm_linkage.h>
 
 /* These functions are used to execute pclmulqdq based assembly methods */
 extern void ASMABI gcm_mul_pclmulqdq(uint64_t *, uint64_t *, uint64_t *);

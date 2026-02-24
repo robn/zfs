@@ -24,22 +24,22 @@
  * Copyright (c) 2020, 2021, 2022 by Pawel Jakub Dawidek
  */
 
-#include <sys/zfs_context.h>
-#include <sys/spa.h>
-#include <sys/spa_impl.h>
-#include <sys/zio.h>
-#include <sys/brt.h>
-#include <sys/brt_impl.h>
-#include <sys/ddt.h>
-#include <sys/bitmap.h>
-#include <sys/zap.h>
-#include <sys/dmu_tx.h>
-#include <sys/arc.h>
-#include <sys/dsl_pool.h>
-#include <sys/dsl_scan.h>
-#include <sys/vdev_impl.h>
-#include <sys/kstat.h>
-#include <sys/wmsum.h>
+#include <zfs/zfs_context.h>
+#include <zfs/spa.h>
+#include <zfs/spa_impl.h>
+#include <zfs/zio.h>
+#include <zfs/brt.h>
+#include <zfs/brt_impl.h>
+#include <zfs/ddt.h>
+#include <zfs/bitmap.h>
+#include <zfs/zap.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/arc.h>
+#include <zfs/dsl_pool.h>
+#include <zfs/dsl_scan.h>
+#include <zfs/vdev_impl.h>
+#include <spl/kstat.h>
+#include <spl/wmsum.h>
 
 /*
  * Block Cloning design.

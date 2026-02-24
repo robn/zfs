@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/zfs_racct.h>
+#include <zfs/zfs_racct.h>
 
 void
 zfs_racct_read(spa_t *spa, uint64_t size, uint64_t iops, dmu_flags_t flags)

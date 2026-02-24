@@ -37,13 +37,13 @@
  * Does NOT simplify pathnames with . or .. in them.
  */
 
-#include <sys/types.h>
+#include <spl/types.h>
 #include <libgen.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
-#include <sys/stat.h>
+#include <spl/stat.h>
 
 static char *simplify(const char *str);
 

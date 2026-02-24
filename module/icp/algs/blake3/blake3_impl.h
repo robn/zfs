@@ -33,9 +33,9 @@
 extern "C" {
 #endif
 
-#include <sys/blake3.h>
-#include <sys/simd.h>
-#include <sys/asm_linkage.h>
+#include <zfs/blake3.h>
+#include <spl/simd.h>
+#include <zfs/asm_linkage.h>
 
 /*
  * Methods used to define BLAKE3 assembler implementations

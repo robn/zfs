@@ -23,9 +23,9 @@
 
 #include <stdint.h>
 #include <limits.h>
-#include <sys/param.h>
+#include <spl/param.h>
 #include <sys/sysctl.h>
-#include <sys/types.h>
+#include <spl/types.h>
 #include "../../libspl_impl.h"
 
 __attribute__((visibility("hidden"))) ssize_t

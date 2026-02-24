@@ -24,10 +24,10 @@
  * Copyright (c) 2021-2022 Tino Reichardt <milky-zfs@mcmilk.de>
  */
 
-#include <sys/simd.h>
-#include <sys/zfs_context.h>
-#include <sys/zfs_impl.h>
-#include <sys/blake3.h>
+#include <spl/simd.h>
+#include <zfs/zfs_context.h>
+#include <zfs/zfs_impl.h>
+#include <zfs/blake3.h>
 
 #include "blake3_impl.h"
 

@@ -24,32 +24,32 @@
  *  Solaris Porting Layer (SPL) Generic Implementation.
  */
 
-#include <sys/isa_defs.h>
-#include <sys/sysmacros.h>
-#include <sys/systeminfo.h>
-#include <sys/vmsystm.h>
-#include <sys/kmem.h>
-#include <sys/kmem_cache.h>
-#include <sys/vmem.h>
-#include <sys/mutex.h>
-#include <sys/rwlock.h>
-#include <sys/taskq.h>
-#include <sys/tsd.h>
-#include <sys/zmod.h>
-#include <sys/debug.h>
-#include <sys/proc.h>
-#include <sys/kstat.h>
-#include <sys/file.h>
-#include <sys/sunddi.h>
+#include <spl/isa_defs.h>
+#include <spl/sysmacros.h>
+#include <spl/systeminfo.h>
+#include <spl/vmsystm.h>
+#include <spl/kmem.h>
+#include <spl/kmem_cache.h>
+#include <spl/vmem.h>
+#include <spl/mutex.h>
+#include <spl/rwlock.h>
+#include <spl/taskq.h>
+#include <spl/tsd.h>
+#include <spl/zmod.h>
+#include <spl/debug.h>
+#include <spl/proc.h>
+#include <spl/kstat.h>
+#include <spl/file.h>
+#include <spl/sunddi.h>
 #include <linux/ctype.h>
-#include <sys/disp.h>
-#include <sys/random.h>
-#include <sys/string.h>
+#include <spl/disp.h>
+#include <spl/random.h>
+#include <spl/string.h>
 #include <linux/kmod.h>
 #include <linux/mod_compat.h>
-#include <sys/cred.h>
-#include <sys/vnode.h>
-#include <sys/misc.h>
+#include <spl/cred.h>
+#include <spl/vnode.h>
+#include <spl/misc.h>
 #include <linux/mod_compat.h>
 
 unsigned long spl_hostid = 0;

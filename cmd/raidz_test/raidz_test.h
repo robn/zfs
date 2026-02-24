@@ -27,7 +27,7 @@
 #ifndef	RAIDZ_TEST_H
 #define	RAIDZ_TEST_H
 
-#include <sys/spa.h>
+#include <zfs/spa.h>
 
 static const char *const raidz_impl_names[] = {
 	"original",

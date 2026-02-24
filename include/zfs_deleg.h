@@ -28,7 +28,7 @@
 #ifndef	_ZFS_DELEG_H
 #define	_ZFS_DELEG_H extern __attribute__((visibility("default")))
 
-#include <sys/fs/zfs.h>
+#include <zfs/fs/zfs.h>
 
 #ifdef	__cplusplus
 extern "C" {

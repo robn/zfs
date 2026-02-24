@@ -25,10 +25,10 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/param.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/atomic.h>
+#include <spl/param.h>
+#include <spl/lock.h>
+#include <spl/mutex.h>
+#include <spl/atomic.h>
 
 #if !defined(__LP64__) && !defined(__mips_n32) && \
 	!defined(ARM_HAVE_ATOMIC64) && !defined(I386_HAVE_ATOMIC64) && \

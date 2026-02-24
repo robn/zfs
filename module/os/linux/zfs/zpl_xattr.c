@@ -78,12 +78,12 @@
  * largely avoids the issue except in the overflow case.
  */
 
-#include <sys/zfs_znode.h>
-#include <sys/zfs_vfsops.h>
-#include <sys/zfs_vnops.h>
-#include <sys/zap.h>
-#include <sys/vfs.h>
-#include <sys/zpl.h>
+#include <zfs/zfs_znode.h>
+#include <zfs/zfs_vfsops.h>
+#include <zfs/zfs_vnops.h>
+#include <zfs/zap.h>
+#include <spl/vfs.h>
+#include <zfs/zpl.h>
 #include <linux/vfs_compat.h>
 
 enum xattr_permission {

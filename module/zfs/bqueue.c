@@ -17,8 +17,8 @@
  * Copyright (c) 2014, 2018 by Delphix. All rights reserved.
  */
 
-#include	<sys/bqueue.h>
-#include	<sys/zfs_context.h>
+#include	<zfs/bqueue.h>
+#include	<zfs/zfs_context.h>
 
 static inline bqueue_node_t *
 obj2node(bqueue_t *q, void *data)

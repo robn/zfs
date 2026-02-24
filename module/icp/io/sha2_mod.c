@@ -25,11 +25,11 @@
  * Use is subject to license terms.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/crypto/common.h>
+#include <zfs/zfs_context.h>
+#include <zfs/crypto/common.h>
 #include <sys/crypto/spi.h>
-#include <sys/crypto/icp.h>
-#include <sys/sha2.h>
+#include <zfs/crypto/icp.h>
+#include <zfs/sha2.h>
 #include <sha2/sha2_impl.h>
 
 /*

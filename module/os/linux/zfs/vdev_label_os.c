@@ -24,11 +24,11 @@
  * Copyright (c) 2023 by iXsystems, Inc.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/spa.h>
-#include <sys/spa_impl.h>
-#include <sys/vdev.h>
-#include <sys/vdev_impl.h>
+#include <zfs/zfs_context.h>
+#include <zfs/spa.h>
+#include <zfs/spa_impl.h>
+#include <zfs/vdev.h>
+#include <zfs/vdev_impl.h>
 
 /*
  * Check if the reserved boot area is in-use.

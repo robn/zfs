@@ -8,7 +8,7 @@
 #define llex_c
 #define LUA_CORE
 
-#include <sys/lua/lua.h>
+#include <zfs/lua/lua.h>
 
 #include "lctype.h"
 #include "ldo.h"

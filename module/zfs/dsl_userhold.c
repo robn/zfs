@@ -25,17 +25,17 @@
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/dsl_userhold.h>
-#include <sys/dsl_dataset.h>
-#include <sys/dsl_destroy.h>
-#include <sys/dsl_synctask.h>
-#include <sys/dmu_tx.h>
-#include <sys/zfs_onexit.h>
-#include <sys/dsl_pool.h>
-#include <sys/dsl_dir.h>
-#include <sys/zfs_ioctl.h>
-#include <sys/zap.h>
+#include <zfs/zfs_context.h>
+#include <zfs/dsl_userhold.h>
+#include <zfs/dsl_dataset.h>
+#include <zfs/dsl_destroy.h>
+#include <zfs/dsl_synctask.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/zfs_onexit.h>
+#include <zfs/dsl_pool.h>
+#include <zfs/dsl_dir.h>
+#include <zfs/zfs_ioctl.h>
+#include <zfs/zap.h>
 
 typedef struct dsl_dataset_user_hold_arg {
 	nvlist_t *dduha_holds;

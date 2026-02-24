@@ -32,12 +32,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <mntent.h>
-#include <sys/errno.h>
-#include <sys/mnttab.h>
+#include <spl/errno.h>
+#include <spl/mnttab.h>
 
-#include <sys/types.h>
-#include <sys/sysmacros.h>
-#include <sys/stat.h>
+#include <spl/types.h>
+#include <spl/sysmacros.h>
+#include <spl/stat.h>
 #include <unistd.h>
 #include <libzutil.h>
 

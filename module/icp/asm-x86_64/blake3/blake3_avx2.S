@@ -29,7 +29,7 @@
 #if HAVE_SIMD(AVX2)
 
 #define _ASM
-#include <sys/asm_linkage.h>
+#include <zfs/asm_linkage.h>
 
 .intel_syntax noprefix
 .text

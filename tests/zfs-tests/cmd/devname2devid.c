@@ -27,9 +27,9 @@
  * Copyright (c) 2016, Intel Corporation.
  */
 
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/stat.h>
+#include <spl/types.h>
+#include <spl/param.h>
+#include <spl/stat.h>
 #include <libudev.h>
 #include <errno.h>
 #include <stdio.h>

@@ -24,11 +24,11 @@
 #include <libzfs_core.h>
 #include <libzutil.h>
 
-#include <sys/nvpair.h>
-#include <sys/vdev_impl.h>
-#include <sys/zfs_ioctl.h>
-#include <sys/zfs_bootenv.h>
-#include <sys/fs/zfs.h>
+#include <zfs/nvpair.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/zfs_ioctl.h>
+#include <zfs/zfs_bootenv.h>
+#include <zfs/fs/zfs.h>
 
 /*
  * Test the nvpair inputs for the non-legacy zfs ioctl commands.

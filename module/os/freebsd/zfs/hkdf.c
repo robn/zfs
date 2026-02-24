@@ -18,10 +18,10 @@
  * Copyright (c) 2017, Datto, Inc. All rights reserved.
  */
 
-#include <sys/dmu.h>
-#include <sys/hkdf.h>
-#include <sys/freebsd_crypto.h>
-#include <sys/hkdf.h>
+#include <zfs/dmu.h>
+#include <zfs/hkdf.h>
+#include <zfs/freebsd_crypto.h>
+#include <zfs/hkdf.h>
 
 static int
 hkdf_sha512_extract(uint8_t *salt, uint_t salt_len, uint8_t *key_material,

@@ -59,13 +59,13 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
+#include <spl/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <sys/dktp/fdisk.h>
-#include <sys/vdev_impl.h>
-#include <sys/fs/zfs.h>
-#include <sys/taskq.h>
+#include <spl/dktp/fdisk.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/fs/zfs.h>
+#include <spl/taskq.h>
 
 #include <libzutil.h>
 #include <libnvpair.h>

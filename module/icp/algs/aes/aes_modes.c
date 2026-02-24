@@ -24,7 +24,7 @@
  * Use is subject to license terms.
  */
 
-#include <sys/zfs_context.h>
+#include <zfs/zfs_context.h>
 #include <modes/modes.h>
 #include <aes/aes_impl.h>
 

@@ -29,13 +29,13 @@
  * Copyright (c) 2026, TrueNAS.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/dmu.h>
-#include <sys/dnode.h>
-#include <sys/btree.h>
-#include <sys/zap.h>
-#include <sys/zap_impl.h>
-#include <sys/zap_leaf.h>
+#include <zfs/zfs_context.h>
+#include <zfs/dmu.h>
+#include <zfs/dnode.h>
+#include <zfs/btree.h>
+#include <zfs/zap.h>
+#include <zfs/zap_impl.h>
+#include <zfs/zap_leaf.h>
 
 /* zap_create */
 

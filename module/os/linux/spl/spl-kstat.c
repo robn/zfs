@@ -33,11 +33,11 @@
  */
 
 #include <linux/seq_file.h>
-#include <sys/kstat.h>
-#include <sys/vmem.h>
-#include <sys/cmn_err.h>
-#include <sys/sysmacros.h>
-#include <sys/string.h>
+#include <spl/kstat.h>
+#include <spl/vmem.h>
+#include <spl/cmn_err.h>
+#include <spl/sysmacros.h>
+#include <spl/string.h>
 
 static kmutex_t kstat_module_lock;
 static struct list_head kstat_module_list;

@@ -21,11 +21,11 @@
  */
 /* Copyright (C) 2025 ConnectWise */
 
-#include <sys/zfs_context.h>
-#include <sys/spa.h>
-#include <sys/zio.h>
-#include <sys/vdev_impl.h>
-#include <sys/vdev_raidz.h>
+#include <zfs/zfs_context.h>
+#include <zfs/spa.h>
+#include <zfs/zio.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/vdev_raidz.h>
 
 int
 param_get_raidz_impl(char *buf, zfs_kernel_param_t *kp)

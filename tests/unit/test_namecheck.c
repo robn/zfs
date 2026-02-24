@@ -16,7 +16,7 @@
 
 #include <string.h>
 
-#include <sys/fs/zfs.h>
+#include <zfs/fs/zfs.h>
 #include "zfs_namecheck.h"
 
 #include "unit.h"

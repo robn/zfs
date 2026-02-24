@@ -18,22 +18,22 @@
  * Copyright (c) 2016, 2018 by Delphix. All rights reserved.
  */
 
-#include <sys/lua/lua.h>
-#include <sys/lua/lauxlib.h>
+#include <zfs/lua/lua.h>
+#include <zfs/lua/lauxlib.h>
 
-#include <sys/dmu.h>
-#include <sys/dsl_prop.h>
-#include <sys/dsl_synctask.h>
-#include <sys/dsl_bookmark.h>
-#include <sys/dsl_dataset.h>
-#include <sys/dsl_pool.h>
-#include <sys/dmu_tx.h>
-#include <sys/dmu_objset.h>
-#include <sys/zap.h>
-#include <sys/dsl_dir.h>
-#include <sys/zcp_prop.h>
+#include <zfs/dmu.h>
+#include <zfs/dsl_prop.h>
+#include <zfs/dsl_synctask.h>
+#include <zfs/dsl_bookmark.h>
+#include <zfs/dsl_dataset.h>
+#include <zfs/dsl_pool.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/zap.h>
+#include <zfs/dsl_dir.h>
+#include <zfs/zcp_prop.h>
 
-#include <sys/zcp.h>
+#include <zfs/zcp.h>
 
 #include "zfs_comutil.h"
 

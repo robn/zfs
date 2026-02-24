@@ -32,12 +32,12 @@
 #endif
 #include <linux/fs.h>
 #include <linux/migrate.h>
-#include <sys/file.h>
-#include <sys/dmu_objset.h>
-#include <sys/zfs_znode.h>
-#include <sys/zfs_vfsops.h>
-#include <sys/zfs_vnops.h>
-#include <sys/zfs_project.h>
+#include <spl/file.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/zfs_znode.h>
+#include <zfs/zfs_vfsops.h>
+#include <zfs/zfs_vnops.h>
+#include <zfs/zfs_project.h>
 #include <linux/pagemap_compat.h>
 #include <linux/fadvise.h>
 #ifdef HAVE_VFS_FILEMAP_DIRTY_FOLIO

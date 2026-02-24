@@ -30,12 +30,12 @@
 #include <stddef.h>
 #include <string.h>
 #include <libzfs.h>
-#include <sys/types.h>
-#include <sys/time.h>
-#include <sys/fs/zfs.h>
-#include <sys/fm/protocol.h>
-#include <sys/fm/fs/zfs.h>
-#include <sys/zio.h>
+#include <spl/types.h>
+#include <spl/time.h>
+#include <zfs/fs/zfs.h>
+#include <zfs/fm/protocol.h>
+#include <zfs/fm/fs/zfs.h>
+#include <zfs/zio.h>
 
 #include "zfs_agents.h"
 #include "fmd_api.h"

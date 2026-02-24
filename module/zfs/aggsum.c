@@ -17,8 +17,8 @@
  * Copyright (c) 2017, 2018 by Delphix. All rights reserved.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/aggsum.h>
+#include <zfs/zfs_context.h>
+#include <zfs/aggsum.h>
 
 /*
  * Aggregate-sum counters are a form of fanned-out counter, used when atomic

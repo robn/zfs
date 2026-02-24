@@ -32,9 +32,9 @@
 #include <string.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <sys/file.h>
-#include <sys/stat.h>
-#include <sys/types.h>
+#include <spl/file.h>
+#include <spl/stat.h>
+#include <spl/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <libzfs.h>

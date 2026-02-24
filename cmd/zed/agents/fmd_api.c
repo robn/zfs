@@ -36,8 +36,8 @@
  * locking is required in this emulated FMD environment.
  */
 
-#include <sys/types.h>
-#include <sys/fm/protocol.h>
+#include <spl/types.h>
+#include <zfs/fm/protocol.h>
 #include <uuid/uuid.h>
 #include <signal.h>
 #include <string.h>

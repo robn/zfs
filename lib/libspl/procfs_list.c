@@ -29,9 +29,9 @@
 #include <assert.h>
 #include <pthread.h>
 #include <stddef.h>
-#include <sys/procfs_list.h>
-#include <sys/mutex.h>
-#include <sys/list.h>
+#include <spl/procfs_list.h>
+#include <spl/mutex.h>
+#include <spl/list.h>
 
 /*
  * =========================================================================

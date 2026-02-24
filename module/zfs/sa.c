@@ -27,25 +27,25 @@
  * Copyright 2023 RackTop Systems, Inc.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/sysmacros.h>
-#include <sys/dmu.h>
-#include <sys/dmu_impl.h>
-#include <sys/dmu_objset.h>
-#include <sys/dmu_tx.h>
-#include <sys/dbuf.h>
-#include <sys/dnode.h>
-#include <sys/zap.h>
-#include <sys/sa.h>
-#include <sys/sunddi.h>
-#include <sys/sa_impl.h>
-#include <sys/errno.h>
-#include <sys/zfs_context.h>
+#include <zfs/zfs_context.h>
+#include <spl/types.h>
+#include <spl/param.h>
+#include <spl/sysmacros.h>
+#include <zfs/dmu.h>
+#include <zfs/dmu_impl.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/dbuf.h>
+#include <zfs/dnode.h>
+#include <zfs/zap.h>
+#include <zfs/sa.h>
+#include <spl/sunddi.h>
+#include <zfs/sa_impl.h>
+#include <spl/errno.h>
+#include <zfs/zfs_context.h>
 
 #ifdef _KERNEL
-#include <sys/zfs_znode.h>
+#include <zfs/zfs_znode.h>
 #endif
 
 /*

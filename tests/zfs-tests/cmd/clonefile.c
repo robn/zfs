@@ -29,8 +29,8 @@
  */
 
 #include <sys/ioctl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
+#include <spl/types.h>
+#include <spl/stat.h>
 #include <fcntl.h>
 #include <stdint.h>
 #include <unistd.h>

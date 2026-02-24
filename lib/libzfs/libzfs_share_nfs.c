@@ -21,9 +21,9 @@
  */
 
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/file.h>
+#include <spl/types.h>
+#include <spl/stat.h>
+#include <spl/file.h>
 #include <fcntl.h>
 #include <ctype.h>
 #include <stdio.h>

@@ -23,8 +23,8 @@
  * Copyright (c) 2017 by Lawrence Livermore National Security, LLC.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/mmp.h>
+#include <zfs/zfs_context.h>
+#include <zfs/mmp.h>
 
 int
 param_set_multihost_interval(const char *val, zfs_kernel_param_t *kp)

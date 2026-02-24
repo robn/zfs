@@ -35,7 +35,7 @@
 #include <libintl.h>
 #include <libzfs.h>
 #include <libzutil.h>
-#include <sys/mntent.h>
+#include <zfs/mntent.h>
 
 #include "libzfs_impl.h"
 

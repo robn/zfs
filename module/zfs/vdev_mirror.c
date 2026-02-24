@@ -28,17 +28,17 @@
  * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/spa.h>
-#include <sys/spa_impl.h>
-#include <sys/dsl_pool.h>
-#include <sys/dsl_scan.h>
-#include <sys/vdev_impl.h>
-#include <sys/vdev_draid.h>
-#include <sys/zio.h>
-#include <sys/zio_checksum.h>
-#include <sys/abd.h>
-#include <sys/fs/zfs.h>
+#include <zfs/zfs_context.h>
+#include <zfs/spa.h>
+#include <zfs/spa_impl.h>
+#include <zfs/dsl_pool.h>
+#include <zfs/dsl_scan.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/vdev_draid.h>
+#include <zfs/zio.h>
+#include <zfs/zio_checksum.h>
+#include <zfs/abd.h>
+#include <zfs/fs/zfs.h>
 
 /*
  * Vdev mirror kstats

@@ -25,21 +25,21 @@
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/dbuf.h>
-#include <sys/dnode.h>
-#include <sys/dmu.h>
-#include <sys/dmu_impl.h>
-#include <sys/dmu_tx.h>
-#include <sys/dmu_objset.h>
-#include <sys/dsl_dir.h>
-#include <sys/dsl_dataset.h>
-#include <sys/spa.h>
-#include <sys/zio.h>
-#include <sys/dmu_zfetch.h>
-#include <sys/range_tree.h>
-#include <sys/trace_zfs.h>
-#include <sys/zfs_project.h>
+#include <zfs/zfs_context.h>
+#include <zfs/dbuf.h>
+#include <zfs/dnode.h>
+#include <zfs/dmu.h>
+#include <zfs/dmu_impl.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/dsl_dir.h>
+#include <zfs/dsl_dataset.h>
+#include <zfs/spa.h>
+#include <zfs/zio.h>
+#include <zfs/dmu_zfetch.h>
+#include <zfs/range_tree.h>
+#include <zfs/trace_zfs.h>
+#include <zfs/zfs_project.h>
 
 dnode_stats_t dnode_stats = {
 	{ "dnode_hold_dbuf_hold",		KSTAT_DATA_UINT64 },

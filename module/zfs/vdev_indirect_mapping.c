@@ -18,13 +18,13 @@
  * Copyright (c) 2015, 2017 by Delphix. All rights reserved.
  */
 
-#include <sys/dmu_tx.h>
-#include <sys/dsl_pool.h>
-#include <sys/spa.h>
-#include <sys/vdev_impl.h>
-#include <sys/vdev_indirect_mapping.h>
-#include <sys/zfeature.h>
-#include <sys/dmu_objset.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/dsl_pool.h>
+#include <zfs/spa.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/vdev_indirect_mapping.h>
+#include <zfs/zfeature.h>
+#include <zfs/dmu_objset.h>
 
 #ifdef ZFS_DEBUG
 static boolean_t

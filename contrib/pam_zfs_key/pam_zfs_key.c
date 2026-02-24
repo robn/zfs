@@ -26,13 +26,13 @@
  * All rights reserved.
  */
 
-#include <sys/dsl_crypt.h>
-#include <sys/byteorder.h>
+#include <zfs/dsl_crypt.h>
+#include <spl/byteorder.h>
 #include <libzfs.h>
 
 #include <syslog.h>
 
-#include <sys/zio_crypt.h>
+#include <zfs/zio_crypt.h>
 #include <openssl/evp.h>
 
 #define	PAM_SM_AUTH

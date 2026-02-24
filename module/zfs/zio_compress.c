@@ -30,12 +30,12 @@
  * Copyright (c) 2021, 2024 by George Melikov. All rights reserved.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/spa.h>
-#include <sys/zfeature.h>
-#include <sys/zio.h>
-#include <sys/zio_compress.h>
-#include <sys/zstd/zstd.h>
+#include <zfs/zfs_context.h>
+#include <zfs/spa.h>
+#include <zfs/zfeature.h>
+#include <zfs/zio.h>
+#include <zfs/zio_compress.h>
+#include <zfs/zstd/zstd.h>
 
 /*
  * Compression vectors.

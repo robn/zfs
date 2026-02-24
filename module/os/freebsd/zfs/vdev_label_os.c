@@ -20,21 +20,21 @@
  * CDDL HEADER END
  */
 
-#include <sys/zfs_context.h>
-#include <sys/spa.h>
-#include <sys/spa_impl.h>
-#include <sys/dmu.h>
-#include <sys/zap.h>
-#include <sys/vdev.h>
-#include <sys/vdev_os.h>
-#include <sys/vdev_impl.h>
-#include <sys/uberblock_impl.h>
-#include <sys/metaslab.h>
-#include <sys/metaslab_impl.h>
-#include <sys/zio.h>
-#include <sys/dsl_scan.h>
-#include <sys/abd.h>
-#include <sys/fs/zfs.h>
+#include <zfs/zfs_context.h>
+#include <zfs/spa.h>
+#include <zfs/spa_impl.h>
+#include <zfs/dmu.h>
+#include <zfs/zap.h>
+#include <zfs/vdev.h>
+#include <zfs/vdev_os.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/uberblock_impl.h>
+#include <zfs/metaslab.h>
+#include <zfs/metaslab_impl.h>
+#include <zfs/zio.h>
+#include <zfs/dsl_scan.h>
+#include <zfs/abd.h>
+#include <zfs/fs/zfs.h>
 
 int
 vdev_label_write_pad2(vdev_t *vd, const char *buf, size_t size)

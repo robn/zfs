@@ -9,7 +9,7 @@
 #define llimits_h
 
 
-#include <sys/lua/lua.h>
+#include <zfs/lua/lua.h>
 
 
 typedef unsigned LUA_INT32 lu_int32;

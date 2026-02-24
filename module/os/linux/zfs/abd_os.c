@@ -54,12 +54,12 @@
  * kernel's virtual address space.  See abd_alloc_chunks() for details.
  */
 
-#include <sys/abd_impl.h>
-#include <sys/param.h>
-#include <sys/zio.h>
-#include <sys/arc.h>
-#include <sys/zfs_context.h>
-#include <sys/zfs_znode.h>
+#include <zfs/abd_impl.h>
+#include <spl/param.h>
+#include <zfs/zio.h>
+#include <zfs/arc.h>
+#include <zfs/zfs_context.h>
+#include <zfs/zfs_znode.h>
 #include <linux/kmap_compat.h>
 #include <linux/mm_compat.h>
 #include <linux/scatterlist.h>

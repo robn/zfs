@@ -25,7 +25,7 @@
  * Copyright (c) 2024, Rob Norris <robn@despairlabs.com>
  */
 
-#include <sys/zfs_context.h>
+#include <zfs/zfs_context.h>
 
 typedef struct zfs_dbgmsg {
 	list_node_t		zdm_node;

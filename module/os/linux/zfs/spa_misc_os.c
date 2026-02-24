@@ -29,20 +29,20 @@
  * Copyright (c) 2017, Intel Corporation.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/spa_impl.h>
-#include <sys/spa.h>
-#include <sys/txg.h>
-#include <sys/unique.h>
-#include <sys/dsl_pool.h>
-#include <sys/dsl_dir.h>
-#include <sys/dsl_prop.h>
-#include <sys/fm/util.h>
-#include <sys/dsl_scan.h>
-#include <sys/dmu.h>
-#include <sys/fs/zfs.h>
-#include <sys/kstat.h>
-#include <sys/zone.h>
+#include <zfs/zfs_context.h>
+#include <zfs/spa_impl.h>
+#include <zfs/spa.h>
+#include <zfs/txg.h>
+#include <zfs/unique.h>
+#include <zfs/dsl_pool.h>
+#include <zfs/dsl_dir.h>
+#include <zfs/dsl_prop.h>
+#include <zfs/fm/util.h>
+#include <zfs/dsl_scan.h>
+#include <zfs/dmu.h>
+#include <zfs/fs/zfs.h>
+#include <spl/kstat.h>
+#include <spl/zone.h>
 #include "zfs_prop.h"
 
 

@@ -28,14 +28,14 @@
  * Copyright (c) 2023, 2024, 2025, Klara, Inc.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/spa_impl.h>
-#include <sys/vdev_disk.h>
-#include <sys/vdev_impl.h>
-#include <sys/vdev_trim.h>
-#include <sys/abd.h>
-#include <sys/fs/zfs.h>
-#include <sys/zio.h>
+#include <zfs/zfs_context.h>
+#include <zfs/spa_impl.h>
+#include <zfs/vdev_disk.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/vdev_trim.h>
+#include <zfs/abd.h>
+#include <zfs/fs/zfs.h>
+#include <zfs/zio.h>
 #include <linux/blkpg.h>
 #include <linux/msdos_fs.h>
 #include <linux/vfs_compat.h>

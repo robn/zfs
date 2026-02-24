@@ -29,12 +29,12 @@
  * Copyright (c) 2026, TrueNAS.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/dmu.h>
-#include <sys/dnode.h>
-#include <sys/dsl_dataset.h>
-#include <sys/zap.h>
-#include <sys/zap_impl.h>
+#include <zfs/zfs_context.h>
+#include <zfs/dmu.h>
+#include <zfs/dnode.h>
+#include <zfs/dsl_dataset.h>
+#include <zfs/zap.h>
+#include <zfs/zap_impl.h>
 
 static kmem_cache_t *zap_name_cache;
 static kmem_cache_t *zap_attr_cache;

@@ -43,13 +43,13 @@
  * than a few faults at any one time, so it should be sufficient for our needs.
  */
 
-#include <sys/arc.h>
-#include <sys/zio.h>
-#include <sys/zfs_ioctl.h>
-#include <sys/vdev_impl.h>
-#include <sys/dmu_objset.h>
-#include <sys/dsl_dataset.h>
-#include <sys/fs/zfs.h>
+#include <zfs/arc.h>
+#include <zfs/zio.h>
+#include <zfs/zfs_ioctl.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/dsl_dataset.h>
+#include <zfs/fs/zfs.h>
 
 uint32_t zio_injection_enabled = 0;
 

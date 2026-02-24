@@ -26,16 +26,16 @@
  *
  */
 
-#include <sys/types.h>
-#include <sys/errno.h>
-#include <sys/nvpair.h>
-#include <sys/spa_impl.h>
-#include <sys/vdev_os.h>
-#include <sys/zfs_vfsops.h>
-#include <sys/zone.h>
+#include <spl/types.h>
+#include <spl/errno.h>
+#include <zfs/nvpair.h>
+#include <zfs/spa_impl.h>
+#include <zfs/vdev_os.h>
+#include <zfs/zfs_vfsops.h>
+#include <spl/zone.h>
 #include <vm/vm_pageout.h>
 
-#include <sys/zfs_ioctl_impl.h>
+#include <zfs/zfs_ioctl_impl.h>
 
 int
 zfs_vfs_ref(zfsvfs_t **zfvp)

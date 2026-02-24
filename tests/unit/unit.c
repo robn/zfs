@@ -19,9 +19,9 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-#include <sys/types.h>
-#include <sys/cmn_err.h>
-#include <sys/zfs_debug.h>
+#include <spl/types.h>
+#include <spl/cmn_err.h>
+#include <zfs/zfs_debug.h>
 
 #include "munit.h"
 #include "unit.h"

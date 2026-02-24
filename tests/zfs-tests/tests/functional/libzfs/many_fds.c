@@ -27,8 +27,8 @@
 #include <fcntl.h>
 #include <libzfs.h>
 #include <sys/resource.h>
-#include <sys/stat.h>
-#include <sys/types.h>
+#include <spl/stat.h>
+#include <spl/types.h>
 #include <unistd.h>
 
 /*

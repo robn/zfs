@@ -26,29 +26,29 @@
  * Copyright (c) 2019, loli10K <ezomori.nozomu@gmail.com>. All rights reserved.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/spa_impl.h>
-#include <sys/dmu.h>
-#include <sys/dmu_tx.h>
-#include <sys/zap.h>
-#include <sys/vdev_impl.h>
-#include <sys/metaslab.h>
-#include <sys/metaslab_impl.h>
-#include <sys/uberblock_impl.h>
-#include <sys/txg.h>
-#include <sys/avl.h>
-#include <sys/bpobj.h>
-#include <sys/dsl_pool.h>
-#include <sys/dsl_synctask.h>
-#include <sys/dsl_dir.h>
-#include <sys/arc.h>
-#include <sys/zfeature.h>
-#include <sys/vdev_indirect_births.h>
-#include <sys/vdev_indirect_mapping.h>
-#include <sys/abd.h>
-#include <sys/vdev_initialize.h>
-#include <sys/vdev_trim.h>
-#include <sys/trace_zfs.h>
+#include <zfs/zfs_context.h>
+#include <zfs/spa_impl.h>
+#include <zfs/dmu.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/zap.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/metaslab.h>
+#include <zfs/metaslab_impl.h>
+#include <zfs/uberblock_impl.h>
+#include <zfs/txg.h>
+#include <zfs/avl.h>
+#include <zfs/bpobj.h>
+#include <zfs/dsl_pool.h>
+#include <zfs/dsl_synctask.h>
+#include <zfs/dsl_dir.h>
+#include <zfs/arc.h>
+#include <zfs/zfeature.h>
+#include <zfs/vdev_indirect_births.h>
+#include <zfs/vdev_indirect_mapping.h>
+#include <zfs/abd.h>
+#include <zfs/vdev_initialize.h>
+#include <zfs/vdev_trim.h>
+#include <zfs/trace_zfs.h>
 
 /*
  * This file contains the necessary logic to remove vdevs from a storage

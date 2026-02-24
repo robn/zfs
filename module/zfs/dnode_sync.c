@@ -27,17 +27,17 @@
  * Copyright 2020 Oxide Computer Company
  */
 
-#include <sys/zfs_context.h>
-#include <sys/dbuf.h>
-#include <sys/dnode.h>
-#include <sys/dmu.h>
-#include <sys/dmu_tx.h>
-#include <sys/dmu_objset.h>
-#include <sys/dmu_recv.h>
-#include <sys/dsl_dataset.h>
-#include <sys/spa.h>
-#include <sys/range_tree.h>
-#include <sys/zfeature.h>
+#include <zfs/zfs_context.h>
+#include <zfs/dbuf.h>
+#include <zfs/dnode.h>
+#include <zfs/dmu.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/dmu_recv.h>
+#include <zfs/dsl_dataset.h>
+#include <zfs/spa.h>
+#include <zfs/range_tree.h>
+#include <zfs/zfeature.h>
 
 static void
 dnode_increase_indirection(dnode_t *dn, dmu_tx_t *tx)

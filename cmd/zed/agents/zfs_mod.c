@@ -78,11 +78,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
-#include <sys/list.h>
-#include <sys/sunddi.h>
-#include <sys/sysevent/eventdefs.h>
-#include <sys/sysevent/dev.h>
-#include <sys/taskq.h>
+#include <spl/list.h>
+#include <spl/sunddi.h>
+#include <zfs/sysevent/eventdefs.h>
+#include <zfs/sysevent/dev.h>
+#include <spl/taskq.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <errno.h>

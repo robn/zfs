@@ -20,10 +20,10 @@
 #define lbaselib_c
 #define LUA_LIB
 
-#include <sys/lua/lua.h>
+#include <zfs/lua/lua.h>
 
-#include <sys/lua/lauxlib.h>
-#include <sys/lua/lualib.h>
+#include <zfs/lua/lauxlib.h>
+#include <zfs/lua/lualib.h>
 
 #define SPACECHARS	" \f\n\r\t\v"
 

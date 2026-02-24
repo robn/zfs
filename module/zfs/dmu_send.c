@@ -31,40 +31,40 @@
  * Copyright (c) 2019, Allan Jude
  */
 
-#include <sys/dmu.h>
-#include <sys/dmu_impl.h>
-#include <sys/dmu_tx.h>
-#include <sys/dbuf.h>
-#include <sys/dnode.h>
-#include <sys/zfs_context.h>
-#include <sys/dmu_objset.h>
-#include <sys/dmu_traverse.h>
-#include <sys/dsl_dataset.h>
-#include <sys/dsl_dir.h>
-#include <sys/dsl_prop.h>
-#include <sys/dsl_pool.h>
-#include <sys/dsl_synctask.h>
-#include <sys/spa_impl.h>
-#include <sys/zfs_ioctl.h>
-#include <sys/zap.h>
-#include <sys/zio_checksum.h>
-#include <sys/zfs_znode.h>
+#include <zfs/dmu.h>
+#include <zfs/dmu_impl.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/dbuf.h>
+#include <zfs/dnode.h>
+#include <zfs/zfs_context.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/dmu_traverse.h>
+#include <zfs/dsl_dataset.h>
+#include <zfs/dsl_dir.h>
+#include <zfs/dsl_prop.h>
+#include <zfs/dsl_pool.h>
+#include <zfs/dsl_synctask.h>
+#include <zfs/spa_impl.h>
+#include <zfs/zfs_ioctl.h>
+#include <zfs/zap.h>
+#include <zfs/zio_checksum.h>
+#include <zfs/zfs_znode.h>
 #include <zfs_fletcher.h>
-#include <sys/avl.h>
-#include <sys/ddt.h>
-#include <sys/zfs_onexit.h>
-#include <sys/dmu_send.h>
-#include <sys/dmu_recv.h>
-#include <sys/dsl_destroy.h>
-#include <sys/blkptr.h>
-#include <sys/dsl_bookmark.h>
-#include <sys/zfeature.h>
-#include <sys/bqueue.h>
-#include <sys/zvol.h>
-#include <sys/policy.h>
-#include <sys/objlist.h>
+#include <zfs/avl.h>
+#include <zfs/ddt.h>
+#include <zfs/zfs_onexit.h>
+#include <zfs/dmu_send.h>
+#include <zfs/dmu_recv.h>
+#include <zfs/dsl_destroy.h>
+#include <zfs/blkptr.h>
+#include <zfs/dsl_bookmark.h>
+#include <zfs/zfeature.h>
+#include <zfs/bqueue.h>
+#include <zfs/zvol.h>
+#include <zfs/policy.h>
+#include <zfs/objlist.h>
 #ifdef _KERNEL
-#include <sys/zfs_vfsops.h>
+#include <zfs/zfs_vfsops.h>
 #endif
 
 /* Set this tunable to TRUE to replace corrupt data with 0x2f5baddb10c */

@@ -23,7 +23,7 @@
  * Provides mock_dnode_t carrying a flat array of fixed-size blocks.
  */
 
-#include <sys/types.h>
+#include <spl/types.h>
 
 typedef struct mock_dnode mock_dnode_t;
 typedef struct mock_dmu_tx mock_dmu_tx_t;

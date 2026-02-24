@@ -48,7 +48,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/systeminfo.h>
+#include <spl/systeminfo.h>
 #include "libzfs_impl.h"
 #include "zfeature_common.h"
 

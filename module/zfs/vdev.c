@@ -34,35 +34,35 @@
  * Copyright (c) 2026, Seagate Technology, LLC.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/fm/fs/zfs.h>
-#include <sys/spa.h>
-#include <sys/spa_impl.h>
-#include <sys/bpobj.h>
-#include <sys/dmu.h>
-#include <sys/dmu_tx.h>
-#include <sys/dsl_dir.h>
-#include <sys/vdev_impl.h>
-#include <sys/vdev_rebuild.h>
-#include <sys/vdev_draid.h>
-#include <sys/uberblock_impl.h>
-#include <sys/metaslab.h>
-#include <sys/metaslab_impl.h>
-#include <sys/space_map.h>
-#include <sys/space_reftree.h>
-#include <sys/zio.h>
-#include <sys/zap.h>
-#include <sys/fs/zfs.h>
-#include <sys/arc.h>
-#include <sys/zil.h>
-#include <sys/dsl_scan.h>
-#include <sys/vdev_raidz.h>
-#include <sys/abd.h>
-#include <sys/vdev_initialize.h>
-#include <sys/vdev_trim.h>
-#include <sys/vdev_raidz.h>
-#include <sys/zvol.h>
-#include <sys/zfs_ratelimit.h>
+#include <zfs/zfs_context.h>
+#include <zfs/fm/fs/zfs.h>
+#include <zfs/spa.h>
+#include <zfs/spa_impl.h>
+#include <zfs/bpobj.h>
+#include <zfs/dmu.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/dsl_dir.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/vdev_rebuild.h>
+#include <zfs/vdev_draid.h>
+#include <zfs/uberblock_impl.h>
+#include <zfs/metaslab.h>
+#include <zfs/metaslab_impl.h>
+#include <zfs/space_map.h>
+#include <zfs/space_reftree.h>
+#include <zfs/zio.h>
+#include <zfs/zap.h>
+#include <zfs/fs/zfs.h>
+#include <zfs/arc.h>
+#include <zfs/zil.h>
+#include <zfs/dsl_scan.h>
+#include <zfs/vdev_raidz.h>
+#include <zfs/abd.h>
+#include <zfs/vdev_initialize.h>
+#include <zfs/vdev_trim.h>
+#include <zfs/vdev_raidz.h>
+#include <zfs/zvol.h>
+#include <zfs/zfs_ratelimit.h>
 #include "zfs_prop.h"
 
 /*

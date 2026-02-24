@@ -25,12 +25,12 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/param.h>
-#include <sys/lock.h>
+#include <spl/param.h>
+#include <spl/lock.h>
 #include <sys/sx.h>
 #include <sys/event.h>
 
-#include <sys/freebsd_event.h>
+#include <zfs/freebsd_event.h>
 
 static void
 knlist_sx_xlock(void *arg)

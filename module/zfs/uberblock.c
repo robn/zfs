@@ -24,10 +24,10 @@
  * Copyright (c) 2013, 2017 by Delphix. All rights reserved.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/uberblock_impl.h>
-#include <sys/vdev_impl.h>
-#include <sys/mmp.h>
+#include <zfs/zfs_context.h>
+#include <zfs/uberblock_impl.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/mmp.h>
 
 int
 uberblock_verify(uberblock_t *ub)

@@ -37,8 +37,8 @@ libspl_la_SOURCES = \
 	%D%/thread.c \
 	%D%/timestamp.c \
 	%D%/tunables.c \
-	%D%/include/sys/list.h \
-	%D%/include/sys/list_impl.h
+	%D%/include/spl/list.h \
+	%D%/include/spl/list_impl.h
 
 if BUILD_LINUX
 libspl_la_SOURCES += \

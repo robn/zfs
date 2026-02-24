@@ -24,16 +24,16 @@
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  */
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/avl.h>
-#include <sys/misc.h>
+#include <spl/types.h>
+#include <spl/stat.h>
+#include <zfs/avl.h>
+#include <spl/misc.h>
 #if defined(_KERNEL)
-#include <sys/kmem.h>
-#include <sys/systm.h>
-#include <sys/sysmacros.h>
+#include <spl/kmem.h>
+#include <spl/systm.h>
+#include <spl/sysmacros.h>
 #include <acl/acl_common.h>
-#include <sys/debug.h>
+#include <spl/debug.h>
 #else
 #include <errno.h>
 #include <stdlib.h>

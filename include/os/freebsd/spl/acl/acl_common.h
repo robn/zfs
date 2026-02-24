@@ -27,9 +27,9 @@
 #ifndef	_ACL_COMMON_H
 #define	_ACL_COMMON_H
 
-#include <sys/types.h>
-#include <sys/acl.h>
-#include <sys/stat.h>
+#include <spl/types.h>
+#include <spl/acl.h>
+#include <spl/stat.h>
 
 #ifdef	__cplusplus
 extern "C" {

@@ -24,8 +24,8 @@
  * Copyright (c) 2012, 2018 by Delphix. All rights reserved.
  */
 
-#include <sys/bplist.h>
-#include <sys/zfs_context.h>
+#include <zfs/bplist.h>
+#include <zfs/zfs_context.h>
 
 
 void

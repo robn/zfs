@@ -24,8 +24,8 @@
  *           <romain.dolbeau@european-processor-initiative.eu>
  */
 
-#include <sys/types.h>
-#include <sys/simd.h>
+#include <spl/types.h>
+#include <spl/simd.h>
 
 #define	_REG_CNT(_0, _1, _2, _3, _4, _5, _6, _7, N, ...) N
 #define	REG_CNT(r...) _REG_CNT(r, 8, 7, 6, 5, 4, 3, 2, 1)

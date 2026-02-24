@@ -26,9 +26,9 @@
 
 
 
-#include <sys/zfs_context.h>
-#include <sys/avl.h>
-#include <sys/unique.h>
+#include <zfs/zfs_context.h>
+#include <zfs/avl.h>
+#include <zfs/unique.h>
 
 static avl_tree_t unique_avl;
 static kmutex_t unique_mtx;

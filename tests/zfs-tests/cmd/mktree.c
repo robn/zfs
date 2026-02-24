@@ -34,9 +34,9 @@
 #ifdef __linux__
 #include <sys/xattr.h>
 #endif
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/param.h>
+#include <spl/stat.h>
+#include <spl/types.h>
+#include <spl/param.h>
 
 #define	TYPE_D 'D'
 #define	TYPE_F 'F'

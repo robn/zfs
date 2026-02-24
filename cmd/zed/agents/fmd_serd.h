@@ -34,8 +34,8 @@
 extern "C" {
 #endif
 
-#include <sys/list.h>
-#include <sys/time.h>
+#include <spl/list.h>
+#include <spl/time.h>
 
 typedef struct fmd_serd_elem {
 	list_node_t	se_list;	/* linked list forward/back pointers */

@@ -26,15 +26,15 @@
  * Copyright (c) 2023, Klara Inc.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/spa.h>
-#include <sys/zio.h>
-#include <sys/ddt.h>
-#include <sys/ddt_impl.h>
-#include <sys/zap.h>
-#include <sys/dmu_tx.h>
-#include <sys/dnode.h>
-#include <sys/zio_compress.h>
+#include <zfs/zfs_context.h>
+#include <zfs/spa.h>
+#include <zfs/zio.h>
+#include <zfs/ddt.h>
+#include <zfs/ddt_impl.h>
+#include <zfs/zap.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/dnode.h>
+#include <zfs/zio_compress.h>
 
 static unsigned int ddt_zap_default_bs = 15;
 static unsigned int ddt_zap_default_ibs = 15;

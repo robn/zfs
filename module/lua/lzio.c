@@ -9,7 +9,7 @@
 #define lzio_c
 #define LUA_CORE
 
-#include <sys/lua/lua.h>
+#include <zfs/lua/lua.h>
 
 #include "llimits.h"
 #include "lmem.h"

@@ -28,16 +28,16 @@
 /* Portions Copyright 2007 Jeremy Teo */
 /* Portions Copyright 2011 Martin Matuska <mm@FreeBSD.org> */
 
-#include <sys/dmu.h>
-#include <sys/dmu_objset.h>
-#include <sys/dmu_tx.h>
-#include <sys/zfs_refcount.h>
-#include <sys/stat.h>
-#include <sys/zap.h>
-#include <sys/zfs_znode.h>
-#include <sys/sa.h>
-#include <sys/zfs_sa.h>
-#include <sys/zfs_stat.h>
+#include <zfs/dmu.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/zfs_refcount.h>
+#include <spl/stat.h>
+#include <zfs/zap.h>
+#include <zfs/zfs_znode.h>
+#include <zfs/sa.h>
+#include <zfs/zfs_sa.h>
+#include <zfs/zfs_stat.h>
 
 #include "zfs_prop.h"
 #include "zfs_comutil.h"

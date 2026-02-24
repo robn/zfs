@@ -28,8 +28,8 @@
  * Portions of this file are derived from sys/geom/eli/g_eli_hmac.c
  */
 
-#include <sys/types.h>
-#include <sys/errno.h>
+#include <spl/types.h>
+#include <spl/errno.h>
 
 #ifdef _KERNEL
 #include <sys/libkern.h>
@@ -39,11 +39,11 @@
 #include <opencrypto/xform.h>
 #endif
 
-#include <sys/zio_crypt.h>
-#include <sys/fs/zfs.h>
-#include <sys/zio.h>
+#include <zfs/zio_crypt.h>
+#include <zfs/fs/zfs.h>
+#include <zfs/zio.h>
 
-#include <sys/freebsd_crypto.h>
+#include <zfs/freebsd_crypto.h>
 
 #define	SHA512_HMAC_BLOCK_SIZE	128
 

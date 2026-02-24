@@ -24,8 +24,8 @@
  * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/trace_zfs.h>
+#include <zfs/zfs_context.h>
+#include <zfs/trace_zfs.h>
 
 typedef struct zfs_dbgmsg {
 	procfs_list_node_t	zdm_node;

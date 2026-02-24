@@ -136,24 +136,24 @@
  * The 'vs' configuration follows the format described in 'spa_config.c'.
  */
 
-#include <sys/zfs_context.h>
-#include <sys/spa.h>
-#include <sys/spa_impl.h>
-#include <sys/dmu.h>
-#include <sys/zap.h>
-#include <sys/vdev.h>
-#include <sys/vdev_impl.h>
-#include <sys/vdev_raidz.h>
-#include <sys/vdev_draid.h>
-#include <sys/uberblock_impl.h>
-#include <sys/metaslab.h>
-#include <sys/metaslab_impl.h>
-#include <sys/zio.h>
-#include <sys/dsl_scan.h>
-#include <sys/abd.h>
-#include <sys/fs/zfs.h>
-#include <sys/byteorder.h>
-#include <sys/zfs_bootenv.h>
+#include <zfs/zfs_context.h>
+#include <zfs/spa.h>
+#include <zfs/spa_impl.h>
+#include <zfs/dmu.h>
+#include <zfs/zap.h>
+#include <zfs/vdev.h>
+#include <zfs/vdev_impl.h>
+#include <zfs/vdev_raidz.h>
+#include <zfs/vdev_draid.h>
+#include <zfs/uberblock_impl.h>
+#include <zfs/metaslab.h>
+#include <zfs/metaslab_impl.h>
+#include <zfs/zio.h>
+#include <zfs/dsl_scan.h>
+#include <zfs/abd.h>
+#include <zfs/fs/zfs.h>
+#include <spl/byteorder.h>
+#include <zfs/zfs_bootenv.h>
 
 /*
  * Basic routines to read and write from a vdev label.

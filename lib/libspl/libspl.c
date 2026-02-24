@@ -30,8 +30,8 @@
 #include <libspl.h>
 #include <assert.h>
 #include <unistd.h>
-#include <sys/misc.h>
-#include <sys/systm.h>
+#include <spl/misc.h>
+#include <spl/systm.h>
 #include <sys/utsname.h>
 #include "libspl_impl.h"
 

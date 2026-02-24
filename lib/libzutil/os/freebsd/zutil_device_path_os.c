@@ -27,7 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <sys/stat.h>
+#include <spl/stat.h>
 
 #include <libgeom.h>
 

@@ -61,15 +61,15 @@
  * this list and displaying it to the user.
  */
 
-#include <sys/dmu_tx.h>
-#include <sys/spa.h>
-#include <sys/spa_impl.h>
-#include <sys/zap.h>
-#include <sys/zio.h>
-#include <sys/dsl_dir.h>
-#include <sys/dmu_objset.h>
-#include <sys/dbuf.h>
-#include <sys/zfs_znode.h>
+#include <zfs/dmu_tx.h>
+#include <zfs/spa.h>
+#include <zfs/spa_impl.h>
+#include <zfs/zap.h>
+#include <zfs/zio.h>
+#include <zfs/dsl_dir.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/dbuf.h>
+#include <zfs/zfs_znode.h>
 
 #define	NAME_MAX_LEN 64
 

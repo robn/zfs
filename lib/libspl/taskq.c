@@ -29,12 +29,12 @@
  * Copyright (c) 2014 by Delphix. All rights reserved.
  */
 
-#include <sys/sysmacros.h>
-#include <sys/timer.h>
-#include <sys/types.h>
-#include <sys/thread.h>
-#include <sys/taskq.h>
-#include <sys/kmem.h>
+#include <spl/sysmacros.h>
+#include <spl/timer.h>
+#include <spl/types.h>
+#include <spl/thread.h>
+#include <spl/taskq.h>
+#include <spl/kmem.h>
 #include <pthread.h>
 
 static pthread_key_t taskq_tsd;

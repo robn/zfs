@@ -19,7 +19,7 @@
  * mild parallelism.
  */
 
-#include <sys/vdev_draid.h>
+#include <zfs/vdev_draid.h>
 
 static inline uint64_t rotl(const uint64_t x, int k)
 {

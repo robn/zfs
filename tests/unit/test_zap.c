@@ -16,10 +16,10 @@
 
 #include <stdbool.h>
 
-#include <sys/zap.h>
-#include <sys/btree.h>
+#include <zfs/zap.h>
+#include <zfs/btree.h>
 typedef struct spa spa_t;	/* forward decl for zap_impl.h */
-#include <sys/zap_impl.h>
+#include <zfs/zap_impl.h>
 
 #include "mock_dmu.h"
 #include "unit.h"

@@ -11,7 +11,7 @@
  * OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/types.h>
+#include <spl/types.h>
 #include <sys/wait.h>
 #include <errno.h>
 #include <fcntl.h>

@@ -34,14 +34,14 @@
 #include <uuid/uuid.h>
 #include <zlib.h>
 #include <libintl.h>
-#include <sys/types.h>
-#include <sys/dkio.h>
-#include <sys/mhd.h>
-#include <sys/param.h>
-#include <sys/dktp/fdisk.h>
-#include <sys/efi_partition.h>
-#include <sys/byteorder.h>
-#include <sys/vdev_disk.h>
+#include <spl/types.h>
+#include <spl/dkio.h>
+#include <spl/mhd.h>
+#include <spl/param.h>
+#include <spl/dktp/fdisk.h>
+#include <zfs/efi_partition.h>
+#include <spl/byteorder.h>
+#include <zfs/vdev_disk.h>
 #include <linux/fs.h>
 #include <linux/blkpg.h>
 

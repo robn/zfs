@@ -55,7 +55,7 @@
 #include <linux/export.h>
 #include <linux/sched.h>
 #include <asm/switch_to.h>
-#include <sys/types.h>
+#include <spl/types.h>
 #include <linux/version.h>
 #include <asm/cpufeature.h>
 

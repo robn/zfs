@@ -36,9 +36,9 @@
  * marking the vdev FAULTY (for I/O errors) or DEGRADED (for checksum errors).
  */
 
-#include <sys/fs/zfs.h>
-#include <sys/fm/protocol.h>
-#include <sys/fm/fs/zfs.h>
+#include <zfs/fs/zfs.h>
+#include <zfs/fm/protocol.h>
+#include <zfs/fm/fs/zfs.h>
 #include <libzutil.h>
 #include <libzfs.h>
 #include <string.h>

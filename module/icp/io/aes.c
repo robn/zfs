@@ -27,11 +27,11 @@
  * AES provider for the Kernel Cryptographic Framework (KCF)
  */
 
-#include <sys/zfs_context.h>
-#include <sys/crypto/common.h>
+#include <zfs/zfs_context.h>
+#include <zfs/crypto/common.h>
 #include <sys/crypto/impl.h>
 #include <sys/crypto/spi.h>
-#include <sys/crypto/icp.h>
+#include <zfs/crypto/icp.h>
 #include <modes/modes.h>
 #define	_AES_IMPL
 #include <aes/aes_impl.h>

@@ -42,7 +42,7 @@
  *
  */
 
-#include <sys/zfs_context.h>
+#include <zfs/zfs_context.h>
 
 int LZ4_uncompress_unknownOutputSize(const char *source, char *dest,
     int isize, int maxOutputSize);

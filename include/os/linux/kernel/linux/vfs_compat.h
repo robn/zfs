@@ -29,8 +29,8 @@
 #ifndef _ZFS_VFS_H
 #define	_ZFS_VFS_H
 
-#include <sys/taskq.h>
-#include <sys/cred.h>
+#include <spl/taskq.h>
+#include <spl/cred.h>
 #include <linux/backing-dev.h>
 #include <linux/compat.h>
 

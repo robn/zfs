@@ -26,10 +26,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <sys/stat.h>
-#include <sys/types.h>
+#include <spl/stat.h>
+#include <spl/types.h>
 #include <sys/ioctl.h>
-#include <sys/fs/zfs.h>
+#include <zfs/fs/zfs.h>
 #include "dos_attributes.h"
 
 int

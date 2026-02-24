@@ -24,8 +24,8 @@
  *           <romain.dolbeau@european-processor-initiative.eu>
  */
 
-#include <sys/isa_defs.h>
-#include <sys/types.h>
+#include <spl/isa_defs.h>
+#include <spl/types.h>
 
 #if defined(__powerpc__)
 #pragma GCC target("altivec")
@@ -201,7 +201,7 @@
 #define	REC_PQR_YS		8, 9
 
 
-#include <sys/vdev_raidz_impl.h>
+#include <zfs/vdev_raidz_impl.h>
 #include "vdev_raidz_math_impl.h"
 
 DEFINE_GEN_METHODS(powerpc_altivec);

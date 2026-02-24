@@ -153,7 +153,7 @@
 
 #if defined(lint) || defined(__lint)
 
-#include <sys/types.h>
+#include <spl/types.h>
 
 void
 aes_encrypt_intel(const uint32_t rk[], int Nr, const uint32_t pt[4],
@@ -182,7 +182,7 @@ rijndael_key_setup_dec_intel(uint32_t rk[], const uint32_t cipherKey[],
 #elif HAVE_SIMD(AES)	/* guard by instruction set */
 
 #define _ASM
-#include <sys/asm_linkage.h>
+#include <zfs/asm_linkage.h>
 
 /*
  * _key_expansion_128(), * _key_expansion_192a(), _key_expansion_192b(),

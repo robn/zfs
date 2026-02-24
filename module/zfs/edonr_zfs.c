@@ -26,11 +26,11 @@
 /*
  * Copyright (c) 2016 by Delphix. All rights reserved.
  */
-#include <sys/zfs_context.h>
-#include <sys/zio.h>
-#include <sys/zio_checksum.h>
-#include <sys/edonr.h>
-#include <sys/abd.h>
+#include <zfs/zfs_context.h>
+#include <zfs/zio.h>
+#include <zfs/zio_checksum.h>
+#include <zfs/edonr.h>
+#include <zfs/abd.h>
 
 #define	EDONR_MODE		512
 #define	EDONR_BLOCK_SIZE	EdonR512_BLOCK_SIZE

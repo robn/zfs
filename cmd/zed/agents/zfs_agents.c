@@ -22,12 +22,12 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/list.h>
-#include <sys/time.h>
-#include <sys/sysevent/eventdefs.h>
-#include <sys/sysevent/dev.h>
-#include <sys/fm/protocol.h>
-#include <sys/fm/fs/zfs.h>
+#include <spl/list.h>
+#include <spl/time.h>
+#include <zfs/sysevent/eventdefs.h>
+#include <zfs/sysevent/dev.h>
+#include <zfs/fm/protocol.h>
+#include <zfs/fm/fs/zfs.h>
 #include <pthread.h>
 #include <unistd.h>
 

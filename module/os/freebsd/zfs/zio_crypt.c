@@ -18,15 +18,15 @@
  * Copyright (c) 2017, Datto, Inc. All rights reserved.
  */
 
-#include <sys/zio_crypt.h>
-#include <sys/dmu.h>
-#include <sys/dmu_objset.h>
-#include <sys/dnode.h>
-#include <sys/fs/zfs.h>
-#include <sys/zio.h>
-#include <sys/zil.h>
-#include <sys/sha2.h>
-#include <sys/hkdf.h>
+#include <zfs/zio_crypt.h>
+#include <zfs/dmu.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/dnode.h>
+#include <zfs/fs/zfs.h>
+#include <zfs/zio.h>
+#include <zfs/zil.h>
+#include <zfs/sha2.h>
+#include <zfs/hkdf.h>
 
 /*
  * This file is responsible for handling all of the details of generating

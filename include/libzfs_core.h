@@ -31,9 +31,9 @@
 #define	_LIBZFS_CORE_H extern __attribute__((visibility("default")))
 
 #include <libnvpair.h>
-#include <sys/param.h>
-#include <sys/types.h>
-#include <sys/fs/zfs.h>
+#include <spl/param.h>
+#include <spl/types.h>
+#include <zfs/fs/zfs.h>
 
 #ifdef	__cplusplus
 extern "C" {

@@ -30,9 +30,9 @@
  */
 
 #include <stdio.h>
-#include <sys/stat.h>
+#include <spl/stat.h>
 #include <fcntl.h>
-#include <sys/types.h>
+#include <spl/types.h>
 #include <sys/mman.h>
 #include <errno.h>
 

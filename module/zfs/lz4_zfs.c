@@ -37,8 +37,8 @@
  * N.B. - This file seems to be based on LZ4 r85, dated Dec 10, 2012
  */
 
-#include <sys/zfs_context.h>
-#include <sys/zio_compress.h>
+#include <zfs/zfs_context.h>
+#include <zfs/zio_compress.h>
 
 static int real_LZ4_compress(const char *source, char *dest, int isize,
     int osize);

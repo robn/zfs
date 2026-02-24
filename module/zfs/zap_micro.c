@@ -28,20 +28,20 @@
  * Copyright (c) 2024, Klara, Inc.
  */
 
-#include <sys/zio.h>
-#include <sys/spa.h>
-#include <sys/dmu.h>
-#include <sys/zfs_context.h>
-#include <sys/zap.h>
-#include <sys/zap_impl.h>
-#include <sys/zap_leaf.h>
-#include <sys/btree.h>
-#include <sys/arc.h>
-#include <sys/dmu_objset.h>
-#include <sys/spa_impl.h>
+#include <zfs/zio.h>
+#include <zfs/spa.h>
+#include <zfs/dmu.h>
+#include <zfs/zfs_context.h>
+#include <zfs/zap.h>
+#include <zfs/zap_impl.h>
+#include <zfs/zap_leaf.h>
+#include <zfs/btree.h>
+#include <zfs/arc.h>
+#include <zfs/dmu_objset.h>
+#include <zfs/spa_impl.h>
 
 #ifdef _KERNEL
-#include <sys/sunddi.h>
+#include <spl/sunddi.h>
 #endif
 
 /*

@@ -24,8 +24,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/mman.h>
-#include <sys/stat.h>
-#include <sys/time.h>
+#include <spl/stat.h>
+#include <spl/time.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <time.h>

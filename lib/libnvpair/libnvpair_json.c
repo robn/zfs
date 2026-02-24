@@ -18,7 +18,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
-#include <sys/debug.h>
+#include <spl/debug.h>
 
 #include "libnvpair.h"
 

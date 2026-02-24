@@ -27,7 +27,7 @@
 #ifndef	_LIBNVPAIR_H
 #define	_LIBNVPAIR_H extern __attribute__((visibility("default")))
 
-#include <sys/nvpair.h>
+#include <zfs/nvpair.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <regex.h>

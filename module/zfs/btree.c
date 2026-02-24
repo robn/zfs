@@ -17,9 +17,9 @@
  * Copyright (c) 2019 by Delphix. All rights reserved.
  */
 
-#include	<sys/btree.h>
-#include	<sys/bitops.h>
-#include	<sys/zfs_context.h>
+#include	<zfs/btree.h>
+#include	<zfs/bitops.h>
+#include	<zfs/zfs_context.h>
 
 #ifndef _KERNEL
 #define	panic(...) PANIC(__VA_ARGS__)

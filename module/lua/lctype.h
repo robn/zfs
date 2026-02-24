@@ -8,7 +8,7 @@
 #ifndef lctype_h
 #define lctype_h
 
-#include <sys/lua/lua.h>
+#include <zfs/lua/lua.h>
 
 
 /*
