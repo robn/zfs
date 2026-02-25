@@ -260,6 +260,11 @@ void mountcache_exit(mountcache_t *mc);
 int mountcache_refresh(mountcache_t *mc);
 void mountcache_dump(mountcache_t *mc);
 
+const mount_t *mountcache_find_by_dataset(mountcache_t *mc,
+    const char *dsname);
+const mount_t *mountcache_find_by_mountpoint(mountcache_t *mc,
+    const char *mountpoint);
+
 #ifdef	__cplusplus
 }
 #endif
