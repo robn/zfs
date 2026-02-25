@@ -1073,6 +1073,11 @@ libzfs_init(void)
 		return (NULL);
 	}
 
+	if (mountcache_init(&hdl->libzfs_mountcache) != 0) {
+		free(hdl);
+		return (NULL);
+	}
+
 	if ((hdl->libzfs_fd = open(ZFS_DEV, O_RDWR|O_EXCL|O_CLOEXEC)) < 0) {
 		free(hdl);
 		return (NULL);
@@ -1133,6 +1138,7 @@ libzfs_fini(libzfs_handle_t *hdl)
 	namespace_clear(hdl);
 	libzfs_mnttab_fini(hdl);
 	libzfs_core_fini();
+	mountcache_free(hdl->libzfs_mountcache);
 	regfree(&hdl->libzfs_urire);
 	fletcher_4_fini();
 #if LIBFETCH_DYNAMIC
