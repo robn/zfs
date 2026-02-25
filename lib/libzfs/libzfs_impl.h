@@ -238,6 +238,8 @@ typedef struct mountcache mountcache_t;
 
 int mountcache_init(mountcache_t **mcp);
 void mountcache_free(mountcache_t *mc);
+void mountcache_enter(mountcache_t *mc);
+void mountcache_exit(mountcache_t *mc);
 int mountcache_refresh(mountcache_t *mc);
 void mountcache_dump(mountcache_t *mc);
 
