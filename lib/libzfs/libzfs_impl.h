@@ -47,6 +47,8 @@ extern "C" {
 
 #define	ERRBUFLEN 1024
 
+typedef struct mountcache mountcache_t;
+
 struct libzfs_handle {
 	int libzfs_error;
 	int libzfs_fd;
@@ -66,6 +68,7 @@ struct libzfs_handle {
 	 */
 	pthread_mutex_t libzfs_mnttab_cache_lock;
 	avl_tree_t libzfs_mnttab_cache;
+	mountcache_t *libzfs_mountcache;
 	int libzfs_pool_iter;
 	boolean_t libzfs_prop_debug;
 	regex_t libzfs_urire;
@@ -249,8 +252,6 @@ typedef struct {
 	char		*m_source;
 	char		*m_superopts;
 } mount_t;
-
-typedef struct mountcache mountcache_t;
 
 int mountcache_init(mountcache_t **mcp);
 void mountcache_free(mountcache_t *mc);
