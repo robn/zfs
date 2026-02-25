@@ -105,6 +105,9 @@ mountcache_compare_dataset(const void *a, const void *b)
 	if (cmp != 0)
 		return (cmp);
 
+	if (mna->mn_sort_id == INT_MAX)
+		return (0);
+
 	return (TREE_CMP(mna->mn_sort_id, mnb->mn_sort_id));
 }
 
@@ -118,6 +121,9 @@ mountcache_compare_mountpoint(const void *a, const void *b)
 	    mnb->mn_mount.m_mountpoint));
 	if (cmp != 0)
 		return (cmp);
+
+	if (mna->mn_sort_id == INT_MAX)
+		return (0);
 
 	return (TREE_CMP(mna->mn_sort_id, mnb->mn_sort_id));
 }
@@ -401,4 +407,32 @@ mountcache_dump(mountcache_t *mc)
 	mountcache_exit(mc);
 }
 
+const mount_t *
+mountcache_find_by_dataset(mountcache_t *mc, const char *dsname)
+{
+	mountnode_t search = {
+		.mn_mount = {
+			.m_source = (char *)dsname,
+		},
+		.mn_sort_id = INT_MAX,
+	};
+	mountnode_t *mn = avl_find(&mc->mc_dataset_tree, &search, NULL);
+	if (mn != NULL)
+		return (&mn->mn_mount);
+	return (NULL);
+}
 
+const mount_t *
+mountcache_find_by_mountpoint(mountcache_t *mc, const char *mountpoint)
+{
+	mountnode_t search = {
+		.mn_mount = {
+			.m_mountpoint = (char *)mountpoint,
+		},
+		.mn_sort_id = INT_MAX,
+	};
+	mountnode_t *mn = avl_find(&mc->mc_mountpoint_tree, &search, NULL);
+	if (mn != NULL)
+		return (&mn->mn_mount);
+	return (NULL);
+}
