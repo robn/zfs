@@ -202,14 +202,19 @@ dir_is_empty(const char *dirname)
 boolean_t
 is_mounted(libzfs_handle_t *zfs_hdl, const char *special, char **where)
 {
-	struct mnttab entry;
+	mountcache_t *mc = zfs_hdl->libzfs_mountcache;
+	mountcache_enter(mc);
 
-	if (libzfs_mnttab_find(zfs_hdl, special, &entry) != 0)
+	const mount_t *m = mountcache_find_by_dataset(mc, special);
+	if (m == NULL) {
+		mountcache_exit(mc);
 		return (B_FALSE);
+	}
 
 	if (where != NULL)
-		*where = zfs_strdup(zfs_hdl, entry.mnt_mountp);
+		*where = zfs_strdup(zfs_hdl, m->m_mountpoint);
 
+	mountcache_exit(mc);
 	return (B_TRUE);
 }
 
