@@ -439,30 +439,30 @@ mountcache_mountnode_is_zfs(mountcache_t *mc, const mountnode_t *mn)
 	return (B_TRUE);
 }
 
+static const mountnode_t *
+mountcache_foreach(mountcache_t *mc, avl_tree_t *tree, const mountnode_t *mn)
+{
+	if (mn == NULL)
+		mn = avl_first(tree);
+	else
+		mn = AVL_NEXT(tree, (mountnode_t *)mn);
+	while (mn != NULL && !mountcache_mountnode_is_zfs(mc, mn))
+		mn = AVL_NEXT(tree, (mountnode_t *)mn);
+	return (mn);
+}
+
 const mount_t *
 mountcache_foreach_dataset(mountcache_t *mc, const mount_t *m)
 {
-	const mountnode_t *mn = (const mountnode_t *)m;
-	if (mn == NULL)
-		mn = avl_first(&mc->mc_dataset_tree);
-	else
-		mn = AVL_NEXT(&mc->mc_dataset_tree, (mountnode_t *)mn);
-	while (mn != NULL && !mountcache_mountnode_is_zfs(mc, mn))
-		mn = AVL_NEXT(&mc->mc_dataset_tree, (mountnode_t *)mn);
-	return (&mn->mn_mount);
+	return ((const mount_t *) mountcache_foreach(mc,
+	    &mc->mc_dataset_tree, (const mountnode_t *) m));
 }
 
 const mount_t *
 mountcache_foreach_mountpoint(mountcache_t *mc, const mount_t *m)
 {
-	const mountnode_t *mn = (const mountnode_t *)m;
-	if (mn == NULL)
-		mn = avl_first(&mc->mc_mountpoint_tree);
-	else
-		mn = AVL_NEXT(&mc->mc_mountpoint_tree, (mountnode_t *)mn);
-	while (mn != NULL && !mountcache_mountnode_is_zfs(mc, mn))
-		mn = AVL_NEXT(&mc->mc_mountpoint_tree, (mountnode_t *)mn);
-	return (&mn->mn_mount);
+	return ((const mount_t *) mountcache_foreach(mc,
+	    &mc->mc_mountpoint_tree, (const mountnode_t *) m));
 }
 
 const mount_t *
