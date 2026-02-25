@@ -61,6 +61,10 @@ strtou64(const char *str, uint64_t *np)
 	return (0);
 }
 
+/*
+ * XXX nomenclature, "dataset" vs "source". waiting to see all use cases
+ *     before resolving.
+ */
 typedef struct {
 	mount_t		mn_mount;
 
@@ -68,7 +72,8 @@ typedef struct {
 	int		mn_depth;
 
 	avl_node_t	mn_sort_node;
-	avl_node_t	mn_mp_node;
+	avl_node_t	mn_dataset_node;
+	avl_node_t	mn_mountpoint_node;
 } mountnode_t;
 
 static int
@@ -90,7 +95,21 @@ mountcache_compare_sort_id(const void *a, const void *b)
 }
 
 static int
-mountcache_compare_mp(const void *a, const void *b)
+mountcache_compare_dataset(const void *a, const void *b)
+{
+	const mountnode_t *mna = a;
+	const mountnode_t *mnb = b;
+
+	int cmp = TREE_ISIGN(strcmp(mna->mn_mount.m_source,
+	    mnb->mn_mount.m_source));
+	if (cmp != 0)
+		return (cmp);
+
+	return (TREE_CMP(mna->mn_sort_id, mnb->mn_sort_id));
+}
+
+static int
+mountcache_compare_mountpoint(const void *a, const void *b)
 {
 	const mountnode_t *mna = a;
 	const mountnode_t *mnb = b;
@@ -132,11 +151,17 @@ mountcache_free_mountnode(mountnode_t *mn) {
 }
 
 static int
-mountcache_load_data(avl_tree_t *sort_tree, avl_tree_t *mp_tree)
+mountcache_load_data(avl_tree_t *sort_tree, avl_tree_t *dataset_tree,
+    avl_tree_t *mountpoint_tree)
 {
+	/*
+	 * Temporary tree for initial parse. Borrowing mn_dataset_node
+	 * because its unused at this stage, and not needed beyond this
+	 * function.
+	 */
 	avl_tree_t id_tree;
 	avl_create(&id_tree, mountcache_compare_id, sizeof (mountnode_t),
-	    offsetof(mountnode_t, mn_mp_node));
+	    offsetof(mountnode_t, mn_dataset_node));
 
 	FILE *f = fopen("/proc/self/mountinfo", "re");
 	if (f == NULL)
@@ -240,14 +265,17 @@ mountcache_load_data(avl_tree_t *sort_tree, avl_tree_t *mp_tree)
 
 	avl_create(sort_tree, mountcache_compare_sort_id, sizeof (mountnode_t),
 	    offsetof(mountnode_t, mn_sort_node));
-	avl_create(mp_tree, mountcache_compare_mp, sizeof (mountnode_t),
-	    offsetof(mountnode_t, mn_mp_node));
+	avl_create(dataset_tree, mountcache_compare_dataset,
+	    sizeof (mountnode_t), offsetof(mountnode_t, mn_dataset_node));
+	avl_create(mountpoint_tree, mountcache_compare_mountpoint,
+	    sizeof (mountnode_t), offsetof(mountnode_t, mn_mountpoint_node));
 
 	mountnode_t *mn;
 	void *cookie = NULL;
 	while ((mn = avl_destroy_nodes(&id_tree, &cookie)) != NULL) {
 		avl_add(sort_tree, mn);
-		avl_add(mp_tree, mn);
+		avl_add(dataset_tree, mn);
+		avl_add(mountpoint_tree, mn);
 	}
 	avl_destroy(&id_tree);
 
@@ -255,21 +283,25 @@ mountcache_load_data(avl_tree_t *sort_tree, avl_tree_t *mp_tree)
 }
 
 static void
-mountcache_free_data(avl_tree_t *sort_tree, avl_tree_t *mp_tree)
+mountcache_free_data(avl_tree_t *sort_tree, avl_tree_t *dataset_tree,
+    avl_tree_t *mountpoint_tree)
 {
 	mountnode_t *mn;
 	void *cookie = NULL;
 	while ((mn = avl_destroy_nodes(sort_tree, &cookie)) != NULL) {
-		avl_remove(mp_tree, mn);
+		avl_remove(dataset_tree, mn);
+		avl_remove(mountpoint_tree, mn);
 		mountcache_free_mountnode(mn);
 	}
 	avl_destroy(sort_tree);
-	avl_destroy(mp_tree);
+	avl_destroy(dataset_tree);
+	avl_destroy(mountpoint_tree);
 }
 
 struct mountcache {
 	avl_tree_t mc_sort_tree;
-	avl_tree_t mc_mp_tree;
+	avl_tree_t mc_dataset_tree;
+	avl_tree_t mc_mountpoint_tree;
 
 	kmutex_t mc_lock;
 	kcondvar_t mc_cv;
@@ -281,7 +313,8 @@ mountcache_init(mountcache_t **mcp)
 {
 	mountcache_t *mc = calloc(1, sizeof (mountcache_t));
 
-	int err = mountcache_load_data(&mc->mc_sort_tree, &mc->mc_mp_tree);
+	int err = mountcache_load_data(&mc->mc_sort_tree, &mc->mc_dataset_tree,
+	    &mc->mc_mountpoint_tree);
 	if (err != 0) {
 		free(mc);
 		return (err);
@@ -300,7 +333,8 @@ mountcache_free(mountcache_t *mc)
 	ASSERT0(mc->mc_holds);
 	cv_destroy(&mc->mc_cv);
 	mutex_destroy(&mc->mc_lock);
-	mountcache_free_data(&mc->mc_sort_tree, &mc->mc_mp_tree);
+	mountcache_free_data(&mc->mc_sort_tree, &mc->mc_dataset_tree,
+	    &mc->mc_mountpoint_tree);
 	free(mc);
 }
 
@@ -331,15 +365,19 @@ mountcache_refresh(mountcache_t *mc)
 	while (mc->mc_holds != 0)
 		cv_wait(&mc->mc_cv, &mc->mc_lock);
 
-	avl_tree_t sort_tree, mp_tree;
-	int err = mountcache_load_data(&sort_tree, &mp_tree);
+	avl_tree_t sort_tree, dataset_tree, mountpoint_tree;
+	int err = mountcache_load_data(&sort_tree, &dataset_tree,
+	    &mountpoint_tree);
 	if (err != 0) {
 		mutex_exit(&mc->mc_lock);
 		return (err);
 	}
+
 	avl_swap(&mc->mc_sort_tree, &sort_tree);
-	avl_swap(&mc->mc_mp_tree, &mp_tree);
-	mountcache_free_data(&sort_tree, &mp_tree);
+	avl_swap(&mc->mc_dataset_tree, &dataset_tree);
+	avl_swap(&mc->mc_mountpoint_tree, &mountpoint_tree);
+	mountcache_free_data(&sort_tree, &dataset_tree, &mountpoint_tree);
+
 	mutex_exit(&mc->mc_lock);
 	return (0);
 }
@@ -348,12 +386,13 @@ void
 mountcache_dump(mountcache_t *mc)
 {
 	mountcache_enter(mc);
-	printf("%-4s  %-4s  %-15s  %s\n", "ID", "UP", "TYPE", "MOUNTPOINT");
-	for (mountnode_t *mn = avl_first(&mc->mc_mp_tree); mn != NULL;
-	    mn = AVL_NEXT(&mc->mc_mp_tree, mn)) {
+	printf("%-4s  %-4s  %-15s  %-20s  %s\n",
+	    "ID", "UP", "TYPE", "SOURCE", "MOUNTPOINT");
+	for (mountnode_t *mn = avl_first(&mc->mc_mountpoint_tree); mn != NULL;
+	    mn = AVL_NEXT(&mc->mc_mountpoint_tree, mn)) {
 		mount_t *m = &mn->mn_mount;
-		printf("%4lu  %4lu  %-15s  %.*s%s\n",
-		    m->m_id, m->m_parent, m->m_type,
+		printf("%4lu  %4lu  %-15s  %-20s  %.*s%s\n",
+		    m->m_id, m->m_parent, m->m_type, m->m_source,
 		    mn->mn_depth * 2,
 		    "                                        ",
 		    m->m_mountpoint);
