@@ -265,6 +265,11 @@ const mount_t *mountcache_find_by_dataset(mountcache_t *mc,
 const mount_t *mountcache_find_by_mountpoint(mountcache_t *mc,
     const char *mountpoint);
 
+const mount_t *mountcache_foreach_dataset(mountcache_t *mc,
+    const mount_t *m);
+const mount_t *mountcache_foreach_mountpoint(mountcache_t *mc,
+    const mount_t *m);
+
 #ifdef	__cplusplus
 }
 #endif

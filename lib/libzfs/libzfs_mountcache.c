@@ -392,19 +392,41 @@ void
 mountcache_dump(mountcache_t *mc)
 {
 	mountcache_enter(mc);
-	printf("%-4s  %-4s  %-15s  %-20s  %s\n",
-	    "ID", "UP", "TYPE", "SOURCE", "MOUNTPOINT");
-	for (mountnode_t *mn = avl_first(&mc->mc_mountpoint_tree); mn != NULL;
-	    mn = AVL_NEXT(&mc->mc_mountpoint_tree, mn)) {
-		mount_t *m = &mn->mn_mount;
+
+	boolean_t did_header = B_FALSE;
+	const mount_t *m = NULL;
+	while ((m = mountcache_foreach_mountpoint(mc, m)) != NULL) {
+		if (!did_header) {
+			printf("%-4s  %-4s  %-15s  %-20s  %s\n",
+			    "ID", "UP", "TYPE", "SOURCE", "MOUNTPOINT");
+			did_header = B_TRUE;
+		}
 		printf("%4lu  %4lu  %-15s  %-20s  %.*s%s\n",
 		    m->m_id, m->m_parent, m->m_type, m->m_source,
-		    mn->mn_depth * 2,
+		    ((const mountnode_t *)m)->mn_depth * 2,
 		    "                                        ",
 		    m->m_mountpoint);
 	}
+
 	printf("\n");
+
 	mountcache_exit(mc);
+}
+
+const mount_t *
+mountcache_foreach_dataset(mountcache_t *mc, const mount_t *m)
+{
+	if (m == NULL)
+		return (avl_first(&mc->mc_dataset_tree));
+	return (AVL_NEXT(&mc->mc_dataset_tree, (mountnode_t *)m));
+}
+
+const mount_t *
+mountcache_foreach_mountpoint(mountcache_t *mc, const mount_t *m)
+{
+	if (m == NULL)
+		return (avl_first(&mc->mc_mountpoint_tree));
+	return (AVL_NEXT(&mc->mc_mountpoint_tree, (mountnode_t *)m));
 }
 
 const mount_t *
