@@ -893,12 +893,9 @@ void
 libzfs_mnttab_cache(libzfs_handle_t *hdl, boolean_t enable)
 {
 	/* XXX stupid hook point while experimenting */
-	mountcache_t *mc;
-	mountcache_init(&mc);
-	mountcache_dump(mc);
-	mountcache_refresh(mc);
-	mountcache_dump(mc);
-	mountcache_free(mc);
+	mountcache_dump(hdl->libzfs_mountcache);
+	mountcache_refresh(hdl->libzfs_mountcache);
+	mountcache_dump(hdl->libzfs_mountcache);
 
 	hdl->libzfs_mnttab_enable = enable;
 }
