@@ -127,6 +127,19 @@ mountcache_assign_sort(avl_tree_t *idt, mount_t *m,
 	}
 }
 
+static void
+mountcache_free_mount(mount_t *m) {
+	free(m->m_root);
+	free(m->m_mountpoint);
+	free(m->m_mountopts);
+	free(m->m_type);
+	free(m->m_source);
+	free(m->m_superopts);
+	for (int i = 0; i < MAX_FIELDS && m->m_fields[i] != NULL; i++)
+		free(m->m_fields[i]);
+	free(m);
+}
+
 static int
 mountcache_load(avl_tree_t *sort_tree, avl_tree_t *mp_tree)
 {
@@ -209,16 +222,7 @@ mountcache_load(avl_tree_t *sort_tree, avl_tree_t *mp_tree)
 		mount_t *m;
 		void *cookie = NULL;
 		while ((m = avl_destroy_nodes(&id_tree, &cookie)) != NULL) {
-			free(m->m_root);
-			free(m->m_mountpoint);
-			free(m->m_mountopts);
-			free(m->m_type);
-			free(m->m_source);
-			free(m->m_superopts);
-			for (int i = 0;
-			    i < MAX_FIELDS && m->m_fields[i] != NULL; i++)
-				free(m->m_fields[i]);
-			free(m);
+			mountcache_free_mount(m);
 		}
 		avl_destroy(&id_tree);
 		return (err);
@@ -257,15 +261,44 @@ mountcache_load(avl_tree_t *sort_tree, avl_tree_t *mp_tree)
 	return (0);
 }
 
-void
-mountcache_test(void)
-{
-	avl_tree_t sort_tree, mp_tree;
-	mountcache_load(&sort_tree, &mp_tree);
+struct mountcache {
+	avl_tree_t mc_sort_tree;
+	avl_tree_t mc_mp_tree;
+};
 
+int
+mountcache_init(mountcache_t **mcp)
+{
+	mountcache_t *mc = malloc(sizeof (mountcache_t));
+	int err = mountcache_load(&mc->mc_sort_tree, &mc->mc_mp_tree);
+	if (err != 0) {
+		free(mc);
+		return (err);
+	}
+	*mcp = mc;
+	return (0);
+}
+
+void
+mountcache_free(mountcache_t *mc)
+{
+	mount_t *m;
+	void *cookie = NULL;
+	while ((m = avl_destroy_nodes(&mc->mc_sort_tree, &cookie)) != NULL) {
+		avl_remove(&mc->mc_mp_tree, m);
+		mountcache_free_mount(m);
+	}
+	avl_destroy(&mc->mc_sort_tree);
+	avl_destroy(&mc->mc_mp_tree);
+	free(mc);
+}
+
+void
+mountcache_dump(mountcache_t *mc)
+{
 	printf("%-4s  %-4s  %-15s  %s\n", "ID", "UP", "TYPE", "MOUNTPOINT");
-	for (mount_t *m = avl_first(&mp_tree); m != NULL;
-	    m = AVL_NEXT(&mp_tree, m)) {
+	for (mount_t *m = avl_first(&mc->mc_mp_tree); m != NULL;
+	    m = AVL_NEXT(&mc->mc_mp_tree, m)) {
 		printf("%4lu  %4lu  %-15s  %.*s%s\n",
 		    m->m_id, m->m_parent, m->m_type,
 		    m->m_depth * 2,

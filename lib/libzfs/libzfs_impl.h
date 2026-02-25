@@ -234,7 +234,11 @@ extern int zpool_relabel_disk(libzfs_handle_t *hdl, const char *path,
     const char *msg);
 extern int find_shares_object(differ_info_t *di);
 
-void mountcache_test(void);
+typedef struct mountcache mountcache_t;
+
+int mountcache_init(mountcache_t **mcp);
+void mountcache_free(mountcache_t *mc);
+void mountcache_dump(mountcache_t *mc);
 
 #ifdef	__cplusplus
 }
