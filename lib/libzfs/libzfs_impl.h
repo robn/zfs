@@ -234,6 +234,22 @@ extern int zpool_relabel_disk(libzfs_handle_t *hdl, const char *path,
     const char *msg);
 extern int find_shares_object(differ_info_t *di);
 
+#define	MAX_MOUNT_FIELDS	(8)
+
+typedef struct {
+	uint64_t	m_id;
+	uint64_t	m_parent;
+	uint32_t	m_major;
+	uint32_t	m_minor;
+	char		*m_root;
+	char		*m_mountpoint;
+	char		*m_mountopts;
+	char		*m_fields[MAX_MOUNT_FIELDS];
+	char		*m_type;
+	char		*m_source;
+	char		*m_superopts;
+} mount_t;
+
 typedef struct mountcache mountcache_t;
 
 int mountcache_init(mountcache_t **mcp);
