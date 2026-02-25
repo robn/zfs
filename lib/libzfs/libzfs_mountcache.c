@@ -413,20 +413,56 @@ mountcache_dump(mountcache_t *mc)
 	mountcache_exit(mc);
 }
 
+/*
+ * XXX this is a placeholder filter function that determines if a given
+ *     mountnode is a ZFS mount. its here because most existing callers
+ *     filter out non-ZFS mounts, so us doing it is a nice quality-of-life
+ *     improvement, and its probably expected because this _is_ a ZFS library
+ *     after all. on the other hand, this is also turning into quite a nice
+ *     mount data access library, and once everything is converted it may
+ *     be that we actually do need to be able to access non-zfs mounts in
+ *     order to understand deep trees that include zfs and non-zfs mounts
+ *     (especially on either side). but, I didn't want to guess at an
+ *     interface yet, so for now, this is here as an in/out function, which
+ *     is likey whatever future form will take anyway, maybe just with
+ *     different rules, or a set of different functions.
+ *       -- robn, 2026-02-25
+ */
+static inline boolean_t
+mountcache_mountnode_is_zfs(mountcache_t *mc, const mountnode_t *mn)
+{
+	(void) mc;
+	if (mn == NULL)
+		return (B_FALSE);
+	if (strcmp(mn->mn_mount.m_type, "zfs") != 0)
+		return (B_FALSE);
+	return (B_TRUE);
+}
+
 const mount_t *
 mountcache_foreach_dataset(mountcache_t *mc, const mount_t *m)
 {
-	if (m == NULL)
-		return (avl_first(&mc->mc_dataset_tree));
-	return (AVL_NEXT(&mc->mc_dataset_tree, (mountnode_t *)m));
+	const mountnode_t *mn = (const mountnode_t *)m;
+	if (mn == NULL)
+		mn = avl_first(&mc->mc_dataset_tree);
+	else
+		mn = AVL_NEXT(&mc->mc_dataset_tree, (mountnode_t *)mn);
+	while (mn != NULL && !mountcache_mountnode_is_zfs(mc, mn))
+		mn = AVL_NEXT(&mc->mc_dataset_tree, (mountnode_t *)mn);
+	return (&mn->mn_mount);
 }
 
 const mount_t *
 mountcache_foreach_mountpoint(mountcache_t *mc, const mount_t *m)
 {
-	if (m == NULL)
-		return (avl_first(&mc->mc_mountpoint_tree));
-	return (AVL_NEXT(&mc->mc_mountpoint_tree, (mountnode_t *)m));
+	const mountnode_t *mn = (const mountnode_t *)m;
+	if (mn == NULL)
+		mn = avl_first(&mc->mc_mountpoint_tree);
+	else
+		mn = AVL_NEXT(&mc->mc_mountpoint_tree, (mountnode_t *)mn);
+	while (mn != NULL && !mountcache_mountnode_is_zfs(mc, mn))
+		mn = AVL_NEXT(&mc->mc_mountpoint_tree, (mountnode_t *)mn);
+	return (&mn->mn_mount);
 }
 
 const mount_t *
@@ -439,7 +475,7 @@ mountcache_find_by_dataset(mountcache_t *mc, const char *dsname)
 		.mn_sort_id = INT_MAX,
 	};
 	mountnode_t *mn = avl_find(&mc->mc_dataset_tree, &search, NULL);
-	if (mn != NULL)
+	if (mountcache_mountnode_is_zfs(mc, mn))
 		return (&mn->mn_mount);
 	return (NULL);
 }
@@ -454,7 +490,7 @@ mountcache_find_by_mountpoint(mountcache_t *mc, const char *mountpoint)
 		.mn_sort_id = INT_MAX,
 	};
 	mountnode_t *mn = avl_find(&mc->mc_mountpoint_tree, &search, NULL);
-	if (mn != NULL)
+	if (mountcache_mountnode_is_zfs(mc, mn))
 		return (&mn->mn_mount);
 	return (NULL);
 }
