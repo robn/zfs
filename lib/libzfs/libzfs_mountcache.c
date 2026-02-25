@@ -141,7 +141,7 @@ mountcache_free_mount(mount_t *m) {
 }
 
 static int
-mountcache_load(avl_tree_t *sort_tree, avl_tree_t *mp_tree)
+mountcache_load_data(avl_tree_t *sort_tree, avl_tree_t *mp_tree)
 {
 	avl_tree_t id_tree;
 	avl_create(&id_tree, mountcache_compare_id, sizeof (mount_t),
@@ -261,6 +261,19 @@ mountcache_load(avl_tree_t *sort_tree, avl_tree_t *mp_tree)
 	return (0);
 }
 
+static void
+mountcache_free_data(avl_tree_t *sort_tree, avl_tree_t *mp_tree)
+{
+	mount_t *m;
+	void *cookie = NULL;
+	while ((m = avl_destroy_nodes(sort_tree, &cookie)) != NULL) {
+		avl_remove(mp_tree, m);
+		mountcache_free_mount(m);
+	}
+	avl_destroy(sort_tree);
+	avl_destroy(mp_tree);
+}
+
 struct mountcache {
 	avl_tree_t mc_sort_tree;
 	avl_tree_t mc_mp_tree;
@@ -270,7 +283,7 @@ int
 mountcache_init(mountcache_t **mcp)
 {
 	mountcache_t *mc = malloc(sizeof (mountcache_t));
-	int err = mountcache_load(&mc->mc_sort_tree, &mc->mc_mp_tree);
+	int err = mountcache_load_data(&mc->mc_sort_tree, &mc->mc_mp_tree);
 	if (err != 0) {
 		free(mc);
 		return (err);
@@ -282,15 +295,21 @@ mountcache_init(mountcache_t **mcp)
 void
 mountcache_free(mountcache_t *mc)
 {
-	mount_t *m;
-	void *cookie = NULL;
-	while ((m = avl_destroy_nodes(&mc->mc_sort_tree, &cookie)) != NULL) {
-		avl_remove(&mc->mc_mp_tree, m);
-		mountcache_free_mount(m);
-	}
-	avl_destroy(&mc->mc_sort_tree);
-	avl_destroy(&mc->mc_mp_tree);
+	mountcache_free_data(&mc->mc_sort_tree, &mc->mc_mp_tree);
 	free(mc);
+}
+
+int
+mountcache_refresh(mountcache_t *mc)
+{
+	avl_tree_t sort_tree, mp_tree;
+	int err = mountcache_load_data(&sort_tree, &mp_tree);
+	if (err != 0)
+		return (err);
+	avl_swap(&mc->mc_sort_tree, &sort_tree);
+	avl_swap(&mc->mc_mp_tree, &mp_tree);
+	mountcache_free_data(&sort_tree, &mp_tree);
+	return (0);
 }
 
 void

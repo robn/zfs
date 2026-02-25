@@ -896,6 +896,8 @@ libzfs_mnttab_cache(libzfs_handle_t *hdl, boolean_t enable)
 	mountcache_t *mc;
 	mountcache_init(&mc);
 	mountcache_dump(mc);
+	mountcache_refresh(mc);
+	mountcache_dump(mc);
 	mountcache_free(mc);
 
 	hdl->libzfs_mnttab_enable = enable;
