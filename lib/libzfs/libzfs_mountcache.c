@@ -277,17 +277,26 @@ mountcache_free_data(avl_tree_t *sort_tree, avl_tree_t *mp_tree)
 struct mountcache {
 	avl_tree_t mc_sort_tree;
 	avl_tree_t mc_mp_tree;
+
+	kmutex_t mc_lock;
+	kcondvar_t mc_cv;
+	uint64_t mc_holds;
 };
 
 int
 mountcache_init(mountcache_t **mcp)
 {
-	mountcache_t *mc = malloc(sizeof (mountcache_t));
+	mountcache_t *mc = calloc(1, sizeof (mountcache_t));
+
 	int err = mountcache_load_data(&mc->mc_sort_tree, &mc->mc_mp_tree);
 	if (err != 0) {
 		free(mc);
 		return (err);
 	}
+
+	mutex_init(&mc->mc_lock, NULL, MUTEX_DEFAULT, NULL);
+	cv_init(&mc->mc_cv, NULL, CV_DEFAULT, NULL);
+
 	*mcp = mc;
 	return (0);
 }
@@ -295,26 +304,57 @@ mountcache_init(mountcache_t **mcp)
 void
 mountcache_free(mountcache_t *mc)
 {
+	ASSERT0(mc->mc_holds);
+	cv_destroy(&mc->mc_cv);
+	mutex_destroy(&mc->mc_lock);
 	mountcache_free_data(&mc->mc_sort_tree, &mc->mc_mp_tree);
 	free(mc);
+}
+
+void
+mountcache_enter(mountcache_t *mc)
+{
+	ASSERT(!MUTEX_HELD(&mc->mc_lock));
+	mutex_enter(&mc->mc_lock);
+	mc->mc_holds++;
+	mutex_exit(&mc->mc_lock);
+}
+
+void
+mountcache_exit(mountcache_t *mc)
+{
+	ASSERT(!MUTEX_HELD(&mc->mc_lock));
+	mutex_enter(&mc->mc_lock);
+	if (--mc->mc_holds == 0)
+		cv_broadcast(&mc->mc_cv);
+	mutex_exit(&mc->mc_lock);
 }
 
 int
 mountcache_refresh(mountcache_t *mc)
 {
+	ASSERT(!MUTEX_HELD(&mc->mc_lock));
+	mutex_enter(&mc->mc_lock);
+	while (mc->mc_holds != 0)
+		cv_wait(&mc->mc_cv, &mc->mc_lock);
+
 	avl_tree_t sort_tree, mp_tree;
 	int err = mountcache_load_data(&sort_tree, &mp_tree);
-	if (err != 0)
+	if (err != 0) {
+		mutex_exit(&mc->mc_lock);
 		return (err);
+	}
 	avl_swap(&mc->mc_sort_tree, &sort_tree);
 	avl_swap(&mc->mc_mp_tree, &mp_tree);
 	mountcache_free_data(&sort_tree, &mp_tree);
+	mutex_exit(&mc->mc_lock);
 	return (0);
 }
 
 void
 mountcache_dump(mountcache_t *mc)
 {
+	mountcache_enter(mc);
 	printf("%-4s  %-4s  %-15s  %s\n", "ID", "UP", "TYPE", "MOUNTPOINT");
 	for (mount_t *m = avl_first(&mc->mc_mp_tree); m != NULL;
 	    m = AVL_NEXT(&mc->mc_mp_tree, m)) {
@@ -325,4 +365,5 @@ mountcache_dump(mountcache_t *mc)
 		    m->m_mountpoint);
 	}
 	printf("\n");
+	mountcache_exit(mc);
 }
