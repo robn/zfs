@@ -47,6 +47,88 @@ typedef struct zfsvfs zfsvfs_t;
 struct znode;
 
 /*
+ * XXX this is a kind of "binding" object to tie together an owned objset
+ *     and the zfsvfs "superblock". we need this because of the chicken-and-
+ *     egg problem at mount time - we want to match an existing superblock,
+ *     but early on we only have the objset_t (from a named hold), so the
+ *     superblock must be matched on objset_t. on the first mount though, we
+ *     want to instantiate the zfsvfs_t and have that be accessible through
+ *     the superblock pointer. there's no way to go from an objset_t back
+ *     to a zfsvfs_t, so we need both available.
+ *
+ *     (on the lack of objset->zfsvfs connection, maybe there should be? a
+ *     data stash on the ownership? a bit like userdata?)
+ *
+ *     this is conceivably where a list of mounts (kernel vfsmount_t) would
+ *     go. this might also be where the root dentry is stored.
+ *
+ *     perhaps it ends up carrying more of zfsvfs_t, or perhaps zfsvfs_t gets
+ *     reworked a bit and it becomes the singlular per-filesystem context or
+ *     "superblock" concept, much like every other filesystem does. possibly
+ *     then it needs a clear state map?
+ *
+ *     hmm, why not just use z_os like we always have? at least, because that
+ *     is changeable under the hood (see the rollback commentary in zpl_super).
+ *     maybe then that's a case for _not_ matching on objset? maybe we should
+ *     just be matching on _name_.
+ *
+ *     I mean, that's what we do for zvols, right? [wince]
+ *
+ *     so what does that look like? fc->source is the key. just a global
+ *     lookup? seems plausible. rwlock, all that jazz. its only used at
+ *     mount time, after that its fully wired into the mount, the superblock,
+ *     etc, all holds are in place, so its not going anywhere.
+ *
+ *     if it gets a rollback, we don't care, because that's a swizzle in
+ *     zfsvfs->z_os, which we don't give a shit about for mount other than
+ *     a couple of basic facts of its existence.
+ *
+ *     I mean, its a superblock scan; we don't even need that global lookup
+ *     _really_, it would just be marginally quicker than doing strcmps?
+ *
+ *     ok, this is probably a better idea, definitely easier to test, so
+ *     commenting out that silly little bind thing for the moment too - maybe
+ *     won't need it after all!
+ *       -- robn, 2026-02-27
+ */
+/*
+ * XXX nah ok, there's this big load of nonsense. zfsvfs_create() takes the
+ *     "ownership" hold on the dataset, however, there's no way to get that
+ *     back, all we can do is try to call zfsvfs_create() again; if we get
+ *     EBUSY, then we know.
+ *
+ *     to get the zfsvfs pointer back, we can call dmu_objset_get_user(). the
+ *     problem with this is that its not set until the mount is completed, in
+ *     zfs_domount() (snapshots) or zfsvfs_setup() (first mount). however,
+ *     zfsvfs_setup() is also called from zfs_resume_fs() on resuming a
+ *     suspended filesystem, which re-sets the objset user data. and indeed,
+ *     it is removed for suspend or teardown, which means its not actually
+ *     tied to the lifetime of the the zfsvfs_t at all. it gets worse,
+ *     there's also non-owning zfsvfs_t for (eg) channel programs needing all
+ *     the setup to find quota information and whatnot
+ *
+ *     so we come back to the bind concept, because we can make that our own.
+ *     we can create a tiny stub with just the name, and then bounce off it
+ *     into the zfsvfs once we have the superblock established. if the setup
+ *     fails, we can ditch it. but, once the superblock is established, its
+ *     _ours_ until the last mount leaves.
+ *
+ *     later, this is where we store the mounts, ie, everything that exists
+ *     on the OS side. whatever is left of zfsvfs represents the singular
+ *     "head" object for the dataset as presented to the OS.
+ *
+ *     note: if the dataset is renamed, we will need to rename the bind. we
+ *     only get names there, so we'll need to look through our superblocks
+ *     for that. kernel has exported iterate_supers_type() which looks perfect
+ *     for this.
+ *       -- robn, 2026-02-27
+ */
+typedef struct vfs_bind {
+	char		*vb_name;
+	zfsvfs_t	*vb_zfsvfs;
+} vfs_bind_t;
+
+/*
  * This structure emulates the vfs_t from other platforms.  It's purpose
  * is to facilitate the handling of mount options and minimize structural
  * differences between the platforms.
@@ -258,6 +340,10 @@ extern int zfs_get_temporary_prop(dsl_dataset_t *ds, zfs_prop_t zfs_prop,
     uint64_t *val, char *setpoint);
 extern int zfs_set_default_quota(zfsvfs_t *zfsvfs, zfs_prop_t zfs_prop,
     uint64_t quota);
+
+extern void zfs_set_fuid_feature(zfsvfs_t *zfsvfs);
+extern int zfsvfs_setup(zfsvfs_t *zfsvfs, boolean_t mounting);
+extern int zfs_root(zfsvfs_t *zfsvfs, struct inode **ipp);
 
 #ifdef	__cplusplus
 }

@@ -1915,8 +1915,11 @@ zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *zplprops, dmu_tx_t *tx)
 	zfsvfs->z_use_sa = USE_SA(version, os);
 	zfsvfs->z_norm = norm;
 
+	vfs_bind_t *vb = kmem_zalloc(sizeof (vfs_bind_t), KM_SLEEP);
+	vb->vb_zfsvfs = zfsvfs;
+
 	sb = kmem_zalloc(sizeof (struct super_block), KM_SLEEP);
-	sb->s_fs_info = zfsvfs;
+	sb->s_fs_info = vb;
 
 	ZTOI(rootzp)->i_sb = sb;
 
@@ -1969,6 +1972,7 @@ zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *zplprops, dmu_tx_t *tx)
 	vmem_free(zfsvfs->z_hold_trees, sizeof (avl_tree_t) * size);
 	vmem_free(zfsvfs->z_hold_locks, sizeof (kmutex_t) * size);
 	kmem_free(sb, sizeof (struct super_block));
+	kmem_free(vb, sizeof (vfs_bind_t));
 	kmem_free(zfsvfs, sizeof (zfsvfs_t));
 }
 

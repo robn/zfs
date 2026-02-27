@@ -48,7 +48,7 @@ zpl_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 	pathname_t *ppn = NULL;
 	pathname_t pn;
 	int zfs_flags = 0;
-	zfsvfs_t *zfsvfs = dentry->d_sb->s_fs_info;
+	zfsvfs_t *zfsvfs = DTOZSB(dentry);
 	dsl_dataset_t *ds = dmu_objset_ds(zfsvfs->z_os);
 	size_t dlen = dlen(dentry);
 
@@ -157,7 +157,7 @@ zpl_vap_init(vattr_t *vap, struct inode *dir, umode_t mode, cred_t *cr,
 static inline bool
 is_nametoolong(struct dentry *dentry)
 {
-	zfsvfs_t *zfsvfs = dentry->d_sb->s_fs_info;
+	zfsvfs_t *zfsvfs = DTOZSB(dentry);
 	size_t dlen = dlen(dentry);
 
 	return ((!zfsvfs->z_longname && dlen >= ZAP_MAXNAMELEN) ||
@@ -354,7 +354,7 @@ zpl_unlink(struct inode *dir, struct dentry *dentry)
 	cred_t *cr = CRED();
 	int error;
 	fstrans_cookie_t cookie;
-	zfsvfs_t *zfsvfs = dentry->d_sb->s_fs_info;
+	zfsvfs_t *zfsvfs = DTOZSB(dentry);
 
 	crhold(cr);
 	cookie = spl_fstrans_mark();
@@ -446,7 +446,7 @@ zpl_rmdir(struct inode *dir, struct dentry *dentry)
 	cred_t *cr = CRED();
 	int error;
 	fstrans_cookie_t cookie;
-	zfsvfs_t *zfsvfs = dentry->d_sb->s_fs_info;
+	zfsvfs_t *zfsvfs = DTOZSB(dentry);
 
 	crhold(cr);
 	cookie = spl_fstrans_mark();
