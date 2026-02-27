@@ -630,6 +630,16 @@ zpl_prune_sb(uint64_t nr_to_scan, void *arg)
  *	rootcontext
  *	context
  *
+ * libmount will read /proc/self/mountinfo and add flags there down when
+ * doing a remount. So we have to accept anything __zpl_show_options() can
+ * produce.
+ *
+ *	posixacl
+ *	noacl
+ *	casesensitive
+ *	caseinsensitive
+ *	casemixed
+ *
  * OpenZFS-specific options:
  *
  *	dirxattr:	vfs_xattr=ZFS_XATTR_DIR
@@ -671,6 +681,12 @@ static const struct fs_parameter_spec zpl_param_spec[] = {
 	fsparam_flag	("nosuid",	Opt_nosuid),
 	fsparam_flag	("mand",	Opt_mand),
 	fsparam_flag	("nomand",	Opt_nomand),
+
+	fsparam_flag	("posixacl",		Opt_ignore),
+	fsparam_flag	("noacl",		Opt_ignore),
+	fsparam_flag	("casesensitive",	Opt_ignore),
+	fsparam_flag	("caseinsensitive",	Opt_ignore),
+	fsparam_flag	("casemixed",		Opt_ignore),
 
 	fsparam_flag	("defaults",	Opt_ignore),
 	fsparam_flag	("zfsutil",	Opt_ignore),
