@@ -110,7 +110,7 @@ static const match_table_t zpl_tokens = {
 	{ TOKEN_LAST,		NULL },
 };
 
-static void
+/* XXX static */ void
 zfsvfs_vfs_free(vfs_t *vfsp)
 {
 	if (vfsp != NULL) {
@@ -439,7 +439,7 @@ longname_changed_cb(void *arg, uint64_t newval)
 	((zfsvfs_t *)arg)->z_longname = newval;
 }
 
-static int
+/* XXX static */ int
 zfs_register_callbacks(vfs_t *vfsp)
 {
 	struct dsl_dataset *ds = NULL;
@@ -994,7 +994,7 @@ zfs_set_fuid_feature(zfsvfs_t *zfsvfs)
 	zfsvfs->z_use_sa = USE_SA(zfsvfs->z_version, zfsvfs->z_os);
 }
 
-static void
+/* XXX static */ void
 zfs_unregister_callbacks(zfsvfs_t *zfsvfs)
 {
 	objset_t *os = zfsvfs->z_os;

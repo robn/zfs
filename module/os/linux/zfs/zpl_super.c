@@ -270,6 +270,7 @@ zpl_statfs(struct dentry *dentry, struct kstatfs *statp)
 	return (error);
 }
 
+#if 0
 static int
 zpl_remount_fs(struct super_block *sb, int *flags, char *data)
 {
@@ -284,6 +285,7 @@ zpl_remount_fs(struct super_block *sb, int *flags, char *data)
 
 	return (error);
 }
+#endif
 
 static int
 __zpl_show_devname(struct seq_file *seq, zfsvfs_t *zfsvfs)
@@ -894,6 +896,9 @@ zpl_get_tree(struct fs_context *fc)
 		zfsvfs->z_vfs = vfs;
 		zfsvfs->z_sb = sb;
 
+		/* XXX because we just stole it */
+		fc->fs_private = NULL;
+
 		uint64_t recordsize;
 		err = dsl_prop_get_integer(fc->source, "recordsize",
 		    &recordsize, NULL);
@@ -965,17 +970,56 @@ zpl_get_tree(struct fs_context *fc)
 static int
 zpl_reconfigure(struct fs_context *fc)
 {
-	cmn_err(CE_NOTE, "zpl_reconfigure: source %s", fc->source);
-	return (zpl_remount_fs(fc->root->d_sb, &fc->sb_flags, fc->fs_private));
+	vfs_t *vfs = fc->fs_private;
+	struct super_block *sb = fc->root->d_sb;
+	vfs_bind_t *vb = sb->s_fs_info;
+	zfsvfs_t *zfsvfs = vb->vb_zfsvfs;
+	int flags = fc->sb_flags;
+
+	boolean_t issnap = dmu_objset_is_snapshot(zfsvfs->z_os);
+
+	/*
+	 * If they've requested a writable mount, make sure that this
+	 * is not a snapshot mount, and the pool is writable.
+	 */
+	if (!(flags & SB_RDONLY) &&
+	    (issnap || !spa_writeable(dmu_objset_spa(zfsvfs->z_os))))
+		return (-SET_ERROR(EROFS));
+
+	/*
+	 * If they want a readonly mount, and the filesystem is currently
+	 * writeable, ensure its fully flushed out before returning.
+	 */
+	if ((flags & SB_RDONLY) && !zfs_is_readonly(zfsvfs))
+		txg_wait_synced(dmu_objset_pool(zfsvfs->z_os), 0);
+
+	/*
+	 * Replace the previous options and reset the callbacks if necessary.
+	 */
+	zfs_unregister_callbacks(zfsvfs);
+	zfsvfs_vfs_free(zfsvfs->z_vfs);
+
+	vfs->vfs_data = zfsvfs;
+	zfsvfs->z_vfs = vfs;
+
+	/* XXX because we just stole it */
+	fc->fs_private = NULL;
+
+	if (!issnap)
+		(void) zfs_register_callbacks(vfs);
+
+	return (0);
 }
 
 static void
 zpl_free_fc(struct fs_context *fc)
 {
 	vfs_t *vfs = fc->fs_private;
-	if (vfs->vfs_mntpoint != NULL)
-		kmem_strfree(vfs->vfs_mntpoint);
-	kmem_free(vfs, sizeof (vfs_t));
+	if (vfs != NULL) {
+		if (vfs->vfs_mntpoint != NULL)
+			kmem_strfree(vfs->vfs_mntpoint);
+		kmem_free(vfs, sizeof (vfs_t));
+	}
 }
 
 const struct fs_context_operations zpl_fs_context_operations = {
