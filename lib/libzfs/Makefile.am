@@ -81,6 +81,10 @@ if !ASAN_ENABLED
 libzfs_la_LDFLAGS += -Wl,-z,defs
 endif
 
+if BUILD_LINUX
+libzfs_la_LIBADD += $(LIBMOUNT_LIBS)
+endif
+
 if BUILD_FREEBSD
 libzfs_la_LIBADD += -lutil -lgeom
 endif
