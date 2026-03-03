@@ -47,6 +47,7 @@
 #include <sys/vfs.h>
 #include <sys/dsl_crypt.h>
 #include <libzfs.h>
+#include <libmount/libmount.h>
 
 #include "../../libzfs_impl.h"
 
@@ -329,9 +330,36 @@ zfs_adjust_mount_options(zfs_handle_t *zhp, const char *mntpoint,
 int
 do_mount(zfs_handle_t *zhp, const char *mntpt, const char *opts, int flags)
 {
-	const char *src = zfs_get_name(zhp);
-	int error = 0;
+	int err = 0;
 
+	struct libmnt_context *mctx = mnt_new_context();
+
+	if ((err = mnt_context_set_fstype(mctx, "zfs")) != 0)
+		goto out;
+	if ((err = mnt_context_set_source(mctx, zfs_get_name(zhp))) != 0)
+		goto out;
+	if ((err = mnt_context_set_target(mctx, mntpt)) != 0)
+		goto out;
+	if ((err = mnt_context_set_mflags(mctx, flags)) != 0)
+		goto out;
+	if ((err = mnt_context_set_options(mctx, opts)) != 0)
+		goto out;
+	if ((err = mnt_context_prepare_mount(mctx)) != 0)
+                goto out;
+	err = mnt_context_do_mount(mctx);
+
+out:
+	if (err) {
+		char buf[512];
+		err = mnt_context_get_excode(mctx, err, buf, sizeof (buf));
+		fprintf(stderr, "do_mount: libmount error: %s\n", buf);
+	}
+
+	mnt_free_context(mctx);
+
+	return (-err);
+
+#if 0
 	if (!libzfs_envvar_is_set("ZFS_MOUNT_HELPER")) {
 		char badopt[MNT_LINE_MAX] = {0};
 		unsigned long mntflags = flags, zfsflags = 0;
@@ -378,6 +406,7 @@ do_mount(zfs_handle_t *zhp, const char *mntpt, const char *opts, int flags)
 	}
 
 	return (error);
+#endif
 }
 
 int
@@ -385,6 +414,31 @@ do_unmount(zfs_handle_t *zhp, const char *mntpt, int flags)
 {
 	(void) zhp;
 
+	int err = 0;
+
+	struct libmnt_context *mctx = mnt_new_context();
+
+	err = mnt_context_set_target(mctx, mntpt);
+	if (err)
+		goto out;
+	err = mnt_context_set_mflags(mctx, flags);
+	if (err)
+		goto out;
+
+	err = mnt_context_umount(mctx);
+
+out:
+	if (err) {
+		char buf[512];
+		err = mnt_context_get_excode(mctx, err, buf, sizeof (buf));
+		fprintf(stderr, "do_unmount: libmount error: %s\n", buf);
+	}
+
+	mnt_free_context(mctx);
+
+	return (err);
+
+#if 0
 	if (!libzfs_envvar_is_set("ZFS_MOUNT_HELPER")) {
 		int rv = umount2(mntpt, flags);
 
@@ -407,6 +461,7 @@ do_unmount(zfs_handle_t *zhp, const char *mntpt, int flags)
 	rc = libzfs_run_process(argv[0], argv, STDOUT_VERBOSE|STDERR_VERBOSE);
 
 	return (rc ? EINVAL : 0);
+#endif
 }
 
 int
