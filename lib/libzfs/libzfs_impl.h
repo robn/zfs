@@ -34,6 +34,7 @@
 #include <sys/nvpair.h>
 #include <sys/dmu.h>
 #include <sys/zfs_ioctl.h>
+#include <sys/mutex.h>
 #include <regex.h>
 
 #include <libzfs.h>
@@ -47,6 +48,8 @@ extern "C" {
 
 #define	ERRBUFLEN 1024
 
+struct libmnt_table;
+
 struct libzfs_handle {
 	int libzfs_error;
 	int libzfs_fd;
@@ -57,21 +60,15 @@ struct libzfs_handle {
 	char libzfs_action[1024];
 	char libzfs_desc[1024];
 	int libzfs_printerr;
-	boolean_t libzfs_mnttab_enable;
-	/*
-	 * We need a lock to handle the case where parallel mount
-	 * threads are populating the mnttab cache simultaneously. The
-	 * lock only protects the integrity of the avl tree, and does
-	 * not protect the contents of the mnttab entries themselves.
-	 */
-	pthread_mutex_t libzfs_mnttab_cache_lock;
-	avl_tree_t libzfs_mnttab_cache;
 	int libzfs_pool_iter;
 	boolean_t libzfs_prop_debug;
 	regex_t libzfs_urire;
 	uint64_t libzfs_max_nvlist;
 	void *libfetch;
 	char *libfetch_load_error;
+
+	struct libmnt_table *lz_mnttab;
+	kmutex_t lz_mnttab_lock;
 };
 
 struct zfs_handle {
