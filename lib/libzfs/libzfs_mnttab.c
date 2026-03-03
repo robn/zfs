@@ -39,69 +39,18 @@
 
 #include <sys/mntent.h>
 #include <sys/mutex.h>
+#include <libmount/libmount.h>
 #include <libzfs.h>
 #include "libzfs_impl.h"
-
-typedef struct mnttab_node {
-	struct mnttab mtn_mt;
-	avl_node_t mtn_node;
-} mnttab_node_t;
-
-static mnttab_node_t *
-mnttab_node_alloc(libzfs_handle_t *hdl, const char *special,
-    const char *mountp, const char *mntopts)
-{
-	mnttab_node_t *mtn = zfs_alloc(hdl, sizeof (mnttab_node_t));
-	mtn->mtn_mt.mnt_special = zfs_strdup(hdl, special);
-	mtn->mtn_mt.mnt_mountp = zfs_strdup(hdl, mountp);
-	mtn->mtn_mt.mnt_fstype = (char *)MNTTYPE_ZFS;
-	mtn->mtn_mt.mnt_mntopts = zfs_strdup(hdl, mntopts);
-	return (mtn);
-}
-
-static void
-mnttab_node_free(libzfs_handle_t *hdl, mnttab_node_t *mtn)
-{
-	(void) hdl;
-	free(mtn->mtn_mt.mnt_special);
-	free(mtn->mtn_mt.mnt_mountp);
-	free(mtn->mtn_mt.mnt_mntopts);
-	free(mtn);
-}
-
-static int
-mnttab_compare(const void *arg1, const void *arg2)
-{
-	const mnttab_node_t *mtn1 = (const mnttab_node_t *)arg1;
-	const mnttab_node_t *mtn2 = (const mnttab_node_t *)arg2;
-	int rv;
-
-	rv = strcmp(mtn1->mtn_mt.mnt_special, mtn2->mtn_mt.mnt_special);
-
-	return (TREE_ISIGN(rv));
-}
 
 void
 libzfs_mnttab_init(libzfs_handle_t *hdl)
 {
+	/*
+	 * XXX mtab/mounts/mountinfo
+	 * XXX refresh
+	 */
 	mutex_init(&hdl->zh_mnttab_lock, NULL, MUTEX_DEFAULT, NULL);
-	assert(avl_numnodes(&hdl->zh_mnttab) == 0);
-	avl_create(&hdl->zh_mnttab, mnttab_compare,
-	    sizeof (mnttab_node_t), offsetof(mnttab_node_t, mtn_node));
-}
-
-void
-libzfs_mnttab_fini(libzfs_handle_t *hdl)
-{
-	void *cookie = NULL;
-	mnttab_node_t *mtn;
-
-	while ((mtn = avl_destroy_nodes(&hdl->zh_mnttab, &cookie))
-	    != NULL)
-		mnttab_node_free(hdl, mtn);
-
-	avl_destroy(&hdl->zh_mnttab);
-	(void) mutex_destroy(&hdl->zh_mnttab_lock);
 }
 
 void
@@ -111,101 +60,137 @@ libzfs_mnttab_cache(libzfs_handle_t *hdl, boolean_t enable)
 	(void) hdl, (void) enable;
 }
 
+void
+libzfs_mnttab_fini(libzfs_handle_t *hdl)
+{
+	mnt_unref_table(hdl->zh_mnttab);
+	hdl->zh_mnttab = NULL;
+	mutex_destroy(&hdl->zh_mnttab_lock);
+}
+
 static int
 mnttab_update(libzfs_handle_t *hdl)
 {
-	FILE *mnttab;
-	struct mnttab entry;
-
 	ASSERT(MUTEX_HELD(&hdl->zh_mnttab_lock));
 
-	if ((mnttab = fopen(MNTTAB, "re")) == NULL)
-		return (ENOENT);
-
-	while (getmntent(mnttab, &entry) == 0) {
-		mnttab_node_t *mtn;
-		avl_index_t where;
-
-		if (strcmp(entry.mnt_fstype, MNTTYPE_ZFS) != 0)
-			continue;
-
-		mtn = mnttab_node_alloc(hdl, entry.mnt_special,
-		    entry.mnt_mountp, entry.mnt_mntopts);
-
-		/* Exclude duplicate mounts */
-		if (avl_find(&hdl->zh_mnttab, mtn, &where) != NULL) {
-			mnttab_node_free(hdl, mtn);
-			continue;
-		}
-
-		avl_add(&hdl->zh_mnttab, mtn);
+	/* XXX handle errors properly with an error callback? */
+	struct libmnt_table *old = hdl->zh_mnttab;
+	hdl->zh_mnttab = mnt_new_table_from_file("/proc/self/mountinfo");
+	if (hdl->zh_mnttab == NULL) {
+		if (old == NULL)
+			return (ENOMEM);
+		hdl->zh_mnttab = old;
+		return (ESTALE);
 	}
 
-	(void) fclose(mnttab);
+	mnt_unref_table(old);
 	return (0);
+}
+
+static int
+libzfs_mnttab_hold(libzfs_handle_t *hdl, struct libmnt_table **mtab)
+{
+	mutex_enter(&hdl->zh_mnttab_lock);
+	if (hdl->zh_mnttab == NULL) {
+		int err = mnttab_update(hdl);
+		if (err != 0) {
+			mutex_exit(&hdl->zh_mnttab_lock);
+			return (err);
+		}
+	}
+	mnt_ref_table(hdl->zh_mnttab);
+	*mtab = hdl->zh_mnttab;
+	mutex_exit(&hdl->zh_mnttab_lock);
+	return (0);
+}
+
+static void
+libzfs_mnttab_rele(struct libmnt_table *mtab)
+{
+	mnt_unref_table(mtab);
 }
 
 int
 libzfs_mnttab_find(libzfs_handle_t *hdl, const char *fsname,
     struct mnttab *entry)
 {
-	mnttab_node_t find;
-	mnttab_node_t *mtn;
-	int ret = ENOENT;
+	struct libmnt_table *mtab;
+	int err = libzfs_mnttab_hold(hdl, &mtab);
+	if (err != 0)
+		return (err);
 
-	mutex_enter(&hdl->zh_mnttab_lock);
-	if (avl_numnodes(&hdl->zh_mnttab) == 0) {
-		int error;
-
-		if ((error = mnttab_update(hdl)) != 0) {
-			mutex_exit(&hdl->zh_mnttab_lock);
-			return (error);
-		}
+	struct libmnt_fs *fs = mnt_table_find_source(mtab, fsname,
+	    MNT_ITER_FORWARD);
+	if (fs == NULL) {
+		libzfs_mnttab_rele(mtab);
+		return (ENOENT);
 	}
 
-	find.mtn_mt.mnt_special = (char *)fsname;
-	mtn = avl_find(&hdl->zh_mnttab, &find, NULL);
-	if (mtn) {
-		*entry = mtn->mtn_mt;
-		ret = 0;
-	}
-	mutex_exit(&hdl->zh_mnttab_lock);
-	return (ret);
+	/* XXX assuming fs type for now */
+	ASSERT0(strcmp(mnt_fs_get_fstype(fs), MNTTYPE_ZFS));
+
+	/* XXX cast away const for now, but struct mnttab will die in the end */
+	entry->mnt_special = (char *) mnt_fs_get_source(fs);
+	entry->mnt_mountp = (char *) mnt_fs_get_target(fs);
+	entry->mnt_fstype = (char *) mnt_fs_get_fstype(fs);
+	entry->mnt_mntopts = (char *) mnt_fs_get_options(fs);
+
+	/*
+	 * XXX if this was the last ref, then the strings we just returned
+	 *     are now freed. just another way this is a bad api
+	 */
+	libzfs_mnttab_rele(mtab);
+
+	return (0);
 }
 
 void
 libzfs_mnttab_add(libzfs_handle_t *hdl, const char *special,
     const char *mountp, const char *mntopts)
 {
-	mnttab_node_t *mtn;
-
-	mutex_enter(&hdl->zh_mnttab_lock);
-
-	mtn = mnttab_node_alloc(hdl, special, mountp, mntopts);
+	struct libmnt_table *mtab;
+	int err = libzfs_mnttab_hold(hdl, &mtab);
+	if (err != 0)
+		return;
 
 	/*
 	 * Another thread may have already added this entry
 	 * via mnttab_update. If so we should skip it.
 	 */
-	if (avl_find(&hdl->zh_mnttab, mtn, NULL) != NULL)
-		mnttab_node_free(hdl, mtn);
-	else
-		avl_add(&hdl->zh_mnttab, mtn);
+	if (mnt_table_find_pair(mtab, special,
+	    mountp, MNT_ITER_FORWARD) != NULL) {
+		libzfs_mnttab_rele(mtab);
+		return;
+	}
 
-	mutex_exit(&hdl->zh_mnttab_lock);
+	struct libmnt_fs *fs = mnt_new_fs();
+	mnt_fs_set_source(fs, special);
+	mnt_fs_set_target(fs, mountp);
+	mnt_fs_set_fstype(fs, MNTTYPE_ZFS);
+	mnt_fs_set_options(fs, mntopts);
+
+	mnt_table_add_fs(mtab, fs);
+	mnt_unref_fs(fs);
+
+	libzfs_mnttab_rele(mtab);
 }
 
 void
 libzfs_mnttab_remove(libzfs_handle_t *hdl, const char *fsname)
 {
-	mnttab_node_t find;
-	mnttab_node_t *ret;
+	struct libmnt_table *mtab;
+	int err = libzfs_mnttab_hold(hdl, &mtab);
+	if (err != 0)
+		return;
 
-	mutex_enter(&hdl->zh_mnttab_lock);
-	find.mtn_mt.mnt_special = (char *)fsname;
-	if ((ret = avl_find(&hdl->zh_mnttab, (void *)&find, NULL)) != NULL) {
-		avl_remove(&hdl->zh_mnttab, ret);
-		mnttab_node_free(hdl, ret);
+	struct libmnt_fs *fs = mnt_table_find_source(mtab, fsname,
+	    MNT_ITER_FORWARD);
+	if (fs == NULL) {
+		libzfs_mnttab_rele(mtab);
+		return;
 	}
-	mutex_exit(&hdl->zh_mnttab_lock);
+
+	mnt_table_remove_fs(mtab, fs);
+
+	libzfs_mnttab_rele(mtab);
 }

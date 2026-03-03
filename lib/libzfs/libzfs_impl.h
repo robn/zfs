@@ -48,6 +48,8 @@ extern "C" {
 
 #define	ERRBUFLEN 1024
 
+struct libmnt_table;
+
 struct libzfs_handle {
 	int libzfs_error;
 	int libzfs_fd;
@@ -64,8 +66,8 @@ struct libzfs_handle {
 	uint64_t libzfs_max_nvlist;
 	void *libfetch;
 	char *libfetch_load_error;
+	struct libmnt_table *zh_mnttab;
 	kmutex_t zh_mnttab_lock;
-	avl_tree_t zh_mnttab;
 };
 
 struct zfs_handle {
