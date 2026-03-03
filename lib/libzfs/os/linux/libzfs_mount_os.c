@@ -333,6 +333,7 @@ do_mount(zfs_handle_t *zhp, const char *mntpt, const char *opts, int flags)
 	int err = 0;
 
 	struct libmnt_context *mctx = mnt_new_context();
+	mnt_context_disable_helpers(mctx, 1);
 
 	if ((err = mnt_context_set_fstype(mctx, "zfs")) != 0)
 		goto out;
