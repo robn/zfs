@@ -332,6 +332,30 @@ do_mount(zfs_handle_t *zhp, const char *mntpt, const char *opts, int flags)
 {
 	int err = 0;
 
+	char *useropts, *vfsopts, *fsopts;
+	mnt_split_optstr(opts, &useropts, &vfsopts, &fsopts, 0, 0);
+	if (useropts != NULL) {
+		fprintf(stderr, "unexpected useropts: %s\n", useropts);
+		free(useropts);
+		free(vfsopts);
+		free(fsopts);
+		return (EINVAL);
+	}
+	if (fsopts != NULL) {
+		char *p = fsopts, *name, *value;
+		size_t namesz, valuesz;
+		while ((err = mnt_optstr_next_option(&p, &name, &namesz,
+		    &value, &valuesz)) == 0) {
+			fprintf(stderr, "fsopt: %s\n", name);
+		}
+		if (err < 0) {
+			free(vfsopts);
+			free(fsopts);
+			return (-err);
+		}
+		free(fsopts);
+	}
+
 	struct libmnt_context *mctx = mnt_new_context();
 	mnt_context_disable_helpers(mctx, 1);
 
@@ -343,10 +367,14 @@ do_mount(zfs_handle_t *zhp, const char *mntpt, const char *opts, int flags)
 		goto out;
 	if ((err = mnt_context_set_mflags(mctx, flags)) != 0)
 		goto out;
-	if ((err = mnt_context_set_options(mctx, opts)) != 0)
+	if ((err = mnt_context_set_options(mctx, vfsopts)) != 0)
 		goto out;
 	if ((err = mnt_context_prepare_mount(mctx)) != 0)
                 goto out;
+	fprintf(stderr, "do_mount: mount ready: %s %s %s\n",
+	    mnt_context_get_source(mctx), mnt_context_get_target(mctx),
+	    mnt_context_get_options(mctx));
+
 	err = mnt_context_do_mount(mctx);
 
 out:
@@ -357,6 +385,8 @@ out:
 	}
 
 	mnt_free_context(mctx);
+
+	free(vfsopts);
 
 	return (-err);
 
