@@ -194,49 +194,73 @@ libzfs_mnttab_remove(libzfs_handle_t *hdl, const char *fsname)
 /*
  * Iterate over mounted children of the specified dataset
  */
+static int
+child_match_cb(struct libmnt_fs *cfs, void *arg)
+{
+	const char *name = arg;
+
+	/* Ignore non-ZFS entries */
+	if (strcmp(mnt_fs_get_fstype(cfs), MNTTYPE_ZFS) != 0)
+		return (0);
+
+	/* Ignore datasets not within the provided dataset */
+	const char *source = mnt_fs_get_source(cfs);
+	size_t namelen = strlen(name);
+	if (strncmp(source, name, namelen) != 0 ||
+	    source[namelen] != '/')
+		return (0);
+
+	/* Skip snapshot of any child dataset */
+	if (strchr(source, '@') != NULL)
+		return (0);
+
+	return (1);
+}
+
 int
 zfs_iter_mounted(zfs_handle_t *zhp, zfs_iter_f func, void *data)
 {
+	libzfs_handle_t *hdl = zhp->zfs_hdl;
 	char mnt_prop[ZFS_MAXPROPLEN];
-	struct mnttab entry;
 	zfs_handle_t *mtab_zhp;
-	size_t namelen = strlen(zhp->zfs_name);
-	FILE *mnttab;
-	int err = 0;
+	int err = 0, ierr = 0;
 
-	if ((mnttab = fopen(MNTTAB, "re")) == NULL)
-		return (ENOENT);
+	struct libmnt_table *mtab;
+	err = libzfs_mnttab_hold(hdl, &mtab);
+	if (err != 0)
+		return (err);
 
-	while (err == 0 && getmntent(mnttab, &entry) == 0) {
-		/* Ignore non-ZFS entries */
-		if (strcmp(entry.mnt_fstype, MNTTYPE_ZFS) != 0)
-			continue;
+	const char *name = zfs_get_name(zhp);
 
-		/* Ignore datasets not within the provided dataset */
-		if (strncmp(entry.mnt_special, zhp->zfs_name, namelen) != 0 ||
-		    entry.mnt_special[namelen] != '/')
-			continue;
-
-		/* Skip snapshot of any child dataset */
-		if (strchr(entry.mnt_special, '@') != NULL)
-			continue;
-
-		if ((mtab_zhp = zfs_open(zhp->zfs_hdl, entry.mnt_special,
+	/*
+	 * XXX not using mnt_table_next_child_fs() here because it only
+	 *     does immediate children, so we would need to go recursive
+	 */
+	/*
+	 * XXX weirdly, this is instantly better than the previous version
+	 *     because it will find all the multimounts, not that the
+	 *     changelist callback knows what the hell to do with it.
+	 */
+	struct libmnt_fs *fs = NULL;
+	struct libmnt_iter *iter = mnt_new_iter(MNT_ITER_FORWARD);
+	while (ierr == 0 && (err = mnt_table_find_next_fs(mtab, iter,
+	    child_match_cb, (char *) name, &fs)) == 0) {
+		if ((mtab_zhp = zfs_open(hdl, mnt_fs_get_source(fs),
 		    ZFS_TYPE_FILESYSTEM)) == NULL)
 			continue;
 
 		/* Ignore legacy mounts as they are user managed */
-		verify(zfs_prop_get(mtab_zhp, ZFS_PROP_MOUNTPOINT, mnt_prop,
-		    sizeof (mnt_prop), NULL, NULL, 0, B_FALSE) == 0);
+		VERIFY0(zfs_prop_get(mtab_zhp, ZFS_PROP_MOUNTPOINT, mnt_prop,
+		    sizeof (mnt_prop), NULL, NULL, 0, B_FALSE));
 		if (strcmp(mnt_prop, "legacy") == 0) {
 			zfs_close(mtab_zhp);
 			continue;
 		}
 
-		err = func(mtab_zhp, data);
+		ierr = func(mtab_zhp, data);
 	}
 
-	fclose(mnttab);
+	libzfs_mnttab_rele(mtab);
 
-	return (err);
+	return ((err < 0) ? -err : ierr);
 }
