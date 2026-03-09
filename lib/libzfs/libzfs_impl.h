@@ -48,7 +48,8 @@ extern "C" {
 
 #define	ERRBUFLEN 1024
 
-struct libmnt_table;
+typedef struct zfs_mnttab zfs_mnttab_t;
+typedef struct zfs_mntent zfs_mntent_t;
 
 struct libzfs_handle {
 	int libzfs_error;
@@ -66,7 +67,7 @@ struct libzfs_handle {
 	uint64_t libzfs_max_nvlist;
 	void *libfetch;
 	char *libfetch_load_error;
-	struct libmnt_table *zh_mnttab;
+	zfs_mnttab_t *zh_mnttab;
 	kmutex_t zh_mnttab_lock;
 };
 
@@ -229,6 +230,20 @@ extern int libzfs_load_module(void);
 extern int zpool_relabel_disk(libzfs_handle_t *hdl, const char *path,
     const char *msg);
 extern int find_shares_object(differ_info_t *di);
+
+extern zfs_mnttab_t *zfs_mnttab_load(void);
+extern void zfs_mnttab_addref(zfs_mnttab_t *mtab);
+extern void zfs_mnttab_delref(zfs_mnttab_t *mtab);
+extern int zfs_mnttab_find_dataset(zfs_mnttab_t *mtab, const char *dsname,
+    zfs_mntent_t **ment);
+extern int zfs_mnttab_find_mountpoint(zfs_mnttab_t *mtab,
+    const char *mountpoint, zfs_mntent_t **ment);
+extern int zfs_mnttab_find_pair(zfs_mnttab_t *mtab,
+    const char *dsname, const char *mountpoint, zfs_mntent_t **ment);
+extern void zfs_mntent_addref(zfs_mntent_t *ment);
+extern void zfs_mntent_delref(zfs_mntent_t *ment);
+extern const char *zfs_mntent_get_dataset(zfs_mntent_t *ment);
+extern const char *zfs_mntent_get_mountpoint(zfs_mntent_t *ment);
 
 #ifdef	__cplusplus
 }
