@@ -259,3 +259,32 @@ zfs_iter_mounted(zfs_handle_t *zhp, zfs_iter_f func, void *data)
 
 	return ((err < 0) ? -err : ierr);
 }
+
+int
+libzfs_mnttab_foreach(libzfs_handle_t *hdl, libzfs_mnttab_foreach_cb_t cb,
+    void *arg)
+{
+	int err = 0, ierr = 0;
+
+	struct libmnt_table *mtab;
+	err = libzfs_mnttab_hold(hdl, &mtab);
+	if (err != 0)
+		return (err);
+
+	struct libmnt_fs *fs = NULL;
+	struct libmnt_iter *iter = mnt_new_iter(MNT_ITER_FORWARD);
+	while (ierr == 0 && (err = mnt_table_next_fs(mtab, iter, &fs)) == 0) {
+		struct mnttab entry = {
+		    .mnt_special = (char *) mnt_fs_get_source(fs),
+		    .mnt_mountp = (char *) mnt_fs_get_target(fs),
+		    .mnt_fstype = (char *) mnt_fs_get_fstype(fs),
+		    .mnt_mntopts = (char *) mnt_fs_get_options(fs),
+		};
+
+		ierr = cb(hdl, &entry, arg);
+	}
+
+	libzfs_mnttab_rele(mtab);
+
+	return ((err < 0) ? -err : ierr);
+}
