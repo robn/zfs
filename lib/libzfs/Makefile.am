@@ -35,6 +35,7 @@ endif
 
 if BUILD_LINUX
 dist_libzfs_la_SOURCES += \
+	%D%/os/linux/libzfs_mountset_os.c \
 	%D%/os/linux/libzfs_mount_os.c \
 	%D%/os/linux/libzfs_pool_os.c \
 	%D%/os/linux/libzfs_share_nfs.c \
