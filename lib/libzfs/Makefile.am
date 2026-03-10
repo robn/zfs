@@ -18,6 +18,7 @@ dist_libzfs_la_SOURCES = \
 	%D%/libzfs_iter.c \
 	%D%/libzfs_mnttab.c \
 	%D%/libzfs_mount.c \
+	%D%/libzfs_mountset.c \
 	%D%/libzfs_pool.c \
 	%D%/libzfs_share.c \
 	%D%/libzfs_share_nfs.c \
