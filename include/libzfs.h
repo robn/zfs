@@ -49,6 +49,20 @@
 extern "C" {
 #endif
 
+#if defined(__has_attribute)
+#define	_LIBZFS_HAS_ATTRIBUTE(x)	__has_attribute(x)
+#elif defined(__has_c_attribute)
+#define	_LIBZFS_HAS_ATTRIBUTE(x)	__has_c_attribute(x)
+#else
+#define	_LIBZFS_HAS_ATTRIBUTE(x)	0
+#endif
+
+#if _LIBZFS_HAS_ATTRIBUTE(deprecated)
+#define	_LIBZFS_DEPRECATED		__attribute__((deprecated))
+#else
+#define	_LIBZFS_DEPRECATED
+#endif
+
 /*
  * Miscellaneous ZFS constants
  */
@@ -266,14 +280,16 @@ _LIBZFS_H int zfs_mountset_foreach(zfs_mountset_t *, zfs_mountset_order_t,
  * Legacy mnttab cache API
  * Deprecated. Use the zfs_mount* mount management API.
  */
-_LIBZFS_H void libzfs_mnttab_init(libzfs_handle_t *);
-_LIBZFS_H void libzfs_mnttab_fini(libzfs_handle_t *);
-_LIBZFS_H void libzfs_mnttab_cache(libzfs_handle_t *, boolean_t);
-_LIBZFS_H int libzfs_mnttab_find(libzfs_handle_t *, const char *,
-    struct mnttab *);
-_LIBZFS_H void libzfs_mnttab_add(libzfs_handle_t *, const char *,
-    const char *, const char *);
-_LIBZFS_H void libzfs_mnttab_remove(libzfs_handle_t *, const char *);
+_LIBZFS_H _LIBZFS_DEPRECATED void libzfs_mnttab_init(libzfs_handle_t *);
+_LIBZFS_H _LIBZFS_DEPRECATED void libzfs_mnttab_fini(libzfs_handle_t *);
+_LIBZFS_H _LIBZFS_DEPRECATED void libzfs_mnttab_cache(libzfs_handle_t *,
+    boolean_t);
+_LIBZFS_H _LIBZFS_DEPRECATED int libzfs_mnttab_find(libzfs_handle_t *,
+    const char *, struct mnttab *);
+_LIBZFS_H _LIBZFS_DEPRECATED void libzfs_mnttab_add(libzfs_handle_t *,
+    const char *, const char *, const char *);
+_LIBZFS_H _LIBZFS_DEPRECATED void libzfs_mnttab_remove(libzfs_handle_t *,
+    const char *);
 
 /*
  * Basic handle functions
