@@ -66,6 +66,7 @@ struct libzfs_handle {
 	char *libfetch_load_error;
 	kmutex_t zh_mnttab_lock;
 	avl_tree_t zh_mnttab;
+	zfs_mountset_t *zh_mountset;
 };
 
 struct zfs_handle {
@@ -244,6 +245,18 @@ extern int libzfs_load_module(void);
 extern int zpool_relabel_disk(libzfs_handle_t *hdl, const char *path,
     const char *msg);
 extern int find_shares_object(differ_info_t *di);
+
+/* Internal mountset API */
+extern void libzfs_mountset_init(libzfs_handle_t *hdl);
+extern void libzfs_mountset_fini(libzfs_handle_t *hdl);
+
+extern zfs_mountset_t *zfs_mountset_open(void);
+extern void zfs_mountset_close(zfs_mountset_t *mset);
+
+extern int zfs_mountset_refresh(zfs_mountset_t *mset);
+
+extern void zfs_mount_hold(zfs_mount_t *);
+extern void zfs_mount_drop(zfs_mount_t *);
 
 #ifdef	__cplusplus
 }

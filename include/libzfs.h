@@ -206,6 +206,9 @@ typedef struct zfs_handle zfs_handle_t;
 typedef struct zpool_handle zpool_handle_t;
 typedef struct libzfs_handle libzfs_handle_t;
 
+typedef struct zfs_mountset zfs_mountset_t;
+typedef struct zfs_mount zfs_mount_t;
+
 _LIBZFS_H int zpool_wait(zpool_handle_t *, zpool_wait_activity_t);
 _LIBZFS_H int zpool_wait_status(zpool_handle_t *, zpool_wait_activity_t,
     boolean_t *, boolean_t *);
@@ -229,6 +232,40 @@ _LIBZFS_H const char *libzfs_error_init(int);
 _LIBZFS_H const char *libzfs_error_action(libzfs_handle_t *);
 _LIBZFS_H const char *libzfs_error_description(libzfs_handle_t *);
 _LIBZFS_H int zfs_standard_error(libzfs_handle_t *, int, const char *);
+
+/*
+ * Mount management API
+ */
+_LIBZFS_H zfs_mountset_t *libzfs_mountset_enter(libzfs_handle_t *);
+
+_LIBZFS_H void zfs_mountset_enter(zfs_mountset_t *);
+_LIBZFS_H void zfs_mountset_exit(zfs_mountset_t *);
+_LIBZFS_H int zfs_mountset_find_dataset(zfs_mountset_t *,
+    const char *, zfs_mount_t **);
+_LIBZFS_H int zfs_mountset_find_mountpoint(zfs_mountset_t *,
+    const char *, zfs_mount_t **);
+_LIBZFS_H int zfs_mountset_find_path(zfs_mountset_t *,
+    const char *, zfs_mount_t **);
+_LIBZFS_H int zfs_mountset_find_pair(zfs_mountset_t *,
+    const char *, const char *, zfs_mount_t **);
+_LIBZFS_H const char *zfs_mount_get_dataset(zfs_mount_t *);
+_LIBZFS_H const char *zfs_mount_get_mountpoint(zfs_mount_t *);
+_LIBZFS_H const char *zfs_mount_get_options(zfs_mount_t *);
+
+typedef enum {
+	ZFS_MOUNTSET_ORDER_ANY,
+	ZFS_MOUNTSET_ORDER_MOUNT,
+	ZFS_MOUNTSET_ORDER_UNMOUNT,
+} zfs_mountset_order_t;
+typedef boolean_t (*zfs_mountset_foreach_f)(zfs_mountset_t *,
+    zfs_mount_t *, void *);
+_LIBZFS_H int zfs_mountset_foreach(zfs_mountset_t *, zfs_mountset_order_t,
+    zfs_mountset_foreach_f, void *);
+
+/*
+ * Legacy mnttab cache API
+ * Deprecated. Use the zfs_mount* mount management API.
+ */
 _LIBZFS_H void libzfs_mnttab_init(libzfs_handle_t *);
 _LIBZFS_H void libzfs_mnttab_fini(libzfs_handle_t *);
 _LIBZFS_H void libzfs_mnttab_cache(libzfs_handle_t *, boolean_t);
