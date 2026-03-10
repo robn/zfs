@@ -42,170 +42,114 @@
 #include <libzfs.h>
 #include "libzfs_impl.h"
 
-typedef struct mnttab_node {
-	struct mnttab mtn_mt;
-	avl_node_t mtn_node;
-} mnttab_node_t;
-
-static mnttab_node_t *
-mnttab_node_alloc(libzfs_handle_t *hdl, const char *special,
-    const char *mountp, const char *mntopts)
-{
-	mnttab_node_t *mtn = zfs_alloc(hdl, sizeof (mnttab_node_t));
-	mtn->mtn_mt.mnt_special = zfs_strdup(hdl, special);
-	mtn->mtn_mt.mnt_mountp = zfs_strdup(hdl, mountp);
-	mtn->mtn_mt.mnt_fstype = (char *)MNTTYPE_ZFS;
-	mtn->mtn_mt.mnt_mntopts = zfs_strdup(hdl, mntopts);
-	return (mtn);
-}
+static uint_t mnttab_last_entry_key;
 
 static void
-mnttab_node_free(libzfs_handle_t *hdl, mnttab_node_t *mtn)
+mnttab_last_entry_free(void *arg)
 {
-	(void) hdl;
-	free(mtn->mtn_mt.mnt_special);
-	free(mtn->mtn_mt.mnt_mountp);
-	free(mtn->mtn_mt.mnt_mntopts);
-	free(mtn);
-}
-
-static int
-mnttab_compare(const void *arg1, const void *arg2)
-{
-	const mnttab_node_t *mtn1 = (const mnttab_node_t *)arg1;
-	const mnttab_node_t *mtn2 = (const mnttab_node_t *)arg2;
-	int rv;
-
-	rv = strcmp(mtn1->mtn_mt.mnt_special, mtn2->mtn_mt.mnt_special);
-
-	return (TREE_ISIGN(rv));
+	struct mnttab *ent = arg;
+	if (ent == NULL)
+		return;
+	free(ent->mnt_special);
+	free(ent->mnt_mountp);
+	free(ent->mnt_fstype);
+	free(ent->mnt_mntopts);
+	free(ent);
 }
 
 void
 libzfs_mnttab_init(libzfs_handle_t *hdl)
 {
-	mutex_init(&hdl->zh_mnttab_lock, NULL, MUTEX_DEFAULT, NULL);
-	assert(avl_numnodes(&hdl->zh_mnttab) == 0);
-	avl_create(&hdl->zh_mnttab, mnttab_compare,
-	    sizeof (mnttab_node_t), offsetof(mnttab_node_t, mtn_node));
-}
-
-void
-libzfs_mnttab_fini(libzfs_handle_t *hdl)
-{
-	void *cookie = NULL;
-	mnttab_node_t *mtn;
-
-	while ((mtn = avl_destroy_nodes(&hdl->zh_mnttab, &cookie))
-	    != NULL)
-		mnttab_node_free(hdl, mtn);
-
-	avl_destroy(&hdl->zh_mnttab);
-	(void) mutex_destroy(&hdl->zh_mnttab_lock);
+	libzfs_mountset_init(hdl);
+	tsd_create(&mnttab_last_entry_key, mnttab_last_entry_free);
 }
 
 void
 libzfs_mnttab_cache(libzfs_handle_t *hdl, boolean_t enable)
 {
-	/* This is a no-op to preserve ABI backward compatibility. */
+	/* This is a no-op to preserve API backward compatibility. */
 	(void) hdl, (void) enable;
 }
 
-static int
-mnttab_update(libzfs_handle_t *hdl)
+void
+libzfs_mnttab_fini(libzfs_handle_t *hdl)
 {
-	FILE *mnttab;
-	struct mnttab entry;
-
-	ASSERT(MUTEX_HELD(&hdl->zh_mnttab_lock));
-
-	if ((mnttab = fopen(MNTTAB, "re")) == NULL)
-		return (ENOENT);
-
-	while (getmntent(mnttab, &entry) == 0) {
-		mnttab_node_t *mtn;
-		avl_index_t where;
-
-		if (strcmp(entry.mnt_fstype, MNTTYPE_ZFS) != 0)
-			continue;
-
-		mtn = mnttab_node_alloc(hdl, entry.mnt_special,
-		    entry.mnt_mountp, entry.mnt_mntopts);
-
-		/* Exclude duplicate mounts */
-		if (avl_find(&hdl->zh_mnttab, mtn, &where) != NULL) {
-			mnttab_node_free(hdl, mtn);
-			continue;
-		}
-
-		avl_add(&hdl->zh_mnttab, mtn);
-	}
-
-	(void) fclose(mnttab);
-	return (0);
+	libzfs_mountset_fini(hdl);
+	tsd_destroy(&mnttab_last_entry_key);
 }
 
 int
 libzfs_mnttab_find(libzfs_handle_t *hdl, const char *fsname,
     struct mnttab *entry)
 {
-	mnttab_node_t find;
-	mnttab_node_t *mtn;
-	int ret = ENOENT;
+	zfs_mountset_t *mset = libzfs_mountset_enter(hdl);
 
-	mutex_enter(&hdl->zh_mnttab_lock);
-	if (avl_numnodes(&hdl->zh_mnttab) == 0) {
-		int error;
-
-		if ((error = mnttab_update(hdl)) != 0) {
-			mutex_exit(&hdl->zh_mnttab_lock);
-			return (error);
-		}
+	zfs_mount_t *mnt;
+	int err = zfs_mountset_find_dataset(mset, fsname, &mnt);
+	if (err != 0) {
+		zfs_mountset_exit(mset);
+		return (err);
 	}
 
-	find.mtn_mt.mnt_special = (char *)fsname;
-	mtn = avl_find(&hdl->zh_mnttab, &find, NULL);
-	if (mtn) {
-		*entry = mtn->mtn_mt;
-		ret = 0;
-	}
-	mutex_exit(&hdl->zh_mnttab_lock);
-	return (ret);
+	/*
+	 * The caller is expecting us to fill in the provided struct mnttab
+	 * with four string pointers, but there is no provision for freeing or
+	 * otherwise releasing those strings. This function is also expected to
+	 * be thread-safe. So we are faced with either holding (leaking) memory
+	 * "forever", or doing something to keep the returned strings alive for
+	 * "long enough".
+	 *
+	 * Typically, callers will immediately compare or copy the pieces
+	 * they're interested in, and not hold onto the entry for very long
+	 * (*entry is usually on the stack). So, its probably reasonable to
+	 * keep these values alive until either the next call to
+	 * libzfs_mnttab_find(), or until the thread exits.
+	 *
+	 * So, we create out own struct mnttab, copy everything of interest
+	 * into it, and retain it in a thread-specific data key with a cleanup
+	 * function (see libzfs_mnttab_init() and mnttab_last_entry_free()).
+	 * So long as the caller doesn't try to hold onto or accumulate
+	 * returned entries, this should be safe.
+	 */
+	struct mnttab *tent = tsd_get(mnttab_last_entry_key);
+	if (tent != NULL)
+		mnttab_last_entry_free(tent);
+	tent = calloc(1, sizeof (struct mnttab));
+	tent->mnt_special = strdup(zfs_mount_get_dataset(mnt));
+	tent->mnt_mountp = strdup(zfs_mount_get_mountpoint(mnt));
+	tent->mnt_fstype = strdup(MNTTYPE_ZFS); /* XXX asserted in backend for now */
+	tent->mnt_mntopts = strdup(zfs_mount_get_options(mnt));
+	tsd_set(mnttab_last_entry_key, tent);
+
+	memcpy(entry, tent, sizeof (struct mnttab));
+
+	zfs_mountset_exit(mset);
+
+	return (0);
 }
 
+/*
+ * libzfs_mnttab_add() and libzfs_mnttab_remove() should have only ever been
+ * internal libzfs functions, but for some reason were exported, so for now
+ * we're stuck with them. They were called to update the table when a dataset
+ * was mounted or unmounted.
+ *
+ * To keep them working, we simply refresh the table from the source. Any other
+ * outstanding table refs will not be updated, but anything still using this
+ * API has no knowledge of table refs, so there won't be any.
+ */
 void
 libzfs_mnttab_add(libzfs_handle_t *hdl, const char *special,
     const char *mountp, const char *mntopts)
 {
-	mnttab_node_t *mtn;
+	(void) special, (void) mountp, (void) mntopts;
 
-	mutex_enter(&hdl->zh_mnttab_lock);
-
-	mtn = mnttab_node_alloc(hdl, special, mountp, mntopts);
-
-	/*
-	 * Another thread may have already added this entry
-	 * via mnttab_update. If so we should skip it.
-	 */
-	if (avl_find(&hdl->zh_mnttab, mtn, NULL) != NULL)
-		mnttab_node_free(hdl, mtn);
-	else
-		avl_add(&hdl->zh_mnttab, mtn);
-
-	mutex_exit(&hdl->zh_mnttab_lock);
+	zfs_mountset_refresh(hdl->zh_mountset);
 }
 
 void
 libzfs_mnttab_remove(libzfs_handle_t *hdl, const char *fsname)
 {
-	mnttab_node_t find;
-	mnttab_node_t *ret;
-
-	mutex_enter(&hdl->zh_mnttab_lock);
-	find.mtn_mt.mnt_special = (char *)fsname;
-	if ((ret = avl_find(&hdl->zh_mnttab, (void *)&find, NULL)) != NULL) {
-		avl_remove(&hdl->zh_mnttab, ret);
-		mnttab_node_free(hdl, ret);
-	}
-	mutex_exit(&hdl->zh_mnttab_lock);
+	(void) fsname;
+	zfs_mountset_refresh(hdl->zh_mountset);
 }

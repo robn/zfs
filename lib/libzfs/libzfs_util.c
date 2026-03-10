@@ -1088,7 +1088,6 @@ libzfs_init(void)
 	zpool_prop_init();
 	zpool_feature_init();
 	vdev_prop_init();
-	libzfs_mnttab_init(hdl);
 	libzfs_mountset_init(hdl);
 	fletcher_4_init();
 
@@ -1133,7 +1132,6 @@ libzfs_fini(libzfs_handle_t *hdl)
 	zpool_free_handles(hdl);
 	namespace_clear(hdl);
 	libzfs_mountset_fini(hdl);
-	libzfs_mnttab_fini(hdl);
 	libzfs_core_fini();
 	regfree(&hdl->libzfs_urire);
 	fletcher_4_fini();
