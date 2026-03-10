@@ -7412,6 +7412,39 @@ sa_protocol_decode(const char *protocol)
 	usage(B_FALSE);
 }
 
+static boolean_t
+add_mount_nv_cb(zfs_mountset_t *mset, zfs_mount_t *mnt, void *arg)
+{
+	(void) mset;
+	nvlist_t *data = arg;
+
+	const char *dsname = zfs_mount_get_dataset(mnt);
+	if (strchr(zfs_mount_get_dataset(mnt), '@') != NULL)
+		return (B_FALSE);
+
+	nvlist_t *item = fnvlist_alloc();
+	fnvlist_add_string(item, "filesystem", dsname);
+	fnvlist_add_string(item, "mountpoint", zfs_mount_get_mountpoint(mnt));
+	fnvlist_add_nvlist(data, dsname, item);
+	fnvlist_free(item);
+
+	return (B_FALSE);
+}
+
+static boolean_t
+print_mount_cb(zfs_mountset_t *mset, zfs_mount_t *mnt, void *arg)
+{
+	(void) mset, (void) arg;
+
+	const char *dsname = zfs_mount_get_dataset(mnt);
+	if (strchr(dsname, '@') != NULL)
+		return (B_FALSE);
+
+	printf("%-30s  %s\n", dsname, zfs_mount_get_mountpoint(mnt));
+
+	return (B_FALSE);
+}
+
 static int
 share_mount(int op, int argc, char **argv)
 {
@@ -7571,9 +7604,6 @@ share_mount(int op, int argc, char **argv)
 			zfs_close(cb.cb_handles[i]);
 		free(cb.cb_handles);
 	} else if (argc == 0) {
-		FILE *mnttab;
-		struct mnttab entry;
-
 		if ((op == OP_SHARE) || (options != NULL)) {
 			(void) fprintf(stderr, gettext("missing filesystem "
 			    "argument (specify -a for all)\n"));
@@ -7586,32 +7616,15 @@ share_mount(int op, int argc, char **argv)
 		 * We hide any snapshots, since they are controlled
 		 * automatically.
 		 */
+		zfs_mountset_t *mset = libzfs_mountset_enter(g_zfs);
+		if (json)
+			zfs_mountset_foreach(mset, ZFS_MOUNTSET_ORDER_MOUNT,
+			    add_mount_nv_cb, data);
+		else
+			zfs_mountset_foreach(mset, ZFS_MOUNTSET_ORDER_MOUNT,
+			    print_mount_cb, NULL);
+		zfs_mountset_exit(mset);
 
-		if ((mnttab = fopen(MNTTAB, "re")) == NULL) {
-			free(options);
-			return (ENOENT);
-		}
-
-		while (getmntent(mnttab, &entry) == 0) {
-			if (strcmp(entry.mnt_fstype, MNTTYPE_ZFS) != 0 ||
-			    strchr(entry.mnt_special, '@') != NULL)
-				continue;
-			if (json) {
-				item = fnvlist_alloc();
-				fnvlist_add_string(item, "filesystem",
-				    entry.mnt_special);
-				fnvlist_add_string(item, "mountpoint",
-				    entry.mnt_mountp);
-				fnvlist_add_nvlist(data, entry.mnt_special,
-				    item);
-				fnvlist_free(item);
-			} else {
-				(void) printf("%-30s  %s\n", entry.mnt_special,
-				    entry.mnt_mountp);
-			}
-		}
-
-		(void) fclose(mnttab);
 		if (json) {
 			fnvlist_add_nvlist(jsobj, "datasets", data);
 			if (nvlist_empty(data))
