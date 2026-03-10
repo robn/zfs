@@ -49,6 +49,7 @@
 extern "C" {
 #endif
 
+#if 0
 #if defined(__has_attribute)
 #define	_LIBZFS_HAS_ATTRIBUTE(x)	__has_attribute(x)
 #elif defined(__has_c_attribute)
@@ -59,6 +60,9 @@ extern "C" {
 
 #if _LIBZFS_HAS_ATTRIBUTE(deprecated)
 #define	_LIBZFS_DEPRECATED		__attribute__((deprecated))
+#else
+#define	_LIBZFS_DEPRECATED
+#endif
 #else
 #define	_LIBZFS_DEPRECATED
 #endif
