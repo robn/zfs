@@ -607,49 +607,66 @@ zfs_iter_dependents_v2(zfs_handle_t *zhp, int flags, boolean_t allowrecursion,
 /*
  * Iterate over mounted children of the specified dataset
  */
+typedef struct {
+	libzfs_handle_t *hdl;
+	const char *name;
+	size_t namelen;
+	zfs_iter_f func;
+	void *data;
+	int err;
+} child_match_cb_arg_t;
+
+static boolean_t
+child_match_cb(zfs_mountset_t *mset, zfs_mount_t *mnt, void *arg)
+{
+	(void) mset;
+
+	child_match_cb_arg_t *cbarg = arg;
+
+	/* Ignore datasets not within the provided dataset */
+	const char *dsname = zfs_mount_get_dataset(mnt);
+	if (strncmp(dsname, cbarg->name, cbarg->namelen) != 0 ||
+	    dsname[cbarg->namelen] != '/')
+		return (B_FALSE);
+
+	/* Skip snapshot of any child dataset */
+	if (strchr(dsname, '@') != NULL)
+		return (B_FALSE);
+
+	zfs_handle_t *zhp = zfs_open(cbarg->hdl, dsname, ZFS_TYPE_FILESYSTEM);
+	if (zhp == NULL)
+		return (B_FALSE);
+
+	/* Ignore legacy mounts as they are user managed */
+	char prop[ZFS_MAXPROPLEN];
+	VERIFY0(zfs_prop_get(zhp, ZFS_PROP_MOUNTPOINT, prop,
+	    sizeof (prop), NULL, NULL, 0, B_FALSE));
+	if (strcmp(prop, "legacy") == 0) {
+		zfs_close(zhp);
+		return (B_FALSE);
+	}
+
+	cbarg->err = cbarg->func(zhp, cbarg->data);
+	return (cbarg->err != 0);
+}
+
 int
 zfs_iter_mounted(zfs_handle_t *zhp, zfs_iter_f func, void *data)
 {
-	char mnt_prop[ZFS_MAXPROPLEN];
-	struct mnttab entry;
-	zfs_handle_t *mtab_zhp;
-	size_t namelen = strlen(zhp->zfs_name);
-	FILE *mnttab;
-	int err = 0;
+	zfs_mountset_t *mset = libzfs_mountset_enter(zhp->zfs_hdl);
 
-	if ((mnttab = fopen(MNTTAB, "re")) == NULL)
-		return (ENOENT);
+	child_match_cb_arg_t cbarg = {
+		.hdl = zhp->zfs_hdl,
+		.name = zhp->zfs_name,
+		.namelen = strlen(zhp->zfs_name),
+		.func = func,
+		.data = data,
+		.err = 0,
+	};
+	zfs_mountset_foreach(mset, ZFS_MOUNTSET_ORDER_MOUNT,
+	    child_match_cb, &cbarg);
 
-	while (err == 0 && getmntent(mnttab, &entry) == 0) {
-		/* Ignore non-ZFS entries */
-		if (strcmp(entry.mnt_fstype, MNTTYPE_ZFS) != 0)
-			continue;
+	zfs_mountset_exit(mset);
 
-		/* Ignore datasets not within the provided dataset */
-		if (strncmp(entry.mnt_special, zhp->zfs_name, namelen) != 0 ||
-		    entry.mnt_special[namelen] != '/')
-			continue;
-
-		/* Skip snapshot of any child dataset */
-		if (strchr(entry.mnt_special, '@') != NULL)
-			continue;
-
-		if ((mtab_zhp = zfs_open(zhp->zfs_hdl, entry.mnt_special,
-		    ZFS_TYPE_FILESYSTEM)) == NULL)
-			continue;
-
-		/* Ignore legacy mounts as they are user managed */
-		verify(zfs_prop_get(mtab_zhp, ZFS_PROP_MOUNTPOINT, mnt_prop,
-		    sizeof (mnt_prop), NULL, NULL, 0, B_FALSE) == 0);
-		if (strcmp(mnt_prop, "legacy") == 0) {
-			zfs_close(mtab_zhp);
-			continue;
-		}
-
-		err = func(mtab_zhp, data);
-	}
-
-	fclose(mnttab);
-
-	return (err);
+	return (cbarg.err);
 }
