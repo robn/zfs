@@ -7681,21 +7681,6 @@ zfs_do_share(int argc, char **argv)
 	return (share_mount(OP_SHARE, argc, argv));
 }
 
-typedef struct unshare_unmount_node {
-	zfs_handle_t	*un_zhp;
-	char		*un_mountp;
-	avl_node_t	un_avlnode;
-} unshare_unmount_node_t;
-
-static int
-unshare_unmount_compare(const void *larg, const void *rarg)
-{
-	const unshare_unmount_node_t *l = larg;
-	const unshare_unmount_node_t *r = rarg;
-
-	return (TREE_ISIGN(strcmp(l->un_mountp, r->un_mountp)));
-}
-
 /*
  * Convenience routine used by zfs_do_umount() and manual_unmount().  Given an
  * absolute path, find the entry /proc/self/mounts, verify that it's a
@@ -7813,6 +7798,84 @@ out:
 	return (ret != 0);
 }
 
+typedef struct unshare_unmount_cb_arg {
+	int ret;
+	int op;
+	enum sa_protocol *protocol;
+	int flags;
+} unshare_unmount_cb_arg_t;
+
+static boolean_t
+unshare_unmount_cb(zfs_mountset_t *mset, zfs_mount_t *mnt, void *arg)
+{
+	(void) mset;
+	unshare_unmount_cb_arg_t *cbarg = arg;
+	char prop[ZFS_MAXPROPLEN];
+
+	const char *dsname = zfs_mount_get_dataset(mnt);
+	if (strchr(dsname, '@') != NULL)
+		return (B_FALSE);
+
+	zfs_handle_t *zhp = zfs_open(g_zfs, dsname, ZFS_TYPE_FILESYSTEM);
+	if (zhp == NULL) {
+		cbarg->ret = 1;
+		return (B_FALSE);
+	}
+
+	/* Ignore datasets that are excluded/restricted by parent pool name. */
+	if (zpool_skip_pool(zfs_get_pool_name(zhp))) {
+		zfs_close(zhp);
+		return (B_FALSE);
+	}
+
+	switch (cbarg->op) {
+	case OP_SHARE:
+		VERIFY0(zfs_prop_get(zhp, ZFS_PROP_SHARENFS, prop,
+		    sizeof (prop), NULL, NULL, 0, B_FALSE));
+		if (strcmp(prop, "off") != 0)
+			break;
+		VERIFY0(zfs_prop_get(zhp, ZFS_PROP_SHARESMB, prop,
+		    sizeof (prop), NULL, NULL, 0, B_FALSE));
+		if (strcmp(prop, "off") == 0) {
+			zfs_close(zhp);
+			return (B_FALSE);
+		}
+		break;
+	case OP_MOUNT:
+		/* Ignore legacy mounts */
+		VERIFY0(zfs_prop_get(zhp, ZFS_PROP_MOUNTPOINT, prop,
+		    sizeof (prop), NULL, NULL, 0, B_FALSE));
+		if (strcmp(prop, "legacy") == 0) {
+			zfs_close(zhp);
+			return (B_FALSE);
+		}
+		/* Ignore canmount=noauto mounts */
+		if (zfs_prop_get_int(zhp, ZFS_PROP_CANMOUNT) ==
+		    ZFS_CANMOUNT_NOAUTO) {
+			zfs_close(zhp);
+			return (B_FALSE);
+		}
+		break;
+	default:
+		break;
+	}
+
+	const char *mp = zfs_mount_get_mountpoint(mnt);
+	switch (cbarg->op) {
+	case OP_SHARE:
+		if (zfs_unshare(zhp, mp, cbarg->protocol) != 0)
+			cbarg->ret = 1;
+		break;
+	case OP_MOUNT:
+		if (zfs_unmount(zhp, mp, cbarg->flags) != 0)
+			cbarg->ret = 1;
+		break;
+	}
+
+	zfs_close(zhp);
+	return (B_FALSE);
+}
+
 /*
  * Generic callback for unsharing or unmounting a filesystem.
  */
@@ -7869,11 +7932,6 @@ unshare_unmount(int op, int argc, char **argv)
 		 * the special type (dataset name), and walk the result in
 		 * reverse to make sure to get any snapshots first.
 		 */
-		FILE *mnttab;
-		struct mnttab entry;
-		avl_tree_t tree;
-		unshare_unmount_node_t *node;
-		avl_index_t idx;
 		enum sa_protocol *protocol = NULL,
 		    single_protocol[] = {SA_NO_PROTOCOL, SA_NO_PROTOCOL};
 
@@ -7889,117 +7947,22 @@ unshare_unmount(int op, int argc, char **argv)
 			usage(B_FALSE);
 		}
 
-		avl_create(&tree, unshare_unmount_compare,
-		    sizeof (unshare_unmount_node_t),
-		    offsetof(unshare_unmount_node_t, un_avlnode));
+		zfs_mountset_t *mset = libzfs_mountset_enter(g_zfs);
 
-		if ((mnttab = fopen(MNTTAB, "re")) == NULL) {
-			avl_destroy(&tree);
-			return (ENOENT);
-		}
+		unshare_unmount_cb_arg_t cbarg = {
+		    .ret = ret,
+		    .op = op,
+		    .protocol = protocol,
+		    .flags = flags,
+		};
+		zfs_mountset_foreach(mset, ZFS_MOUNTSET_ORDER_UNMOUNT,
+		    unshare_unmount_cb, &cbarg);
+		ret = cbarg.ret;
 
-		while (getmntent(mnttab, &entry) == 0) {
-
-			/* ignore non-ZFS entries */
-			if (strcmp(entry.mnt_fstype, MNTTYPE_ZFS) != 0)
-				continue;
-
-			/* ignore snapshots */
-			if (strchr(entry.mnt_special, '@') != NULL)
-				continue;
-
-			if ((zhp = zfs_open(g_zfs, entry.mnt_special,
-			    ZFS_TYPE_FILESYSTEM)) == NULL) {
-				ret = 1;
-				continue;
-			}
-
-			/*
-			 * Ignore datasets that are excluded/restricted by
-			 * parent pool name.
-			 */
-			if (zpool_skip_pool(zfs_get_pool_name(zhp))) {
-				zfs_close(zhp);
-				continue;
-			}
-
-			switch (op) {
-			case OP_SHARE:
-				verify(zfs_prop_get(zhp, ZFS_PROP_SHARENFS,
-				    nfs_mnt_prop,
-				    sizeof (nfs_mnt_prop),
-				    NULL, NULL, 0, B_FALSE) == 0);
-				if (strcmp(nfs_mnt_prop, "off") != 0)
-					break;
-				verify(zfs_prop_get(zhp, ZFS_PROP_SHARESMB,
-				    nfs_mnt_prop,
-				    sizeof (nfs_mnt_prop),
-				    NULL, NULL, 0, B_FALSE) == 0);
-				if (strcmp(nfs_mnt_prop, "off") == 0)
-					continue;
-				break;
-			case OP_MOUNT:
-				/* Ignore legacy mounts */
-				verify(zfs_prop_get(zhp, ZFS_PROP_MOUNTPOINT,
-				    nfs_mnt_prop,
-				    sizeof (nfs_mnt_prop),
-				    NULL, NULL, 0, B_FALSE) == 0);
-				if (strcmp(nfs_mnt_prop, "legacy") == 0)
-					continue;
-				/* Ignore canmount=noauto mounts */
-				if (zfs_prop_get_int(zhp, ZFS_PROP_CANMOUNT) ==
-				    ZFS_CANMOUNT_NOAUTO)
-					continue;
-				break;
-			default:
-				break;
-			}
-
-			node = safe_malloc(sizeof (unshare_unmount_node_t));
-			node->un_zhp = zhp;
-			node->un_mountp = safe_strdup(entry.mnt_mountp);
-
-			if (avl_find(&tree, node, &idx) == NULL) {
-				avl_insert(&tree, node, idx);
-			} else {
-				zfs_close(node->un_zhp);
-				free(node->un_mountp);
-				free(node);
-			}
-		}
-		(void) fclose(mnttab);
-
-		/*
-		 * Walk the AVL tree in reverse, unmounting each filesystem and
-		 * removing it from the AVL tree in the process.
-		 */
-		while ((node = avl_last(&tree)) != NULL) {
-			const char *mntarg = NULL;
-
-			avl_remove(&tree, node);
-			switch (op) {
-			case OP_SHARE:
-				if (zfs_unshare(node->un_zhp,
-				    node->un_mountp, protocol) != 0)
-					ret = 1;
-				break;
-
-			case OP_MOUNT:
-				if (zfs_unmount(node->un_zhp,
-				    mntarg, flags) != 0)
-					ret = 1;
-				break;
-			}
-
-			zfs_close(node->un_zhp);
-			free(node->un_mountp);
-			free(node);
-		}
+		zfs_mountset_exit(mset);
 
 		if (op == OP_SHARE)
 			zfs_commit_shares(protocol);
-
-		avl_destroy(&tree);
 
 	} else {
 		if (argc != 1) {
