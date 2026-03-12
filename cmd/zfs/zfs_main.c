@@ -3533,8 +3533,18 @@ zfs_do_userspace(int argc, char **argv)
 		} while (delim != NULL);
 	}
 
-	if ((zhp = zfs_path_to_zhandle(g_zfs, argv[0], ZFS_TYPE_FILESYSTEM |
-	    ZFS_TYPE_SNAPSHOT)) == NULL)
+	zfs_mountset_t *mset = libzfs_mountset_enter(g_zfs);
+
+	zfs_mount_t *mnt;
+	if (zfs_mountset_find_path(mset, argv[0], &mnt) == 0)
+		zhp = zfs_open(g_zfs, zfs_mount_get_dataset(mnt), ZFS_TYPE_FILESYSTEM);
+	else
+		zhp = zfs_open(g_zfs, argv[0],
+		    ZFS_TYPE_FILESYSTEM | ZFS_TYPE_SNAPSHOT);
+
+	zfs_mountset_exit(mset);
+
+	if (zhp == NULL)
 		return (1);
 	if (zfs_get_underlying_type(zhp) != ZFS_TYPE_FILESYSTEM) {
 		(void) fprintf(stderr, gettext("operation is only applicable "
