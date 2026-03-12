@@ -63,65 +63,51 @@ ziprintf(const char *fmt, ...)
 	va_end(ap);
 }
 
-static void
-compress_slashes(const char *src, char *dest)
-{
-	while (*src != '\0') {
-		*dest = *src++;
-		while (*dest == '/' && *src == '/')
-			++src;
-		++dest;
-	}
-	*dest = '\0';
-}
-
 /*
  * Given a full path to a file, translate into a dataset name and a relative
  * path within the dataset.  'dataset' must be at least MAXNAMELEN characters,
- * and 'relpath' must be at least MAXPATHLEN characters.  We also pass a stat64
+ * and 'relpath' must be at least MAXPATHLEN characters.  We also pass a stat
  * buffer, which we need later to get the object ID.
  */
 static int
 parse_pathname(const char *inpath, char *dataset, char *relpath,
-    struct stat64 *statbuf)
+    struct stat *statbuf)
 {
-	struct mnttab mp;
-	const char *rel;
-	char fullpath[MAXPATHLEN];
-
-	compress_slashes(inpath, fullpath);
-
-	if (fullpath[0] != '/') {
-		(void) fprintf(stderr, "invalid object '%s': must be full "
-		    "path\n", fullpath);
-		usage();
+	char *fullpath = realpath(inpath, NULL);
+	if (fullpath == NULL) {
+		(void) fprintf(stderr, "invalid object '%s': can't resolve "
+		    "to full path\n", inpath);
 		return (-1);
 	}
 
-	if (getextmntent(fullpath, &mp, statbuf) != 0) {
+	if (stat(fullpath, statbuf) != 0) {
+		(void) fprintf(stderr, "invalid object '%s': %s\n", fullpath,
+		    strerror(errno));
+		free(fullpath);
+		return (-1);
+	}
+
+	zfs_mountset_t *mset = libzfs_mountset_enter(g_zfs);
+
+	zfs_mount_t *mnt;
+	int err = zfs_mountset_find_path(mset, fullpath, &mnt);
+	if (err != 0) {
+		zfs_mountset_exit(mset);
 		(void) fprintf(stderr, "cannot find mountpoint for '%s'\n",
 		    fullpath);
+		free(fullpath);
 		return (-1);
 	}
 
-	if (strcmp(mp.mnt_fstype, MNTTYPE_ZFS) != 0) {
-		(void) fprintf(stderr, "invalid path '%s': not a ZFS "
-		    "filesystem\n", fullpath);
-		return (-1);
-	}
+	(void) strlcpy(dataset, zfs_mount_get_dataset(mnt), MAXNAMELEN);
 
-	if (strncmp(fullpath, mp.mnt_mountp, strlen(mp.mnt_mountp)) != 0) {
-		(void) fprintf(stderr, "invalid path '%s': mountpoint "
-		    "doesn't match path\n", fullpath);
-		return (-1);
-	}
-
-	(void) strlcpy(dataset, mp.mnt_special, MAXNAMELEN);
-
-	rel = fullpath + strlen(mp.mnt_mountp);
+	const char *rel = fullpath + strlen(zfs_mount_get_mountpoint(mnt));
 	if (rel[0] == '/')
 		rel++;
 	(void) strlcpy(relpath, rel, MAXPATHLEN);
+
+	zfs_mountset_exit(mset);
+	free(fullpath);
 
 	return (0);
 }
@@ -221,7 +207,7 @@ translate_record(err_type_t type, const char *object, const char *range,
 {
 	char path[MAXPATHLEN];
 	char *slash;
-	struct stat64 statbuf;
+	struct stat statbuf;
 	int ret = -1;
 
 	debug = (getenv("ZINJECT_DEBUG") != NULL);
