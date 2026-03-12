@@ -1161,35 +1161,34 @@ zfs_get_pool_handle(const zfs_handle_t *zhp)
 	return (zhp->zpool_hdl);
 }
 
-/*
- * Given a name, determine whether or not it's a valid path
- * (starts with '/' or "./").  If so, walk the mnttab trying
- * to match the device number.  If not, treat the path as an
- * fs/vol/snap/bkmark name.
- */
 zfs_handle_t *
 zfs_path_to_zhandle(libzfs_handle_t *hdl, const char *path, zfs_type_t argtype)
 {
-	struct stat64 statbuf;
-	struct mnttab entry;
+	/*
+	 * This function has weird semantics, and is deprecated. Use the
+	 * mountset API directly for what you want. This implementation is
+	 * retained for ABI back-compat.
+	 */
 
-	if (path[0] != '/' && strncmp(path, "./", strlen("./")) != 0) {
-		/*
-		 * It's not a valid path, assume it's a name of type 'argtype'.
-		 */
+	/*
+	 * Assume any path that doesn't start with / or ,/ is dataset name
+	 * of argtype, and try to open it directly.
+	 */
+	if (path[0] != '/' && (!(path[0] == '.' && path[1] == '/')))
 		return (zfs_open(hdl, path, argtype));
-	}
 
-	if (getextmntent(path, &entry, &statbuf) != 0)
+	zfs_mountset_t *mset = libzfs_mountset_enter(hdl);
+
+	zfs_mount_t *mnt;
+	if (zfs_mountset_find_path(mset, path, &mnt) != 0)
 		return (NULL);
 
-	if (strcmp(entry.mnt_fstype, MNTTYPE_ZFS) != 0) {
-		(void) fprintf(stderr, gettext("'%s': not a ZFS filesystem\n"),
-		    path);
-		return (NULL);
-	}
+	zfs_handle_t *zhp = zfs_open(hdl, zfs_mount_get_dataset(mnt),
+	    ZFS_TYPE_FILESYSTEM);
 
-	return (zfs_open(hdl, entry.mnt_special, ZFS_TYPE_FILESYSTEM));
+	zfs_mountset_exit(mset);
+
+	return (zhp);
 }
 
 /*
