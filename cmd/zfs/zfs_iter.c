@@ -488,7 +488,6 @@ zfs_for_each(int argc, char **argv, int flags, zfs_type_t types,
 		cb.cb_flags |= ZFS_ITER_RECURSE;
 		ret = zfs_iter_root(g_zfs, zfs_callback, &cb);
 	} else {
-		zfs_handle_t *zhp = NULL;
 		zfs_type_t argtype = types;
 
 		/*
@@ -502,11 +501,19 @@ zfs_for_each(int argc, char **argv, int flags, zfs_type_t types,
 				argtype |= ZFS_TYPE_VOLUME;
 		}
 
+		zfs_mountset_t *mset = libzfs_mountset_enter(g_zfs);
+
 		for (int i = 0; i < argc; i++) {
+			zfs_handle_t *zhp = NULL;
 			if (flags & ZFS_ITER_ARGS_CAN_BE_PATHS) {
-				zhp = zfs_path_to_zhandle(g_zfs, argv[i],
-				    argtype);
-			} else {
+				zfs_mount_t *mnt;
+				if (zfs_mountset_find_path(mset, argv[i],
+				    &mnt) == 0)
+					zhp = zfs_open(g_zfs,
+					    zfs_mount_get_dataset(mnt),
+					    argtype);
+			}
+			if (zhp == NULL) {
 				zhp = zfs_open(g_zfs, argv[i], argtype);
 			}
 			if (zhp != NULL)
@@ -514,6 +521,8 @@ zfs_for_each(int argc, char **argv, int flags, zfs_type_t types,
 			else
 				ret = 1;
 		}
+
+		zfs_mountset_exit(mset);
 	}
 
 	/*
