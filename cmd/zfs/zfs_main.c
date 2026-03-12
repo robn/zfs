@@ -7689,76 +7689,33 @@ zfs_do_share(int argc, char **argv)
 static int
 unshare_unmount_path(int op, char *path, int flags, boolean_t is_manual)
 {
-	zfs_handle_t *zhp;
-	int ret = 0;
-	struct stat64 statbuf;
-	struct mnttab entry;
+	zfs_handle_t *zhp = NULL;
+	int ret = 1;
 	const char *cmdname = (op == OP_SHARE) ? "unshare" : "unmount";
-	ino_t path_inode;
-	char *zfs_mntpnt, *entry_mntpnt;
 
-	if (getextmntent(path, &entry, &statbuf) != 0) {
-		if (op == OP_SHARE) {
-			(void) fprintf(stderr, gettext("cannot %s '%s': not "
-			    "currently mounted\n"), cmdname, path);
-			return (1);
-		}
-		(void) fprintf(stderr, gettext("warning: %s not in"
-		    "/proc/self/mounts\n"), path);
-		if ((ret = umount2(path, flags)) != 0)
-			(void) fprintf(stderr, gettext("%s: %s\n"), path,
-			    strerror(errno));
-		return (ret != 0);
-	}
-	path_inode = statbuf.st_ino;
+	zfs_mountset_t *mset = libzfs_mountset_enter(g_zfs);
 
-	if (strcmp(entry.mnt_fstype, MNTTYPE_ZFS) != 0) {
-		(void) fprintf(stderr, gettext("cannot %s '%s': not a ZFS "
-		    "filesystem\n"), cmdname, path);
-		return (1);
+	/* XXX handle multiple overlay mounts on same mountpoint? */
+	zfs_mount_t *mnt;
+	int err = zfs_mountset_find_mountpoint(mset, path, &mnt);
+	if (err != 0) {
+		(void) fprintf(stderr, gettext("cannot %s '%s': not "
+		    "currently mounted\n"), cmdname, path);
+		goto out;
 	}
 
-	if ((zhp = zfs_open(g_zfs, entry.mnt_special,
+	if ((zhp = zfs_open(g_zfs, zfs_mount_get_dataset(mnt),
 	    ZFS_TYPE_FILESYSTEM)) == NULL)
-		return (1);
-
-	ret = 1;
-	if (stat64(entry.mnt_mountp, &statbuf) != 0) {
-		(void) fprintf(stderr, gettext("cannot %s '%s': %s\n"),
-		    cmdname, path, strerror(errno));
 		goto out;
-	} else if (statbuf.st_ino != path_inode) {
-		(void) fprintf(stderr, gettext("cannot "
-		    "%s '%s': not a mountpoint\n"), cmdname, path);
-		goto out;
-	}
-
-	/*
-	 * If the filesystem is mounted, check that the mountpoint matches
-	 * the one in the mnttab entry w.r.t. provided path. If it doesn't,
-	 * then we should not proceed further.
-	 */
-	entry_mntpnt = strdup(entry.mnt_mountp);
-	if (zfs_is_mounted(zhp, &zfs_mntpnt)) {
-		if (strcmp(zfs_mntpnt, entry_mntpnt) != 0) {
-			(void) fprintf(stderr, gettext("cannot %s '%s': "
-			    "not an original mountpoint\n"), cmdname, path);
-			free(zfs_mntpnt);
-			free(entry_mntpnt);
-			goto out;
-		}
-		free(zfs_mntpnt);
-	}
-	free(entry_mntpnt);
 
 	if (op == OP_SHARE) {
 		char nfs_mnt_prop[ZFS_MAXPROPLEN];
 		char smbshare_prop[ZFS_MAXPROPLEN];
 
-		verify(zfs_prop_get(zhp, ZFS_PROP_SHARENFS, nfs_mnt_prop,
-		    sizeof (nfs_mnt_prop), NULL, NULL, 0, B_FALSE) == 0);
-		verify(zfs_prop_get(zhp, ZFS_PROP_SHARESMB, smbshare_prop,
-		    sizeof (smbshare_prop), NULL, NULL, 0, B_FALSE) == 0);
+		VERIFY0(zfs_prop_get(zhp, ZFS_PROP_SHARENFS, nfs_mnt_prop,
+		    sizeof (nfs_mnt_prop), NULL, NULL, 0, B_FALSE));
+		VERIFY0(zfs_prop_get(zhp, ZFS_PROP_SHARESMB, smbshare_prop,
+		    sizeof (smbshare_prop), NULL, NULL, 0, B_FALSE));
 
 		if (strcmp(nfs_mnt_prop, "off") == 0 &&
 		    strcmp(smbshare_prop, "off") == 0) {
@@ -7766,9 +7723,11 @@ unshare_unmount_path(int op, char *path, int flags, boolean_t is_manual)
 			    "'%s': legacy share\n"), path);
 			(void) fprintf(stderr, gettext("use exportfs(8) "
 			    "or smbcontrol(1) to unshare this filesystem\n"));
+			ret = 0;
 		} else if (!zfs_is_shared(zhp, NULL, NULL)) {
 			(void) fprintf(stderr, gettext("cannot unshare '%s': "
 			    "not currently shared\n"), path);
+			ret = 0;
 		} else {
 			ret = zfs_unshare(zhp, path, NULL);
 			zfs_commit_shares(NULL);
@@ -7776,8 +7735,8 @@ unshare_unmount_path(int op, char *path, int flags, boolean_t is_manual)
 	} else {
 		char mtpt_prop[ZFS_MAXPROPLEN];
 
-		verify(zfs_prop_get(zhp, ZFS_PROP_MOUNTPOINT, mtpt_prop,
-		    sizeof (mtpt_prop), NULL, NULL, 0, B_FALSE) == 0);
+		VERIFY0(zfs_prop_get(zhp, ZFS_PROP_MOUNTPOINT, mtpt_prop,
+		    sizeof (mtpt_prop), NULL, NULL, 0, B_FALSE));
 
 		if (is_manual) {
 			ret = zfs_unmount(zhp, NULL, flags);
@@ -7787,13 +7746,16 @@ unshare_unmount_path(int op, char *path, int flags, boolean_t is_manual)
 			    zfs_get_name(zhp));
 			(void) fprintf(stderr, gettext("use umount(8) "
 			    "to unmount this filesystem\n"));
+			ret = 0;
 		} else {
 			ret = zfs_unmountall(zhp, flags);
 		}
 	}
 
 out:
-	zfs_close(zhp);
+	if (zhp != NULL)
+		zfs_close(zhp);
+	zfs_mountset_exit(mset);
 
 	return (ret != 0);
 }
