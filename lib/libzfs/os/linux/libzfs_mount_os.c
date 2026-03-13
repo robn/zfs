@@ -380,6 +380,7 @@ do_mount(zfs_handle_t *zhp, const char *mntpt, const char *opts, int flags)
 	return (error);
 }
 
+#if 0
 int
 do_unmount(zfs_handle_t *zhp, const char *mntpt, int flags)
 {
@@ -408,6 +409,7 @@ do_unmount(zfs_handle_t *zhp, const char *mntpt, int flags)
 
 	return (rc ? EINVAL : 0);
 }
+#endif
 
 #ifdef HAVE_MOUNT_SETATTR
 /*

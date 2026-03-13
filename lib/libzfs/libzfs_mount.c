@@ -589,6 +589,7 @@ zfs_mount_at(zfs_handle_t *zhp, const char *options, int flags,
 /*
  * Unmount a single filesystem.
  */
+#if 0
 static int
 unmount_one(libzfs_handle_t *hdl, const char *mountpoint, int flags)
 {
@@ -634,6 +635,7 @@ unmount_one(libzfs_handle_t *hdl, const char *mountpoint, int flags)
 
 	return (0);
 }
+#endif
 
 /*
  * Unmount the given filesystem.
@@ -642,44 +644,46 @@ int
 zfs_unmount(zfs_handle_t *zhp, const char *mountpoint, int flags)
 {
 	libzfs_handle_t *hdl = zhp->zfs_hdl;
-	struct mnttab entry;
-	char *mntpt = NULL;
 	boolean_t encroot, unmounted = B_FALSE;
+	int err;
 
-	/* check to see if we need to unmount the filesystem */
-	if (mountpoint != NULL || ((zfs_get_type(zhp) == ZFS_TYPE_FILESYSTEM) &&
-	    libzfs_mnttab_find(hdl, zhp->zfs_name, &entry) == 0)) {
-		/*
-		 * mountpoint may have come from a call to
-		 * getmnt/getmntany if it isn't NULL. If it is NULL,
-		 * we know it comes from libzfs_mnttab_find which can
-		 * then get freed later. We strdup it to play it safe.
-		 */
-		if (mountpoint == NULL)
-			mntpt = zfs_strdup(hdl, entry.mnt_mountp);
-		else
-			mntpt = zfs_strdup(hdl, mountpoint);
+	zfs_mountset_t *mset = libzfs_mountset_enter(hdl);
 
+	zfs_mount_t *mnt;
+	if (mountpoint == NULL)
+		err = zfs_mountset_find_dataset(mset, zhp->zfs_name, &mnt);
+	else
+		err = zfs_mountset_find_pair(mset, zhp->zfs_name, mountpoint,
+		    &mnt);
+	if (err != 0 && err != ENOENT) {
+		zfs_mountset_exit(mset);
+		return (-1);
+	}
+
+	/* If we have a mount, we can start work on unmounting it. */
+	if (err == 0) {
 		/*
 		 * Unshare and unmount the filesystem
 		 */
-		if (zfs_unshare(zhp, mntpt, share_all_proto) != 0) {
-			free(mntpt);
+		if (zfs_unshare(zhp, zfs_mount_get_mountpoint(mnt),
+			share_all_proto) != 0) {
+			zfs_mountset_exit(mset);
 			return (-1);
 		}
 		zfs_commit_shares(NULL);
 
-		/* XXX note comment in unmount_one() about hdl arg */
-		if (unmount_one(zhp->zfs_hdl, mntpt, flags) != 0) {
+		zfs_mountbuilder_t *mb = zfs_mountbuilder_for_unmount(mnt, 0);
+		if (zfs_mountset_apply(mset, mb) != 0) {
+			zfs_mountset_exit(mset);
 			(void) zfs_share(zhp, NULL);
 			zfs_commit_shares(NULL);
 			return (-1);
 		}
 
-		libzfs_mnttab_remove(hdl, zhp->zfs_name);
-		free(mntpt);
 		unmounted = B_TRUE;
 	}
+
+	zfs_mountset_exit(mset);
 
 	/*
 	 * If the MS_CRYPT flag is provided we must ensure we attempt to
@@ -1454,8 +1458,19 @@ disable_unmount_cb(zfs_mountset_t *mset, zfs_mount_t *mnt, void *arg)
 	    (dsname[cbarg->namelen] != '/' && dsname[cbarg->namelen] != '\0'))
 		return (B_FALSE);
 
-	if (unmount_one(cbarg->zhp->zpool_hdl,
-	    zfs_mount_get_mountpoint(mnt), cbarg->flags) != 0)
+	zfs_mountbuilder_t *mb = zfs_mountbuilder_for_unmount(mnt, 0);
+
+	//ASSERT0(cbarg->flags); /* XXX could be MS_FORCE in theory */
+
+	int err = zfs_mountset_apply(mset, mb);
+
+	/*
+	 * XXX here of old was a call to unmount_one(), which would set
+	 *     libzfs_err with something cooked from err. figure out if
+	 *     we want that, do the thing -- robn, 2026-03-24
+	 */
+
+	if (err != 0)
 		return (B_TRUE);
 
 	return (B_FALSE);
