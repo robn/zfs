@@ -858,24 +858,45 @@ zfs_unshare(zfs_handle_t *zhp, const char *mountpoint,
     const enum sa_protocol *proto)
 {
 	libzfs_handle_t *hdl = zhp->zfs_hdl;
-	struct mnttab entry;
+	const char *mntpt = NULL;
+	zfs_mountset_t *mset = NULL;
 
 	if (proto == NULL)
 		proto = share_all_proto;
 
-	if (mountpoint != NULL || ((zfs_get_type(zhp) == ZFS_TYPE_FILESYSTEM) &&
-	    libzfs_mnttab_find(hdl, zfs_get_name(zhp), &entry) == 0)) {
+	if (mountpoint == NULL) {
+		if (zfs_get_type(zhp) == ZFS_TYPE_FILESYSTEM) {
+			mset = libzfs_mountset_enter(hdl);
 
-		/* check to see if need to unmount the filesystem */
-		const char *mntpt = mountpoint ?: entry.mnt_mountp;
+			zfs_mount_t *mnt;
+			int err = zfs_mountset_find_dataset(mset,
+			    zhp->zfs_name, &mnt);
+			if (err == 0)
+				mntpt = zfs_mount_get_mountpoint(mnt);
+			else if (err != ENOENT) {
+				zfs_mountset_exit(mset);
+				return (-1);
+			}
+		}
+	} else {
+		mntpt = mountpoint;
+	}
 
+	if (mntpt != NULL) {
 		for (const enum sa_protocol *curr_proto = proto;
-		    *curr_proto != SA_NO_PROTOCOL; curr_proto++)
+		    *curr_proto != SA_NO_PROTOCOL; curr_proto++) {
 			if (sa_is_shared(mntpt, *curr_proto) &&
 			    unshare_one(hdl, zhp->zfs_name,
-			    mntpt, *curr_proto) != 0)
-					return (-1);
+			    mntpt, *curr_proto) != 0) {
+				if (mset != NULL)
+					zfs_mountset_exit(mset);
+				return (-1);
+			}
+		}
 	}
+
+	if (mset != NULL)
+		zfs_mountset_exit(mset);
 
 	return (0);
 }
