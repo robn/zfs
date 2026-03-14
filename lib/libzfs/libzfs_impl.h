@@ -36,6 +36,7 @@
 #include <sys/zfs_ioctl.h>
 #include <sys/mutex.h>
 #include <regex.h>
+#include <stdbool.h>
 
 #include <libzfs.h>
 #include <libzfs_core.h>
@@ -255,6 +256,113 @@ extern int zfs_mountset_refresh(zfs_mountset_t *mset);
 
 extern void zfs_mount_hold(zfs_mount_t *);
 extern void zfs_mount_drop(zfs_mount_t *);
+
+/*
+ * XXX mountbuilder interface below. might end up in libzfs.h
+ *     waiting to see the extent that libzfs clients will use it directly.
+ */
+
+typedef enum {
+	ZFS_MOUNTOPT_ATIME_OFF,
+	ZFS_MOUNTOPT_ATIME_ON,
+	ZFS_MOUNTOPT_ATIME_RELATIVE,
+} zfs_mountopt_atime_t;
+
+typedef enum {
+	ZFS_MOUNTOPT_XATTR_OFF,
+	ZFS_MOUNTOPT_XATTR_ON,
+	ZFS_MOUNTOPT_XATTR_DIR,
+	ZFS_MOUNTOPT_XATTR_SA,
+} zfs_mountopt_xattr_t;
+
+typedef enum {
+	ZFS_MOUNTOPT_UNCHANGED,
+	ZFS_MOUNTOPT_SET,
+	ZFS_MOUNTOPT_DEFAULT,
+} zfs_mountopt_changed_t;
+
+typedef struct zfs_mountbuilder zfs_mountbuilder_t;
+struct zfs_mountbuilder {
+	/* operation to perform when this builder is applied */
+	enum {
+		ZFS_MOUNTBUILDER_OP_MOUNT	= 0,
+		ZFS_MOUNTBUILDER_OP_UNMOUNT	= 1,
+		ZFS_MOUNTBUILDER_OP_REMOUNT	= 2,
+	} mb_op;
+
+	/* op-specific flags */
+	enum {
+		/* remove mount from view immediately, unmount when all
+		 * users are done */
+		ZFS_MOUNTBUILDER_UNMOUNT_DETACH		= (1 << 0),
+	} mb_op_flags;
+
+	/*
+	 * For each core option, whether this builder is setting it, returning
+	 * it to default, or leaving it alone.
+	 */
+	zfs_mountopt_changed_t mb_opt_changed_readonly;
+	zfs_mountopt_changed_t mb_opt_changed_exec;
+	zfs_mountopt_changed_t mb_opt_changed_setuid;
+	zfs_mountopt_changed_t mb_opt_changed_devices;
+	zfs_mountopt_changed_t mb_opt_changed_mand;
+	zfs_mountopt_changed_t mb_opt_changed_atime;
+	zfs_mountopt_changed_t mb_opt_changed_xattr;
+
+	/*
+	 * The new value of each core option being set. Invalid unless the
+	 * corresponding mb_opt_changed_* is ZFS_MOUNTOPT_SET.
+	 */
+	bool mb_opt_val_readonly;
+	bool mb_opt_val_exec;
+	bool mb_opt_val_setuid;
+	bool mb_opt_val_devices;
+	bool mb_opt_val_mand;
+	zfs_mountopt_atime_t mb_opt_val_atime;
+	zfs_mountopt_xattr_t mb_opt_val_xattr;
+
+	/* Array of raw option strings. Allocation is grown on demand. */
+	char **mb_raw_opts;
+	size_t mb_raw_count;
+	size_t mb_raw_alloc;
+
+	/* Op-specific args */
+	union {
+		/* For MOUNT, the dataset and mountpoint for the new mount. */
+		struct {
+			char *mb_dataset;
+			char *mb_mountpoint;
+		};
+		/* For UNMOUNT and REMOUNT, the existing mount to modify. */
+		zfs_mount_t *mb_mount;
+	};
+};
+
+zfs_mountbuilder_t *zfs_mountbuilder_for_mount(const char *, const char *,
+    uint32_t);
+zfs_mountbuilder_t *zfs_mountbuilder_for_unmount(zfs_mount_t *, uint32_t);
+zfs_mountbuilder_t *zfs_mountbuilder_for_remount(zfs_mount_t *, uint32_t);
+void zfs_mountbuilder_free(zfs_mountbuilder_t *);
+
+void zfs_mountbuilder_set_readonly(zfs_mountbuilder_t *, bool);
+void zfs_mountbuilder_set_exec(zfs_mountbuilder_t *, bool);
+void zfs_mountbuilder_set_setuid(zfs_mountbuilder_t *, bool);
+void zfs_mountbuilder_set_devices(zfs_mountbuilder_t *, bool);
+void zfs_mountbuilder_set_mand(zfs_mountbuilder_t *, bool);
+void zfs_mountbuilder_set_atime(zfs_mountbuilder_t *, zfs_mountopt_atime_t);
+void zfs_mountbuilder_set_xattr(zfs_mountbuilder_t *, zfs_mountopt_xattr_t);
+
+void zfs_mountbuilder_default_readonly(zfs_mountbuilder_t *);
+void zfs_mountbuilder_default_exec(zfs_mountbuilder_t *);
+void zfs_mountbuilder_default_setuid(zfs_mountbuilder_t *);
+void zfs_mountbuilder_default_devices(zfs_mountbuilder_t *);
+void zfs_mountbuilder_default_mand(zfs_mountbuilder_t *);
+void zfs_mountbuilder_default_atime(zfs_mountbuilder_t *);
+void zfs_mountbuilder_default_xattr(zfs_mountbuilder_t *);
+
+void zfs_mountbuilder_raw_option(zfs_mountbuilder_t *, const char *);
+
+int zfs_mountset_apply(zfs_mountset_t *mset, zfs_mountbuilder_t *mb);
 
 #ifdef	__cplusplus
 }
