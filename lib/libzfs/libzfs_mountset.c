@@ -215,6 +215,10 @@ zfs_mountbuilder_raw_option(zfs_mountbuilder_t *mb, const char *opt)
 	if (opt == NULL)
 		return;
 
+	/* XXX temp drop "zfsutil" until I figure out where I am */
+	if (strcmp(opt, "zfsutil") == 0)
+		return;
+
 	if (mb->mb_raw_opts == NULL) {
 		mb->mb_raw_alloc = 8;
 		mb->mb_raw_opts = malloc(sizeof (char *) * mb->mb_raw_alloc);
@@ -223,6 +227,8 @@ zfs_mountbuilder_raw_option(zfs_mountbuilder_t *mb, const char *opt)
 		mb->mb_raw_opts = realloc(mb->mb_raw_opts,
 		    sizeof (char *) * mb->mb_raw_alloc);
 	}
+
+	fprintf(stderr, "zfs_mountbuilder_raw_opt: %s\n", opt);
 
 	mb->mb_raw_opts[mb->mb_raw_count++] = strdup(opt);
 }

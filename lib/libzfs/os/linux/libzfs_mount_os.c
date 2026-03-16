@@ -329,6 +329,69 @@ zfs_adjust_mount_options(zfs_handle_t *zhp, const char *mntpoint,
 int
 do_mount(zfs_handle_t *zhp, const char *mntpt, const char *opts, int flags)
 {
+	zfs_mountbuilder_t *mb =
+	    zfs_mountbuilder_for_mount(zfs_get_name(zhp), mntpt, 0);
+
+	/*
+	 * XXX this is all just for test really. almost certainly any of this
+	 *     belongs in mount.zfs, but we may need this for backcompat,
+	 *     unclear right now
+	 *       -- robn, 2026-03-24
+	 */
+
+	if (flags & MS_RDONLY)
+		zfs_mountbuilder_raw_option(mb, "ro");
+	if (flags & MS_NOSUID)
+		zfs_mountbuilder_raw_option(mb, "nosuid");
+	if (flags & MS_NODEV)
+		zfs_mountbuilder_raw_option(mb, "nodev");
+	if (flags & MS_NOEXEC)
+		zfs_mountbuilder_raw_option(mb, "noexec");
+	if (flags & MS_SYNCHRONOUS)
+		zfs_mountbuilder_raw_option(mb, "sync");
+	/* XXX MS_REMOUNT */
+	if (flags & MS_MANDLOCK)
+		zfs_mountbuilder_raw_option(mb, "mand");
+	if (flags & MS_DIRSYNC)
+		zfs_mountbuilder_raw_option(mb, "dirsync");
+	if (flags & MS_NOSYMFOLLOW)
+		zfs_mountbuilder_raw_option(mb, "nosymfollow");
+	if (flags & MS_NOATIME)
+		zfs_mountbuilder_raw_option(mb, "noatime");
+	if (flags & MS_NODIRATIME)
+		zfs_mountbuilder_raw_option(mb, "nodiratime");
+	/* XXX MS_BIND */
+	/* XXX MS_MOVE */
+	/* XXX MS_REC */
+	/* XXX MS_SILENT */
+
+	flags &= ~MS_OVERLAY;	/* XXX zfs-internal */
+
+	ASSERT0(flags & ~(MS_RDONLY|MS_NOSUID|MS_NODEV|MS_NOEXEC|MS_SYNCHRONOUS|MS_MANDLOCK|MS_DIRSYNC|MS_NOSYMFOLLOW|MS_NOATIME|MS_NODIRATIME));
+	char buf[512];
+	uint_t s = 0, d = 0;
+	while (opts[s] != '\0') {
+		if (opts[s] == ',') {
+			buf[d] = '\0';
+			zfs_mountbuilder_raw_option(mb, buf);
+			d = 0;
+			s++;
+			continue;
+		}
+		buf[d++] = opts[s++];
+	}
+	if (d > 0) {
+		buf[d] = '\0';
+		zfs_mountbuilder_raw_option(mb, buf);
+	}
+
+	zfs_mountset_t *mset = libzfs_mountset_enter(zhp->zfs_hdl);
+	int err = zfs_mountset_apply(mset, mb);
+	zfs_mountset_exit(mset);
+
+	return (err);
+
+#if 0
 	const char *src = zfs_get_name(zhp);
 	int error = 0;
 
@@ -378,12 +441,32 @@ do_mount(zfs_handle_t *zhp, const char *mntpt, const char *opts, int flags)
 	}
 
 	return (error);
+#endif
 }
 
 #if 0
 int
 do_unmount(zfs_handle_t *zhp, const char *mntpt, int flags)
 {
+	flags &= ~MS_OVERLAY;	/* XXX zfs-internal */
+
+	ASSERT3U(flags, ==, 0);
+
+	zfs_mountset_t *mset = libzfs_mountset_open(zhp->zfs_hdl);
+	zfs_mount_t *mnt;
+	int err = zfs_mountset_find_pair(mset, zfs_get_name(zhp), mntpt, &mnt);
+	if (err != 0) {
+		zfs_mountset_drop(mset);
+		return (err);
+	}
+
+	zfs_mountbuilder_t *mb = zfs_mountbuilder_for_unmount(mnt, 0);
+
+	err = zfs_mountset_apply(mset, mb);
+	zfs_mountset_drop(mset);
+
+	return (err);
+#if 0
 	(void) zhp;
 
 	if (!libzfs_envvar_is_set("ZFS_MOUNT_HELPER")) {
@@ -408,6 +491,7 @@ do_unmount(zfs_handle_t *zhp, const char *mntpt, int flags)
 	rc = libzfs_run_process(argv[0], argv, STDOUT_VERBOSE|STDERR_VERBOSE);
 
 	return (rc ? EINVAL : 0);
+#endif
 }
 #endif
 
