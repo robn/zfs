@@ -316,3 +316,177 @@ zfs_mountset_foreach(zfs_mountset_t *mset, zfs_mountset_order_t order,
 		return (-1);
 	return (0);
 }
+
+/*
+ * XXX work out what the actual defaults are/should be, and set them up
+ *     here? though it makes me wonder if the default methods are ever gonna
+ *     be used.
+ *
+ *     mount(8) says:
+ *
+ *     defaults
+ *
+ *         Use the default options: rw, suid, dev, exec, auto, nouser, and
+ *         async.
+ *
+ *         Note that the real set of all default mount options depends on the
+ *         kernel and filesystem type. See the beginning of this section for
+ *         more details.
+ */
+
+#define	OPT_DEFAULT_READONLY	"rw"
+#define	OPT_DEFAULT_EXEC	"exec"
+#define	OPT_DEFAULT_SETUID	"suid"
+#define	OPT_DEFAULT_DEVICES	"dev"
+#define	OPT_DEFAULT_MAND	"nomand"
+#define	OPT_DEFAULT_ATIME	"relatime"
+#define	OPT_DEFAULT_XATTR	"xattr"
+
+int
+zfs_mountset_apply(zfs_mountset_t *mset, zfs_mountbuilder_t *mb)
+{
+	int err = 0;
+
+	struct libmnt_context *mctx = mnt_new_context();
+
+	/* We will provide everything; ignore fstab etc. */
+	mnt_context_set_optsmode(mctx, MNT_OMODE_NOTAB);
+
+	/* Disable any table updates, we will manage this ourselves. */
+	mnt_context_disable_mtab(mctx, 1);
+
+	/* Disable libmount security policies; they aren't applicable here. */
+	mnt_context_force_unrestricted(mctx);
+
+	/*
+	 * For the actually mount/unmount call, call syscalls directly; don't
+	 * call out to userspace helpers.
+	 */
+	mnt_context_disable_helpers(mctx, 1);
+
+	/* Initial setup for requested operation */
+	if (mb->mb_op == ZFS_MOUNTBUILDER_OP_MOUNT) {
+		/* New mount; set source & target to dataset & mountpoint. */
+		if ((err = mnt_context_set_source(mctx,
+		    mb->mb_dataset)) != 0)
+			goto out;
+		if ((err = mnt_context_set_target(mctx,
+		    mb->mb_mountpoint)) != 0)
+			goto out;
+
+		/* There is only ZFS. */
+		mnt_context_set_fstype(mctx, MNTTYPE_ZFS);
+	} else {
+		/*
+		 * Mount or remount; copy the provided fs and add it to the
+		 * context. Copy is necessary because we don't want to modify
+		 * the caller's version.
+		 */
+		if ((err = mnt_context_set_fs(mctx,
+		    mnt_copy_fs(NULL, (struct libmnt_fs *) mb->mb_mount))) != 0)
+			goto out;
+	}
+
+	if (mb->mb_opt_changed_readonly != ZFS_MOUNTOPT_UNCHANGED) {
+		mnt_context_append_options(mctx,
+		    mb->mb_opt_changed_readonly == ZFS_MOUNTOPT_SET ?
+		    (mb->mb_opt_val_readonly ? "ro" : "rw") :
+		    OPT_DEFAULT_READONLY);
+	}
+	if (mb->mb_opt_changed_exec != ZFS_MOUNTOPT_UNCHANGED) {
+		mnt_context_append_options(mctx,
+		    mb->mb_opt_changed_exec == ZFS_MOUNTOPT_SET ?
+		    (mb->mb_opt_val_exec ? "exec" : "noexec") :
+		    OPT_DEFAULT_EXEC);
+	}
+	if (mb->mb_opt_changed_setuid != ZFS_MOUNTOPT_UNCHANGED) {
+		mnt_context_append_options(mctx,
+		    mb->mb_opt_changed_setuid == ZFS_MOUNTOPT_SET ?
+		    (mb->mb_opt_val_setuid ? "suid" : "nosuid") :
+		    OPT_DEFAULT_SETUID);
+	}
+	if (mb->mb_opt_changed_devices != ZFS_MOUNTOPT_UNCHANGED) {
+		mnt_context_append_options(mctx,
+		    mb->mb_opt_changed_devices == ZFS_MOUNTOPT_SET ?
+		    (mb->mb_opt_val_devices ? "dev" : "nodev") :
+		    OPT_DEFAULT_DEVICES);
+	}
+	if (mb->mb_opt_changed_mand != ZFS_MOUNTOPT_UNCHANGED) {
+		mnt_context_append_options(mctx,
+		    mb->mb_opt_changed_mand == ZFS_MOUNTOPT_SET ?
+		    (mb->mb_opt_val_mand ? "mand" : "nomand") :
+		    OPT_DEFAULT_MAND);
+	}
+
+	if (mb->mb_opt_changed_atime != ZFS_MOUNTOPT_UNCHANGED) {
+		mnt_context_append_options(mctx,
+		    mb->mb_opt_changed_atime == ZFS_MOUNTOPT_SET ?
+		    (mb->mb_opt_val_atime == ZFS_MOUNTOPT_ATIME_ON ? "atime" :
+		    mb->mb_opt_val_atime == ZFS_MOUNTOPT_ATIME_RELATIVE ? "relatime" : "noatime") :
+		    OPT_DEFAULT_ATIME);
+	}
+	if (mb->mb_opt_changed_xattr != ZFS_MOUNTOPT_UNCHANGED) {
+		mnt_context_append_options(mctx,
+		    mb->mb_opt_changed_xattr == ZFS_MOUNTOPT_SET ?
+		    (mb->mb_opt_val_xattr == ZFS_MOUNTOPT_XATTR_ON ? "xattr" :
+		    mb->mb_opt_val_xattr == ZFS_MOUNTOPT_XATTR_DIR ? "dirxattr" :
+		    mb->mb_opt_val_xattr == ZFS_MOUNTOPT_XATTR_SA ? "saxattr" : "noxattr") :
+		    OPT_DEFAULT_XATTR);
+	}
+
+	if (mb->mb_raw_opts != NULL) {
+		for (uint_t i = 0; i < mb->mb_raw_count; i++)
+			mnt_context_append_options(mctx, mb->mb_raw_opts[i]);
+	}
+
+	if (mb->mb_op == ZFS_MOUNTBUILDER_OP_UNMOUNT) {
+		if (mb->mb_op_flags & ZFS_MOUNTBUILDER_UNMOUNT_DETACH)
+			mnt_context_enable_lazy(mctx, 1);
+		if ((err = mnt_context_prepare_umount(mctx)) != 0)
+			goto out;
+	} else {
+		if (mb->mb_op == ZFS_MOUNTBUILDER_OP_REMOUNT)
+			mnt_context_append_options(mctx, "remount");
+		if ((err = mnt_context_prepare_mount(mctx)) != 0)
+			goto out;
+	}
+
+	fprintf(stderr, "apply ready: op=%s ds=%s mp=%s opts=%s\n",
+	    mb->mb_op == ZFS_MOUNTBUILDER_OP_MOUNT ? "MOUNT" :
+	    mb->mb_op == ZFS_MOUNTBUILDER_OP_UNMOUNT ? "UNMOUNT" : "REMOUNT",
+	    mnt_context_get_source(mctx), mnt_context_get_target(mctx),
+	    mnt_context_get_options(mctx));
+
+	if (mb->mb_op == ZFS_MOUNTBUILDER_OP_UNMOUNT)
+		err = mnt_context_do_umount(mctx);
+	else
+		err = mnt_context_do_mount(mctx);
+
+	zfs_mountset_enter_update(mset);
+
+	/* XXX on success, apply to mset */
+	(void) mset;
+
+	zfs_mountset_exit_update(mset);
+
+out:
+	if (err != 0) {
+		int syserr = 0;
+		if (mnt_context_syscall_called(mctx))
+			syserr = mnt_context_get_syscall_errno(mctx);
+		if (syserr != 0)
+			err = syserr;
+		else {
+			char buf[512];
+			mnt_context_get_excode(mctx, -err, buf, sizeof (buf));
+			fprintf(stderr,
+			    "libmount internal error [%d]: %s\n", -err, buf);
+			err = EIO;
+		}
+	}
+
+	mnt_free_context(mctx);
+	zfs_mountbuilder_free(mb);
+
+	return (err);
+}
