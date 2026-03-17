@@ -128,6 +128,8 @@ typedef struct {
 	kcondvar_t	se_cv;		/* signal mount completion */
 	boolean_t	se_mounting;	/* mount operation in progress */
 	int		se_mount_error;	/* error from failed mount */
+	struct vfsmount	*se_pmnt;	/* parent mount, for unmount */
+	struct dentry	*se_dentry;	/* mount root dentry, for unmount */
 } zfs_snapentry_t;
 
 static void zfsctl_snapshot_unmount_delay_impl(zfs_snapentry_t *se, int delay);
@@ -231,12 +233,15 @@ zfsctl_snapshot_remove(zfs_snapentry_t *se)
  * remaining fields and adds the entry to the zfs_snapshots_by_objsetid tree.
  */
 static void
-zfsctl_snapshot_fill(zfs_snapentry_t *se, spa_t *spa, uint64_t objsetid)
+zfsctl_snapshot_fill(zfs_snapentry_t *se, spa_t *spa, uint64_t objsetid,
+    struct vfsmount *pmnt, struct dentry *dentry)
 {
 	ASSERT(RW_WRITE_HELD(&zfs_snapshot_lock));
 	ASSERT3P(se->se_spa, ==, NULL);
 	se->se_spa = spa;
 	se->se_objsetid = objsetid;
+	se->se_pmnt = pmnt;
+	se->se_dentry = dentry;
 	avl_add(&zfs_snapshots_by_objsetid, se);
 }
 
@@ -348,17 +353,21 @@ snapentry_expire(void *data)
 	spa_t *spa = se->se_spa;
 	uint64_t objsetid = se->se_objsetid;
 
+	cmn_err(CE_NOTE, "snapentry_expire: snapname=%s", se->se_name);
+
 	if (zfs_expire_snapshot <= 0) {
 		zfsctl_snapshot_rele(se);
 		return;
 	}
 
-	(void) zfsctl_snapshot_unmount(se->se_name, MNT_EXPIRE);
+	int err = zfsctl_snapshot_unmount(se->se_name, MNT_EXPIRE);
+	if (err == 0 || err == ENOENT) {
+		/* Unmount succeeded, or it was already unmounted. */
+		zfsctl_snapshot_rele(se);
+		return;
+	}
 
-	/*
-	 * Clear taskqid and reschedule if the snapshot wasn't removed.
-	 * This can occur when the snapshot is busy.
-	 */
+	/* Snapshot wasn't removed; probably busy. Re-arm the timer. */
 	rw_enter(&zfs_snapshot_lock, RW_WRITER);
 	se->se_taskqid = TASKQID_INVALID;
 	zfsctl_snapshot_rele(se);
@@ -1114,14 +1123,15 @@ is_current_chrooted(void)
 int
 zfsctl_snapshot_unmount(const char *snapname, int flags)
 {
-	char *argv[] = { "/usr/bin/env", "umount", "-t", "zfs", "-n", NULL,
-	    NULL };
-	char *envp[] = { NULL };
 	zfs_snapentry_t *se;
-	int error;
+
+	cmn_err(CE_NOTE, "zfsctl_snapshot_unmount: snapname=%s flags=%04x",
+	    snapname, flags);
 
 	rw_enter(&zfs_snapshot_lock, RW_READER);
 	if ((se = zfsctl_snapshot_find_by_name(snapname)) == NULL) {
+		cmn_err(CE_NOTE, "zfsctl_snapshot_unmount: snapname=%s: "
+		    "not found", snapname);
 		rw_exit(&zfs_snapshot_lock);
 		return (SET_ERROR(ENOENT));
 	}
@@ -1131,29 +1141,51 @@ zfsctl_snapshot_unmount(const char *snapname, int flags)
 	 * Wait for any pending auto-mount to complete before unmounting.
 	 */
 	mutex_enter(&se->se_mtx);
-	while (se->se_mounting)
+	while (se->se_mounting) {
+		cmn_err(CE_NOTE, "zfsctl_snapshot_unmount: snapname=%s: "
+		    "waiting for automount", snapname);
 		cv_wait(&se->se_cv, &se->se_mtx);
+	}
 	mutex_exit(&se->se_mtx);
 
-	exportfs_flush();
+	if (!d_mountpoint(se->se_dentry)) {
+		zfsctl_snapshot_rele(se);
+		cmn_err(CE_NOTE, "zfsctl_snapshot_unmount: snapname=%s: "
+		    "dentry %px not a mountpoint", snapname, se->se_dentry);
+		return (SET_ERROR(ENOENT));
+	}
 
-	if (flags & MNT_FORCE)
-		argv[4] = "-fn";
-	argv[5] = se->se_path;
-	dprintf("unmount; path=%s\n", se->se_path);
-	error = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_PROC);
-	zfsctl_snapshot_rele(se);
+	struct path path;
+	path.mnt = se->se_pmnt;
+	path.dentry = se->se_dentry;
+	path_get(&path);
 
+	if (!follow_down_one(&path)) {
+		path_put(&path);
+		zfsctl_snapshot_rele(se);
+		cmn_err(CE_NOTE, "zfsctl_snapshot_unmount: snapname=%s: "
+		    "follow_down_one failed? pmnt=%px dentry=%px",
+		    snapname, se->se_pmnt, se->se_dentry);
+		return (SET_ERROR(ENOENT));
+	}
 
-	/*
-	 * The umount system utility will return 256 on error.  We must
-	 * assume this error is because the file system is busy so it is
-	 * converted to the more sensible EBUSY.
-	 */
-	if (error)
-		error = SET_ERROR(EBUSY);
+	int idle = may_umount_tree(path.mnt);
+	path_put(&path);
 
-	return (error);
+	if (!idle) {
+		zfsctl_snapshot_rele(se);
+		cmn_err(CE_NOTE, "zfsctl_snapshot_unmount: snapname=%s: "
+		    "busy", snapname);
+		return (SET_ERROR(EBUSY));
+	}
+
+	cmn_err(CE_NOTE, "zfsctl_snapshot_unmount: snapname=%s: "
+	    "invalidating dentry=%px", snapname, se->se_dentry);
+
+	d_invalidate(se->se_dentry);
+	exportfs_flush(); /* XXX delay a moment? */
+
+	return (0);
 }
 
 int
@@ -1317,7 +1349,13 @@ zfsctl_snapshot_mount(struct path *path, int flags, struct vfsmount **mntp)
 		snap_zfsvfs->z_parent = zfsvfs;
 
 		zfsctl_snapshot_fill(se, snap_zfsvfs->z_os->os_spa,
-		    dmu_objset_id(snap_zfsvfs->z_os));
+		    dmu_objset_id(snap_zfsvfs->z_os), path->mnt,
+		    dentry);
+
+		cmn_err(CE_NOTE, "zfsctl_snapshot_mount: "
+		    "snapname=%s pmnt=%px dentry=%px",
+		    dname(se->se_dentry), se->se_pmnt, se->se_dentry);
+
 		zfsctl_snapshot_unmount_delay_impl(se, zfs_expire_snapshot);
 	} else {
 		zfsctl_snapshot_remove(se);

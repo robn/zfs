@@ -172,6 +172,7 @@ zpl_snapdir_automount(struct path *path)
 	int error;
 
 	error = -zfsctl_snapshot_mount(path, 0, &mntp);
+	cmn_err(CE_NOTE, "zpl_snapdir_automount: err=%d mntp=%px", error, mntp);
 	if (error)
 		return (ERR_PTR(error));
 
