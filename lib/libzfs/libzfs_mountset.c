@@ -51,6 +51,12 @@ libzfs_mountset_enter(libzfs_handle_t *hdl)
 	return (hdl->zh_mountset);
 }
 
+int
+libzfs_mountset_apply(libzfs_handle_t *hdl, zfs_mountbuilder_t *mb)
+{
+	return (zfs_mountset_apply(hdl->zh_mountset, mb));
+}
+
 static zfs_mountbuilder_t *
 zfs_mountbuilder_alloc(void)
 {

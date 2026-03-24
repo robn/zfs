@@ -385,11 +385,7 @@ do_mount(zfs_handle_t *zhp, const char *mntpt, const char *opts, int flags)
 		zfs_mountbuilder_raw_option(mb, buf);
 	}
 
-	zfs_mountset_t *mset = libzfs_mountset_enter(zhp->zfs_hdl);
-	int err = zfs_mountset_apply(mset, mb);
-	zfs_mountset_exit(mset);
-
-	return (err);
+	return (libzfs_mountset_apply(zhp->zfs_hdl, mb));
 
 #if 0
 	const char *src = zfs_get_name(zhp);

@@ -673,17 +673,19 @@ zfs_unmount(zfs_handle_t *zhp, const char *mountpoint, int flags)
 		zfs_commit_shares(NULL);
 
 		zfs_mountbuilder_t *mb = zfs_mountbuilder_for_unmount(mnt, 0);
-		if (zfs_mountset_apply(mset, mb) != 0) {
-			zfs_mountset_exit(mset);
+
+		zfs_mountset_exit(mset);
+
+		if (libzfs_mountset_apply(hdl, mb) != 0) {
 			(void) zfs_share(zhp, NULL);
 			zfs_commit_shares(NULL);
 			return (-1);
 		}
 
 		unmounted = B_TRUE;
+	} else {
+		zfs_mountset_exit(mset);
 	}
-
-	zfs_mountset_exit(mset);
 
 	/*
 	 * If the MS_CRYPT flag is provided we must ensure we attempt to

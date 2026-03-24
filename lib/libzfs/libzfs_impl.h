@@ -364,6 +364,8 @@ void zfs_mountbuilder_raw_option(zfs_mountbuilder_t *, const char *);
 
 int zfs_mountset_apply(zfs_mountset_t *mset, zfs_mountbuilder_t *mb);
 
+extern int libzfs_mountset_apply(libzfs_handle_t *hdl, zfs_mountbuilder_t *mb);
+
 #ifdef	__cplusplus
 }
 #endif
