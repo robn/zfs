@@ -30,4 +30,13 @@
 
 DISK=${DISKS%% *}
 
-default_setup $DISK
+default_setup_noexit $DISK
+
+# This test set is all about making sure our various mount control functions
+# work, but those are also used for setup. If they fail, the tests can give
+# strange and sometimes incorrect results. So, ensure that our test mounts
+# are actually available before we start.
+log_must ismounted $TESTPOOL
+log_must ismounted $TESTPOOL/$TESTFS
+
+log_pass
