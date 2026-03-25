@@ -1029,10 +1029,10 @@ _LIBZFS_H _LIBZFS_DEPRECATED zfs_handle_t *zfs_path_to_zhandle(
  */
 _LIBZFS_H boolean_t is_mounted(libzfs_handle_t *, const char *special, char **);
 _LIBZFS_H boolean_t zfs_is_mounted(zfs_handle_t *, char **);
-_LIBZFS_H int zfs_mount(zfs_handle_t *, const char *, int);
-_LIBZFS_H int zfs_mount_at(zfs_handle_t *, const char *, int, const char *);
-_LIBZFS_H int zfs_unmount(zfs_handle_t *, const char *, int);
-_LIBZFS_H int zfs_unmountall(zfs_handle_t *, int);
+_LIBZFS_H _LIBZFS_DEPRECATED int zfs_mount(zfs_handle_t *, const char *, int);
+_LIBZFS_H _LIBZFS_DEPRECATED int zfs_mount_at(zfs_handle_t *, const char *, int, const char *);
+_LIBZFS_H _LIBZFS_DEPRECATED int zfs_unmount(zfs_handle_t *, const char *, int);
+_LIBZFS_H _LIBZFS_DEPRECATED int zfs_unmountall(zfs_handle_t *, int);
 _LIBZFS_H int zfs_mount_delegation_check(void);
 
 #if defined(__linux__) || defined(__APPLE__)
