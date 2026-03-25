@@ -291,33 +291,6 @@ zfs_mountset_find_pair(zfs_mountset_t *mset, const char *dsname,
 }
 
 int
-zfs_mountset_foreach(zfs_mountset_t *mset, zfs_mountset_order_t order,
-    zfs_mountset_foreach_f func, void *arg)
-{
-	struct libmnt_fs *fs = NULL;
-	struct libmnt_iter *iter = mnt_new_iter(
-	    order == ZFS_MOUNTSET_ORDER_UNMOUNT ?
-	    MNT_ITER_BACKWARD : MNT_ITER_FORWARD);
-
-	boolean_t aborted = B_FALSE;
-	int err = 0;
-	while (!aborted &&
-	    (err = mnt_table_next_fs(mset->mset_tab, iter, &fs)) == 0) {
-		if (strcmp(mnt_fs_get_fstype(fs), MNTTYPE_ZFS) != 0)
-			continue;
-		aborted = func(mset, (zfs_mount_t *) fs, arg);
-	}
-
-	mnt_free_iter(iter);
-
-	if (err < 0)
-		return (-err);
-	if (aborted)
-		return (-1);
-	return (0);
-}
-
-int
 zfs_mountset_iter(zfs_mountset_t *mset, zfs_mountset_order_t order,
     zfs_mount_t **mntp)
 {

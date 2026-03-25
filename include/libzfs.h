@@ -276,11 +276,6 @@ typedef enum {
 	ZFS_MOUNTSET_ORDER_UNMOUNT,
 } zfs_mountset_order_t;
 
-typedef boolean_t (*zfs_mountset_foreach_f)(zfs_mountset_t *,
-    zfs_mount_t *, void *);
-_LIBZFS_H int zfs_mountset_foreach(zfs_mountset_t *, zfs_mountset_order_t,
-    zfs_mountset_foreach_f, void *);
-
 _LIBZFS_H int zfs_mountset_iter(zfs_mountset_t *, zfs_mountset_order_t,
     zfs_mount_t **);
 
