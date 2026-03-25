@@ -317,6 +317,58 @@ zfs_mountset_foreach(zfs_mountset_t *mset, zfs_mountset_order_t order,
 	return (0);
 }
 
+int
+zfs_mountset_iter(zfs_mountset_t *mset, zfs_mountset_order_t order,
+    zfs_mount_t **mntp)
+{
+	int err = 0;
+
+	struct libmnt_iter *iter = mnt_new_iter(
+	    order == ZFS_MOUNTSET_ORDER_UNMOUNT ?
+	    MNT_ITER_BACKWARD : MNT_ITER_FORWARD);
+
+	struct libmnt_fs *fs = (struct libmnt_fs *) *mntp;
+	if (fs != NULL) {
+		/*
+		 * If caller passed a mount, then we're in an iteration
+		 * loop. Reset the iterator to its position.
+		 */
+		err = mnt_table_set_iter(mset->mset_tab, iter, fs);
+		if (err != 0)
+			goto out;
+
+		/*
+		 * mnt_table_next_fs() returns the item at the iterator's
+		 * current position (ie x++, not ++x). So, move one past it
+		 * to get the loop rolling correctly.
+		 */
+		err = mnt_table_next_fs(mset->mset_tab, iter, &fs);
+		if (err != 0)
+			goto out;
+
+		ASSERT3P(fs, ==, *mntp);
+	}
+
+	while ((err = mnt_table_next_fs(mset->mset_tab, iter, &fs)) == 0) {
+		if (strcmp(mnt_fs_get_fstype(fs), MNTTYPE_ZFS) == 0)
+			break;
+	}
+
+out:
+	mnt_free_iter(iter);
+
+	if (err < 0)
+		return (-err);
+
+	if (err > 0) {
+		*mntp = NULL;
+		return (ESRCH);
+	}
+
+	*mntp = (zfs_mount_t *) fs;
+	return (0);
+}
+
 /*
  * XXX work out what the actual defaults are/should be, and set them up
  *     here? though it makes me wonder if the default methods are ever gonna
