@@ -7422,39 +7422,6 @@ sa_protocol_decode(const char *protocol)
 	usage(B_FALSE);
 }
 
-static boolean_t
-add_mount_nv_cb(zfs_mountset_t *mset, zfs_mount_t *mnt, void *arg)
-{
-	(void) mset;
-	nvlist_t *data = arg;
-
-	const char *dsname = zfs_mount_get_dataset(mnt);
-	if (strchr(zfs_mount_get_dataset(mnt), '@') != NULL)
-		return (B_FALSE);
-
-	nvlist_t *item = fnvlist_alloc();
-	fnvlist_add_string(item, "filesystem", dsname);
-	fnvlist_add_string(item, "mountpoint", zfs_mount_get_mountpoint(mnt));
-	fnvlist_add_nvlist(data, dsname, item);
-	fnvlist_free(item);
-
-	return (B_FALSE);
-}
-
-static boolean_t
-print_mount_cb(zfs_mountset_t *mset, zfs_mount_t *mnt, void *arg)
-{
-	(void) mset, (void) arg;
-
-	const char *dsname = zfs_mount_get_dataset(mnt);
-	if (strchr(dsname, '@') != NULL)
-		return (B_FALSE);
-
-	printf("%-30s  %s\n", dsname, zfs_mount_get_mountpoint(mnt));
-
-	return (B_FALSE);
-}
-
 static int
 share_mount(int op, int argc, char **argv)
 {
@@ -7627,12 +7594,23 @@ share_mount(int op, int argc, char **argv)
 		 * automatically.
 		 */
 		zfs_mountset_t *mset = libzfs_mountset_enter(g_zfs);
-		if (json)
-			zfs_mountset_foreach(mset, ZFS_MOUNTSET_ORDER_MOUNT,
-			    add_mount_nv_cb, data);
-		else
-			zfs_mountset_foreach(mset, ZFS_MOUNTSET_ORDER_MOUNT,
-			    print_mount_cb, NULL);
+		zfs_mount_t *mnt = NULL;
+		while (zfs_mountset_iter(mset,
+		    ZFS_MOUNTSET_ORDER_MOUNT, &mnt) == 0) {
+			const char *dsname = zfs_mount_get_dataset(mnt);
+			if (strchr(dsname, '@') != NULL)
+				continue;
+
+			const char *mntpt = zfs_mount_get_mountpoint(mnt);
+			if (json) {
+				nvlist_t *item = fnvlist_alloc();
+				fnvlist_add_string(item, "filesystem", dsname);
+				fnvlist_add_string(item, "mountpoint", mntpt);
+				fnvlist_add_nvlist(data, dsname, item);
+				fnvlist_free(item);
+			} else
+				printf("%-30s  %s\n", dsname, mntpt);
+		}
 		zfs_mountset_exit(mset);
 
 		if (json) {
