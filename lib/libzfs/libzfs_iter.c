@@ -607,66 +607,48 @@ zfs_iter_dependents_v2(zfs_handle_t *zhp, int flags, boolean_t allowrecursion,
 /*
  * Iterate over mounted children of the specified dataset
  */
-typedef struct {
-	libzfs_handle_t *hdl;
-	const char *name;
-	size_t namelen;
-	zfs_iter_f func;
-	void *data;
-	int err;
-} child_match_cb_arg_t;
-
-static boolean_t
-child_match_cb(zfs_mountset_t *mset, zfs_mount_t *mnt, void *arg)
-{
-	(void) mset;
-
-	child_match_cb_arg_t *cbarg = arg;
-
-	/* Ignore datasets not within the provided dataset */
-	const char *dsname = zfs_mount_get_dataset(mnt);
-	if (strncmp(dsname, cbarg->name, cbarg->namelen) != 0 ||
-	    dsname[cbarg->namelen] != '/')
-		return (B_FALSE);
-
-	/* Skip snapshot of any child dataset */
-	if (strchr(dsname, '@') != NULL)
-		return (B_FALSE);
-
-	zfs_handle_t *zhp = zfs_open(cbarg->hdl, dsname, ZFS_TYPE_FILESYSTEM);
-	if (zhp == NULL)
-		return (B_FALSE);
-
-	/* Ignore legacy mounts as they are user managed */
-	char prop[ZFS_MAXPROPLEN];
-	VERIFY0(zfs_prop_get(zhp, ZFS_PROP_MOUNTPOINT, prop,
-	    sizeof (prop), NULL, NULL, 0, B_FALSE));
-	if (strcmp(prop, "legacy") == 0) {
-		zfs_close(zhp);
-		return (B_FALSE);
-	}
-
-	cbarg->err = cbarg->func(zhp, cbarg->data);
-	return (cbarg->err != 0);
-}
-
 int
 zfs_iter_mounted(zfs_handle_t *zhp, zfs_iter_f func, void *data)
 {
+	libzfs_handle_t *hdl = zhp->zfs_hdl;
+	size_t namelen = strlen(zhp->zfs_name);
+
 	zfs_mountset_t *mset = libzfs_mountset_enter(zhp->zfs_hdl);
 
-	child_match_cb_arg_t cbarg = {
-		.hdl = zhp->zfs_hdl,
-		.name = zhp->zfs_name,
-		.namelen = strlen(zhp->zfs_name),
-		.func = func,
-		.data = data,
-		.err = 0,
-	};
-	zfs_mountset_foreach(mset, ZFS_MOUNTSET_ORDER_MOUNT,
-	    child_match_cb, &cbarg);
+	int err = 0;
+	zfs_mount_t *mnt = NULL;
+	while ((err =
+	    zfs_mountset_iter(mset, ZFS_MOUNTSET_ORDER_MOUNT, &mnt) == 0)) {
+		/* Ignore datasets not within the provided dataset */
+		const char *dsname = zfs_mount_get_dataset(mnt);
+		if (strncmp(dsname, zhp->zfs_name, namelen) != 0 ||
+		    dsname[namelen] != '/')
+			continue;
+
+		/* Skip snapshot of any child dataset */
+		if (strchr(dsname, '@') != NULL)
+			continue;
+
+		zfs_handle_t *zhp = zfs_open(hdl, dsname, ZFS_TYPE_FILESYSTEM);
+		if (zhp == NULL)
+			continue;
+
+		/* Ignore legacy mounts as they are user managed */
+		char prop[ZFS_MAXPROPLEN];
+		VERIFY0(zfs_prop_get(zhp, ZFS_PROP_MOUNTPOINT, prop,
+		    sizeof (prop), NULL, NULL, 0, B_FALSE));
+		if (strcmp(prop, "legacy") == 0) {
+			zfs_close(zhp);
+			continue;
+		}
+
+		err = func(zhp, data);
+		if (err != 0) {
+			zfs_mountset_exit(mset);
+			return (err);
+		}
+	}
 
 	zfs_mountset_exit(mset);
-
-	return (cbarg.err);
+	return (0);
 }
