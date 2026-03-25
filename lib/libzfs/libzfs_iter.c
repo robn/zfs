@@ -618,7 +618,7 @@ zfs_iter_mounted(zfs_handle_t *zhp, zfs_iter_f func, void *data)
 	int err = 0;
 	zfs_mount_t *mnt = NULL;
 	while ((err =
-	    zfs_mountset_iter(mset, ZFS_MOUNTSET_ORDER_MOUNT, &mnt) == 0)) {
+	    zfs_mountset_iter(mset, ZFS_MOUNTSET_ORDER_MOUNT, &mnt)) == 0) {
 		/* Ignore datasets not within the provided dataset */
 		const char *dsname = zfs_mount_get_dataset(mnt);
 		if (strncmp(dsname, zhp->zfs_name, namelen) != 0 ||
