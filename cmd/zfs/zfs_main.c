@@ -7748,84 +7748,6 @@ out:
 	return (ret != 0);
 }
 
-typedef struct unshare_unmount_cb_arg {
-	int ret;
-	int op;
-	enum sa_protocol *protocol;
-	int flags;
-} unshare_unmount_cb_arg_t;
-
-static boolean_t
-unshare_unmount_cb(zfs_mountset_t *mset, zfs_mount_t *mnt, void *arg)
-{
-	(void) mset;
-	unshare_unmount_cb_arg_t *cbarg = arg;
-	char prop[ZFS_MAXPROPLEN];
-
-	const char *dsname = zfs_mount_get_dataset(mnt);
-	if (strchr(dsname, '@') != NULL)
-		return (B_FALSE);
-
-	zfs_handle_t *zhp = zfs_open(g_zfs, dsname, ZFS_TYPE_FILESYSTEM);
-	if (zhp == NULL) {
-		cbarg->ret = 1;
-		return (B_FALSE);
-	}
-
-	/* Ignore datasets that are excluded/restricted by parent pool name. */
-	if (zpool_skip_pool(zfs_get_pool_name(zhp))) {
-		zfs_close(zhp);
-		return (B_FALSE);
-	}
-
-	switch (cbarg->op) {
-	case OP_SHARE:
-		VERIFY0(zfs_prop_get(zhp, ZFS_PROP_SHARENFS, prop,
-		    sizeof (prop), NULL, NULL, 0, B_FALSE));
-		if (strcmp(prop, "off") != 0)
-			break;
-		VERIFY0(zfs_prop_get(zhp, ZFS_PROP_SHARESMB, prop,
-		    sizeof (prop), NULL, NULL, 0, B_FALSE));
-		if (strcmp(prop, "off") == 0) {
-			zfs_close(zhp);
-			return (B_FALSE);
-		}
-		break;
-	case OP_MOUNT:
-		/* Ignore legacy mounts */
-		VERIFY0(zfs_prop_get(zhp, ZFS_PROP_MOUNTPOINT, prop,
-		    sizeof (prop), NULL, NULL, 0, B_FALSE));
-		if (strcmp(prop, "legacy") == 0) {
-			zfs_close(zhp);
-			return (B_FALSE);
-		}
-		/* Ignore canmount=noauto mounts */
-		if (zfs_prop_get_int(zhp, ZFS_PROP_CANMOUNT) ==
-		    ZFS_CANMOUNT_NOAUTO) {
-			zfs_close(zhp);
-			return (B_FALSE);
-		}
-		break;
-	default:
-		break;
-	}
-
-	const char *mp = zfs_mount_get_mountpoint(mnt);
-	switch (cbarg->op) {
-	case OP_SHARE:
-		if (zfs_unshare(zhp, mp, cbarg->protocol) != 0)
-			cbarg->ret = 1;
-		break;
-	case OP_MOUNT:
-		if (zfs_unmount(zhp, mp, cbarg->flags) != 0)
-			cbarg->ret = 1;
-		break;
-	}
-
-	zfs_close(zhp);
-	return (B_FALSE);
-}
-
 /*
  * Generic callback for unsharing or unmounting a filesystem.
  */
@@ -7899,17 +7821,85 @@ unshare_unmount(int op, int argc, char **argv)
 
 		zfs_mountset_t *mset = libzfs_mountset_enter(g_zfs);
 
-		unshare_unmount_cb_arg_t cbarg = {
-		    .ret = ret,
-		    .op = op,
-		    .protocol = protocol,
-		    .flags = flags,
-		};
-		zfs_mountset_foreach(mset, ZFS_MOUNTSET_ORDER_UNMOUNT,
-		    unshare_unmount_cb, &cbarg);
-		ret = cbarg.ret;
+		zfs_mount_t *mnt = NULL;
+		while (zfs_mountset_iter(mset,
+		    ZFS_MOUNTSET_ORDER_UNMOUNT, &mnt) == 0) {
+			const char *dsname = zfs_mount_get_dataset(mnt);
+			if (strchr(dsname, '@') != NULL)
+				continue;
 
-		zfs_mountset_exit(mset);
+			zfs_handle_t *zhp =
+			    zfs_open(g_zfs, dsname, ZFS_TYPE_FILESYSTEM);
+			if (zhp == NULL) {
+				ret = 1;
+				continue;
+			}
+
+			/*
+			 * Ignore datasets that are excluded/restricted by
+			 * parent pool name.
+			 */
+			if (zpool_skip_pool(zfs_get_pool_name(zhp))) {
+				zfs_close(zhp);
+				continue;
+			}
+
+			char prop[ZFS_MAXPROPLEN];
+			switch (op) {
+			case OP_SHARE:
+				VERIFY0(zfs_prop_get(zhp,
+				    ZFS_PROP_SHARENFS, prop, sizeof (prop),
+				    NULL, NULL, 0, B_FALSE));
+				if (strcmp(prop, "off") != 0)
+					break;
+				VERIFY0(zfs_prop_get(zhp,
+				    ZFS_PROP_SHARESMB, prop, sizeof (prop),
+				    NULL, NULL, 0, B_FALSE));
+				if (strcmp(prop, "off") == 0) {
+					zfs_close(zhp);
+					continue;
+				}
+				break;
+			case OP_MOUNT:
+				/* Ignore legacy mounts */
+				VERIFY0(zfs_prop_get(zhp,
+				    ZFS_PROP_MOUNTPOINT, prop, sizeof (prop),
+				    NULL, NULL, 0, B_FALSE));
+				if (strcmp(prop, "legacy") == 0) {
+					zfs_close(zhp);
+					continue;
+				}
+				/* Ignore canmount=noauto mounts */
+				if (zfs_prop_get_int(zhp, ZFS_PROP_CANMOUNT) ==
+				    ZFS_CANMOUNT_NOAUTO) {
+					zfs_close(zhp);
+					continue;
+					return (B_FALSE);
+				}
+				break;
+			default:
+				break;
+			}
+
+			const char *mp = zfs_mount_get_mountpoint(mnt);
+			switch (op) {
+			case OP_SHARE:
+				if (zfs_unshare(zhp, mp, protocol) != 0)
+					ret = 1;
+				break;
+			case OP_MOUNT:
+				/*
+				 * XXX this is gonna hang, we still have the
+				 *     mountset hold
+				 *       -- robn, 2026-03-25
+				 */
+				if (zfs_unmount(zhp, mp, flags) != 0)
+					ret = 1;
+				break;
+			}
+
+			zfs_close(zhp);
+		}
 
 		if (op == OP_SHARE)
 			zfs_commit_shares(protocol);
