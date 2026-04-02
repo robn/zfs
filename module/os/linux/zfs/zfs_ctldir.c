@@ -241,7 +241,7 @@ zfsctl_snapshot_fill(zfs_snapentry_t *se, spa_t *spa, uint64_t objsetid,
 	se->se_spa = spa;
 	se->se_objsetid = objsetid;
 	se->se_pmnt = pmnt;
-	se->se_dentry = dentry;
+	se->se_dentry = dget(dentry);
 	avl_add(&zfs_snapshots_by_objsetid, se);
 }
 
@@ -365,6 +365,9 @@ snapentry_expire(void *data)
 	int err = zfsctl_snapshot_unmount_impl(se, MNT_EXPIRE);
 	if (err == 0 || err == ENOENT) {
 		/* Unmount succeeded, or it was already unmounted. */
+		rw_enter(&zfs_snapshot_lock, RW_WRITER);
+		zfsctl_snapshot_remove(se);
+		rw_exit(&zfs_snapshot_lock);
 		zfsctl_snapshot_rele(se);
 		return;
 	}
@@ -1137,9 +1140,9 @@ zfsctl_snapshot_unmount_impl(zfs_snapentry_t *se, int flags)
 	mutex_exit(&se->se_mtx);
 
 	if (!d_mountpoint(se->se_dentry)) {
-		zfsctl_snapshot_rele(se);
 		cmn_err(CE_NOTE, "zfsctl_snapshot_unmount: snapname=%s: "
 		    "dentry %px not a mountpoint", se->se_name, se->se_dentry);
+		dput(se->se_dentry);
 		return (SET_ERROR(ENOENT));
 	}
 
@@ -1149,11 +1152,11 @@ zfsctl_snapshot_unmount_impl(zfs_snapentry_t *se, int flags)
 	path_get(&path);
 
 	if (!follow_down_one(&path)) {
-		path_put(&path);
-		zfsctl_snapshot_rele(se);
 		cmn_err(CE_NOTE, "zfsctl_snapshot_unmount: snapname=%s: "
 		    "follow_down_one failed? pmnt=%px dentry=%px",
 		    se->se_name, se->se_pmnt, se->se_dentry);
+		path_put(&path);
+		dput(se->se_dentry);
 		return (SET_ERROR(ENOENT));
 	}
 
@@ -1161,7 +1164,6 @@ zfsctl_snapshot_unmount_impl(zfs_snapentry_t *se, int flags)
 	path_put(&path);
 
 	if (!idle) {
-		zfsctl_snapshot_rele(se);
 		cmn_err(CE_NOTE, "zfsctl_snapshot_unmount: snapname=%s: "
 		    "busy", se->se_name);
 		return (SET_ERROR(EBUSY));
@@ -1172,6 +1174,8 @@ zfsctl_snapshot_unmount_impl(zfs_snapentry_t *se, int flags)
 
 	d_invalidate(se->se_dentry);
 	exportfs_flush(); /* XXX delay a moment? */
+
+	dput(se->se_dentry);
 
 	return (0);
 }
@@ -1198,7 +1202,17 @@ zfsctl_snapshot_unmount(const char *snapname, int flags)
 	}
 	rw_exit(&zfs_snapshot_lock);
 
-	return (zfsctl_snapshot_unmount_impl(se, flags));
+	int err = zfsctl_snapshot_unmount_impl(se, flags);
+
+	if (err == 0 || err == ENOENT) {
+		rw_enter(&zfs_snapshot_lock, RW_WRITER);
+		zfsctl_snapshot_remove(se);
+		rw_exit(&zfs_snapshot_lock);
+	}
+
+	zfsctl_snapshot_rele(se);
+
+	return (err);
 }
 
 int
