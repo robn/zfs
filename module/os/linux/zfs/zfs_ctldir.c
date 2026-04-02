@@ -123,12 +123,10 @@ typedef struct {
 	avl_node_t	se_node_name;	/* zfs_snapshots_by_name link */
 	avl_node_t	se_node_objsetid; /* zfs_snapshots_by_objsetid link */
 	zfs_refcount_t	se_refcount;	/* reference count */
-	kmutex_t	se_mtx;		/* protects se_mounting and se_cv */
-	kcondvar_t	se_cv;		/* signal mount completion */
-	boolean_t	se_mounting;	/* mount operation in progress */
-	int		se_mount_error;	/* error from failed mount */
+	kmutex_t	se_mtx;		/* protects se_pmnt & se_dentry */
 	struct vfsmount	*se_pmnt;	/* parent mount, for unmount */
 	struct dentry	*se_dentry;	/* mount root dentry, for unmount */
+	struct vfsmount *se_mnt;	/* avl disambiguator */
 } zfs_snapentry_t;
 
 static void zfsctl_snapshot_unmount_delay_impl(zfs_snapentry_t *se, int delay);
@@ -149,9 +147,6 @@ zfsctl_snapshot_alloc(const char *full_name, spa_t *spa, uint64_t objsetid)
 	se->se_objsetid = objsetid;
 	se->se_taskqid = TASKQID_INVALID;
 	mutex_init(&se->se_mtx, NULL, MUTEX_DEFAULT, NULL);
-	cv_init(&se->se_cv, NULL, CV_DEFAULT, NULL);
-	se->se_mounting = B_FALSE;
-	se->se_mount_error = 0;
 
 	zfs_refcount_create(&se->se_refcount);
 
@@ -168,7 +163,6 @@ zfsctl_snapshot_free(zfs_snapentry_t *se)
 	zfs_refcount_destroy(&se->se_refcount);
 	kmem_strfree(se->se_name);
 	mutex_destroy(&se->se_mtx);
-	cv_destroy(&se->se_cv);
 
 	kmem_free(se, sizeof (zfs_snapentry_t));
 }
@@ -201,11 +195,11 @@ zfsctl_snapshot_dump(void)
 	    se != NULL; se = AVL_NEXT(&zfs_snapshots_by_name, se)) {
 		cmn_err(CE_NOTE, "zfsctl_snapshot_dump: "
 		    "snapname=%s objsetid=%llu pmnt=%px dentry=%px "
-		    "[dname=%s mountpoint=%s refcnt=%u]",
+		    "[dname=%s mountpoint=%s refcnt=%u] mnt=%px",
 		    se->se_name, se->se_objsetid, se->se_pmnt, se->se_dentry,
 		    dname(se->se_dentry),
 		    d_mountpoint(se->se_dentry) ? "true" : "false",
-		    d_count(se->se_dentry));
+		    d_count(se->se_dentry), se->se_mnt);
 	}
 	rw_exit(&zfs_snapshot_lock);
 }
@@ -221,8 +215,7 @@ zfsctl_snapshot_add(zfs_snapentry_t *se)
 	ASSERT(RW_WRITE_HELD(&zfs_snapshot_lock));
 	zfsctl_snapshot_hold(se);
 	avl_add(&zfs_snapshots_by_name, se);
-	if (se->se_spa != NULL)
-		avl_add(&zfs_snapshots_by_objsetid, se);
+	avl_add(&zfs_snapshots_by_objsetid, se);
 }
 
 /*
@@ -235,27 +228,10 @@ static void
 zfsctl_snapshot_remove(zfs_snapentry_t *se)
 {
 	ASSERT(RW_WRITE_HELD(&zfs_snapshot_lock));
+	ASSERT3P(se->se_dentry, !=, NULL);
 	avl_remove(&zfs_snapshots_by_name, se);
-	if (se->se_spa != NULL)
-		avl_remove(&zfs_snapshots_by_objsetid, se);
+	avl_remove(&zfs_snapshots_by_objsetid, se);
 	zfsctl_snapshot_rele(se);
-}
-
-/*
- * Fill a pending zfs_snapentry_t after mount succeeds.  Fills in the
- * remaining fields and adds the entry to the zfs_snapshots_by_objsetid tree.
- */
-static void
-zfsctl_snapshot_fill(zfs_snapentry_t *se, spa_t *spa, uint64_t objsetid,
-    struct vfsmount *pmnt, struct dentry *dentry)
-{
-	ASSERT(RW_WRITE_HELD(&zfs_snapshot_lock));
-	ASSERT3P(se->se_spa, ==, NULL);
-	se->se_spa = spa;
-	se->se_objsetid = objsetid;
-	se->se_pmnt = pmnt;
-	se->se_dentry = dget(dentry);
-	avl_add(&zfs_snapshots_by_objsetid, se);
 }
 
 /*
@@ -266,7 +242,11 @@ snapentry_compare_by_name(const void *a, const void *b)
 {
 	const zfs_snapentry_t *se_a = a;
 	const zfs_snapentry_t *se_b = b;
-	return (TREE_ISIGN(strcmp(se_a->se_name, se_b->se_name)));
+
+	int cmp = TREE_ISIGN(strcmp(se_a->se_name, se_b->se_name));
+	if (cmp != 0 || se_a->se_mnt == NULL)
+		return (cmp);
+	return (TREE_PCMP(se_a->se_mnt, se_b->se_mnt));
 }
 
 /*
@@ -281,7 +261,10 @@ snapentry_compare_by_objsetid(const void *a, const void *b)
 	int cmp = TREE_PCMP(se_a->se_spa, se_b->se_spa);
 	if (cmp != 0)
 		return (cmp);
-	return (TREE_CMP(se_a->se_objsetid, se_b->se_objsetid));
+	cmp = TREE_CMP(se_a->se_objsetid, se_b->se_objsetid);
+	if (cmp != 0 || se_a->se_mnt == NULL)
+		return (cmp);
+	return (TREE_PCMP(se_a->se_mnt, se_b->se_mnt));
 }
 
 /*
@@ -299,6 +282,7 @@ zfsctl_snapshot_find_by_name(const char *snapname)
 	ASSERT(RW_LOCK_HELD(&zfs_snapshot_lock));
 
 	search.se_name = (char *)snapname;
+	search.se_mnt = NULL;
 	se = avl_find(&zfs_snapshots_by_name, &search, NULL);
 	if (se)
 		zfsctl_snapshot_hold(se);
@@ -320,6 +304,7 @@ zfsctl_snapshot_find_by_objsetid(spa_t *spa, uint64_t objsetid)
 
 	search.se_spa = spa;
 	search.se_objsetid = objsetid;
+	search.se_mnt = NULL;
 	se = avl_find(&zfs_snapshots_by_objsetid, &search, NULL);
 	if (se)
 		zfsctl_snapshot_hold(se);
@@ -1082,16 +1067,26 @@ static int
 zfsctl_snapshot_unmount_impl(zfs_snapentry_t *se, int flags)
 {
 	/*
-	 * Wait for any pending auto-mount to complete before unmounting.
+	 * XXX what protects expire against force unmount via zfs destroy?
+	 *     I think its just the extra hold? just need to consider more
+	 *     about what happens if a second player comes through here
+	 *     after the dentry is invalidated (ie unmount is effected).
+	 *
+	 *     maybe, take se_mtx, dput se_dentry, null sen_dentry, drop se_mtx?
+	 *     then, opening move is to take se_mtx, check se_dentry, drop se_mtx?
+	 *
+	 *     the dput & null is under lock, so if we observe a non-null dentry,
+	 *     then it is testable.
+	 *     ahh, but the test also has to be under lock, otherwise we can race
+	 *
+	 *     y'know, this is such a cold path maybe we just serialise them
+	 *     all - take se_mtx, do the whole thing, before we drop it to
+	 *     execute it we null both se_pmnt and se_dentry. so if you arrive
+	 *     here and see it null, then its ENOENT, caller releases and
+	 *     cleanes up. the end.
+	 *
+	 *       -- robn, 2026-04-02
 	 */
-	mutex_enter(&se->se_mtx);
-	while (se->se_mounting) {
-		cmn_err(CE_NOTE, "zfsctl_snapshot_unmount: snapname=%s: "
-		    "waiting for automount", se->se_name);
-		cv_wait(&se->se_cv, &se->se_mtx);
-	}
-	mutex_exit(&se->se_mtx);
-
 	if (!d_mountpoint(se->se_dentry)) {
 		cmn_err(CE_NOTE, "zfsctl_snapshot_unmount: snapname=%s: "
 		    "dentry %px not a mountpoint", se->se_name, se->se_dentry);
@@ -1199,36 +1194,6 @@ zfsctl_snapshot_mount(struct path *path, int flags, struct vfsmount **mntp)
 	if (error)
 		goto error;
 
-	/*
-	 * Check if snapshot is already being mounted. If found, wait for
-	 * pending mount to complete before returning success.
-	 */
-	rw_enter(&zfs_snapshot_lock, RW_WRITER);
-	if ((se = zfsctl_snapshot_find_by_name(full_name)) != NULL) {
-		rw_exit(&zfs_snapshot_lock);
-		mutex_enter(&se->se_mtx);
-		while (se->se_mounting)
-			cv_wait(&se->se_cv, &se->se_mtx);
-
-		/*
-		 * Return the same error as the first mount attempt (0 if
-		 * succeeded, error code if failed).
-		 */
-		error = se->se_mount_error;
-		mutex_exit(&se->se_mtx);
-		zfsctl_snapshot_rele(se);
-		goto error;
-	}
-
-	/*
-	 * Create pending entry and mark mount in progress.
-	 */
-	se = zfsctl_snapshot_alloc(full_name, NULL, 0);
-	se->se_mounting = B_TRUE;
-	zfsctl_snapshot_add(se);
-	zfsctl_snapshot_hold(se);
-	rw_exit(&zfs_snapshot_lock);
-
 	fc = fs_context_for_submount(path->mnt->mnt_sb->s_type, dentry);
 	if (IS_ERR(fc)) {
 		error = -PTR_ERR(fc);
@@ -1252,61 +1217,36 @@ zfsctl_snapshot_mount(struct path *path, int flags, struct vfsmount **mntp)
 	struct vfsmount *mnt = fc_mount(fc);
 	if (IS_ERR(mnt)) {
 		error = -PTR_ERR(mnt);
-
-		/*
-		 * Mount failed - cleanup pending entry and signal waiters.
-		 */
-		rw_enter(&zfs_snapshot_lock, RW_WRITER);
-		zfsctl_snapshot_remove(se);
-		rw_exit(&zfs_snapshot_lock);
-		mutex_enter(&se->se_mtx);
-		se->se_mount_error = error;
-		se->se_mounting = B_FALSE;
-		cv_broadcast(&se->se_cv);
-		mutex_exit(&se->se_mtx);
-		zfsctl_snapshot_rele(se);
-
 		goto error;
 	}
 
 	put_fs_context(fc);
 	fc = NULL;
 
-	/*
-	 * If snapshot is already mounted somewhere, use the existing entry.
-	 * Otherwise, create it.
-	 */
 	rw_enter(&zfs_snapshot_lock, RW_WRITER);
-	if (error == 0) {
-		zfsvfs_t *snap_zfsvfs = ITOZSB(mnt->mnt_root->d_inode);
-		snap_zfsvfs->z_parent = zfsvfs;
 
-		zfsctl_snapshot_fill(se, snap_zfsvfs->z_os->os_spa,
-		    dmu_objset_id(snap_zfsvfs->z_os), path->mnt,
-		    dentry);
+	zfsvfs_t *snap_zfsvfs = ITOZSB(mnt->mnt_root->d_inode);
+	snap_zfsvfs->z_parent = zfsvfs;
 
-		cmn_err(CE_NOTE, "zfsctl_snapshot_mount: "
-		    "snapname=%s pmnt=%px dentry=%px",
-		    dname(se->se_dentry), se->se_pmnt, se->se_dentry);
+	se = zfsctl_snapshot_alloc(full_name,
+	    snap_zfsvfs->z_os->os_spa, dmu_objset_id(snap_zfsvfs->z_os));
 
-		zfsctl_snapshot_unmount_delay_impl(se, zfs_expire_snapshot);
-	} else {
-		zfsctl_snapshot_remove(se);
-	}
+	se->se_pmnt = path->mnt;
+	se->se_dentry = dget(dentry);
+	se->se_mnt = mnt;
+
+	cmn_err(CE_NOTE, "zfsctl_snapshot_mount: "
+	    "snapname=%s objsetid=%llu pmnt=%px dentry=%px mnt=%px",
+	    dname(se->se_dentry), se->se_objsetid,
+	    se->se_pmnt, se->se_dentry, se->se_mnt);
+
+	zfsctl_snapshot_add(se);
+	zfsctl_snapshot_hold(se);
+
+	zfsctl_snapshot_unmount_delay_impl(se, zfs_expire_snapshot);
 	rw_exit(&zfs_snapshot_lock);
 
-	/*
-	 * Signal mount completion and cleanup.
-	 */
-	mutex_enter(&se->se_mtx);
-	se->se_mount_error = error;
-	se->se_mounting = B_FALSE;
-	cv_broadcast(&se->se_cv);
-	mutex_exit(&se->se_mtx);
-	zfsctl_snapshot_rele(se);
-
-	if (error == 0)
-		*mntp = mnt;
+	*mntp = mnt;
 
 error:
 	if (fc != NULL)
