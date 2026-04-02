@@ -1108,6 +1108,15 @@ zfsctl_snapshot_unmount_impl(zfs_snapentry_t *se, int flags)
 		return (SET_ERROR(ENOENT));
 	}
 
+	if (path.mnt != se->se_mnt) {
+		cmn_err(CE_NOTE, "zfsctl_snapshot_unmount: snapname=%s: "
+		    "mount mismatch: path.mnt=%px mnt=%px",
+		    se->se_name, path.mnt, se->se_mnt);
+		path_put(&path);
+		dput(se->se_dentry);
+		return (SET_ERROR(ENOENT));
+	}
+
 	int idle = may_umount_tree(path.mnt);
 	path_put(&path);
 
