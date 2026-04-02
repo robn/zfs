@@ -346,6 +346,8 @@ zfsctl_snapshot_rename(const char *old_snapname, const char *new_snapname)
 /*
  * Delayed task responsible for unmounting an expired automounted snapshot.
  */
+static int zfsctl_snapshot_unmount_impl(zfs_snapentry_t *, int);
+
 static void
 snapentry_expire(void *data)
 {
@@ -360,7 +362,7 @@ snapentry_expire(void *data)
 		return;
 	}
 
-	int err = zfsctl_snapshot_unmount(se->se_name, MNT_EXPIRE);
+	int err = zfsctl_snapshot_unmount_impl(se, MNT_EXPIRE);
 	if (err == 0 || err == ENOENT) {
 		/* Unmount succeeded, or it was already unmounted. */
 		zfsctl_snapshot_rele(se);
@@ -1120,6 +1122,65 @@ is_current_chrooted(void)
  * best effort.  In the case where it does fail, perhaps because
  * it's in use, the unmount will fail harmlessly.
  */
+static int
+zfsctl_snapshot_unmount_impl(zfs_snapentry_t *se, int flags)
+{
+	/*
+	 * Wait for any pending auto-mount to complete before unmounting.
+	 */
+	mutex_enter(&se->se_mtx);
+	while (se->se_mounting) {
+		cmn_err(CE_NOTE, "zfsctl_snapshot_unmount: snapname=%s: "
+		    "waiting for automount", se->se_name);
+		cv_wait(&se->se_cv, &se->se_mtx);
+	}
+	mutex_exit(&se->se_mtx);
+
+	if (!d_mountpoint(se->se_dentry)) {
+		zfsctl_snapshot_rele(se);
+		cmn_err(CE_NOTE, "zfsctl_snapshot_unmount: snapname=%s: "
+		    "dentry %px not a mountpoint", se->se_name, se->se_dentry);
+		return (SET_ERROR(ENOENT));
+	}
+
+	struct path path;
+	path.mnt = se->se_pmnt;
+	path.dentry = se->se_dentry;
+	path_get(&path);
+
+	if (!follow_down_one(&path)) {
+		path_put(&path);
+		zfsctl_snapshot_rele(se);
+		cmn_err(CE_NOTE, "zfsctl_snapshot_unmount: snapname=%s: "
+		    "follow_down_one failed? pmnt=%px dentry=%px",
+		    se->se_name, se->se_pmnt, se->se_dentry);
+		return (SET_ERROR(ENOENT));
+	}
+
+	int idle = may_umount_tree(path.mnt);
+	path_put(&path);
+
+	if (!idle) {
+		zfsctl_snapshot_rele(se);
+		cmn_err(CE_NOTE, "zfsctl_snapshot_unmount: snapname=%s: "
+		    "busy", se->se_name);
+		return (SET_ERROR(EBUSY));
+	}
+
+	cmn_err(CE_NOTE, "zfsctl_snapshot_unmount: snapname=%s: "
+	    "invalidating dentry=%px", se->se_name, se->se_dentry);
+
+	d_invalidate(se->se_dentry);
+	exportfs_flush(); /* XXX delay a moment? */
+
+	return (0);
+}
+
+/*
+ * XXX legacy, needed for zfs_snapdir_remove() and zfs_destroy_unmount_origin()
+ *     and zfs_ioc_destroy_snaps(). we'll nbeed to iterate all the ones we
+ *     have, if we can. -- robn, 2026-04-02
+ */
 int
 zfsctl_snapshot_unmount(const char *snapname, int flags)
 {
@@ -1137,55 +1198,7 @@ zfsctl_snapshot_unmount(const char *snapname, int flags)
 	}
 	rw_exit(&zfs_snapshot_lock);
 
-	/*
-	 * Wait for any pending auto-mount to complete before unmounting.
-	 */
-	mutex_enter(&se->se_mtx);
-	while (se->se_mounting) {
-		cmn_err(CE_NOTE, "zfsctl_snapshot_unmount: snapname=%s: "
-		    "waiting for automount", snapname);
-		cv_wait(&se->se_cv, &se->se_mtx);
-	}
-	mutex_exit(&se->se_mtx);
-
-	if (!d_mountpoint(se->se_dentry)) {
-		zfsctl_snapshot_rele(se);
-		cmn_err(CE_NOTE, "zfsctl_snapshot_unmount: snapname=%s: "
-		    "dentry %px not a mountpoint", snapname, se->se_dentry);
-		return (SET_ERROR(ENOENT));
-	}
-
-	struct path path;
-	path.mnt = se->se_pmnt;
-	path.dentry = se->se_dentry;
-	path_get(&path);
-
-	if (!follow_down_one(&path)) {
-		path_put(&path);
-		zfsctl_snapshot_rele(se);
-		cmn_err(CE_NOTE, "zfsctl_snapshot_unmount: snapname=%s: "
-		    "follow_down_one failed? pmnt=%px dentry=%px",
-		    snapname, se->se_pmnt, se->se_dentry);
-		return (SET_ERROR(ENOENT));
-	}
-
-	int idle = may_umount_tree(path.mnt);
-	path_put(&path);
-
-	if (!idle) {
-		zfsctl_snapshot_rele(se);
-		cmn_err(CE_NOTE, "zfsctl_snapshot_unmount: snapname=%s: "
-		    "busy", snapname);
-		return (SET_ERROR(EBUSY));
-	}
-
-	cmn_err(CE_NOTE, "zfsctl_snapshot_unmount: snapname=%s: "
-	    "invalidating dentry=%px", snapname, se->se_dentry);
-
-	d_invalidate(se->se_dentry);
-	exportfs_flush(); /* XXX delay a moment? */
-
-	return (0);
+	return (zfsctl_snapshot_unmount_impl(se, flags));
 }
 
 int
