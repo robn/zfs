@@ -193,6 +193,23 @@ zfsctl_snapshot_rele(zfs_snapentry_t *se)
 		zfsctl_snapshot_free(se);
 }
 
+static void
+zfsctl_snapshot_dump(void)
+{
+	rw_enter(&zfs_snapshot_lock, RW_READER);
+	for (zfs_snapentry_t *se = avl_first(&zfs_snapshots_by_name);
+	    se != NULL; se = AVL_NEXT(&zfs_snapshots_by_name, se)) {
+		cmn_err(CE_NOTE, "zfsctl_snapshot_dump: "
+		    "snapname=%s objsetid=%llu pmnt=%px dentry=%px "
+		    "[dname=%s mountpoint=%s refcnt=%u]",
+		    se->se_name, se->se_objsetid, se->se_pmnt, se->se_dentry,
+		    dname(se->se_dentry),
+		    d_mountpoint(se->se_dentry) ? "true" : "false",
+		    d_count(se->se_dentry));
+	}
+	rw_exit(&zfs_snapshot_lock);
+}
+
 /*
  * Add a zfs_snapentry_t to the zfs_snapshots_by_name tree.  If the entry
  * is not pending (se_spa != NULL), also add to zfs_snapshots_by_objsetid.
@@ -1379,6 +1396,17 @@ zfsctl_shares_lookup(struct inode *dip, char *name, struct inode **ipp,
 	return (error);
 }
 
+static void
+snapshot_dump_task(void *data)
+{
+	(void) data;
+
+	zfsctl_snapshot_dump();
+
+	taskq_dispatch_delay(system_delay_taskq, snapshot_dump_task, NULL,
+	    TQ_SLEEP, ddi_get_lbolt() + 5 * HZ);
+}
+
 /*
  * Initialize the various pieces we'll need to create and manipulate .zfs
  * directories.  Currently this is unused but available.
@@ -1393,6 +1421,9 @@ zfsctl_init(void)
 	    sizeof (zfs_snapentry_t), offsetof(zfs_snapentry_t,
 	    se_node_objsetid));
 	rw_init(&zfs_snapshot_lock, NULL, RW_DEFAULT, NULL);
+
+	taskq_dispatch_delay(system_delay_taskq, snapshot_dump_task, NULL,
+	    TQ_SLEEP, ddi_get_lbolt() + 5 * HZ);
 }
 
 /*
