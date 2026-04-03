@@ -1214,20 +1214,47 @@ zfsctl_snapshot_mount(struct path *path, int flags, struct vfsmount **mntp)
 	if (error != 0)
 		goto error;
 
-	/*
-	 * XXX fs_context_for_submount reuses existing superblock, so we can't
-	 *     actually change the suid flag here?
-	 */
-	error = -vfs_parse_fs_string(fc,
-	    zfs_snapshot_no_setuid ? "nosuid" : "suid", NULL);
-	if (error != 0)
-		goto error;
-
 	struct vfsmount *mnt = fc_mount(fc);
 	if (IS_ERR(mnt)) {
 		error = -PTR_ERR(mnt);
 		goto error;
 	}
+
+	/*
+	 * XXX ideally, we would do this here:
+	 *
+	 *     if (zfs_snapshot_no_setuid)
+	 *         mnt->mnt_flags |= MNT_NOSUID;
+	 *
+	 *     the problem is that the return from d_automount gets mnt_flags
+	 *     set to its parent's mnt_flags, so they get lost, and I've not
+	 *     yet found another way to make it happen.
+	 *
+	 *     ideas:
+	 *
+	 *     sb->s_flags |= SB_NOSUID
+	 *         no good, not considered for SUID checks
+	 *     fc->s_flags, fc->sb_iflags, etc
+	 *         not copied without using sget_fc, maybe more useful for
+	 *         NOEXEC though, different mechanism
+	 *     leave a note for d_revalidate, set it there
+	 *         didn't work first time, but pretty awful as well
+	 *     timer, set later
+	 *         not tried, worse than d_revalidate
+	 *
+	 *     leaving it for the moment, until I get everything else going.
+	 *     a better option might be to forcibly downgrade the flags? could
+	 *     we force it into a different namespace? (ie the other conditions
+	 *     for mnt_may_suid()). or maybe we set it later? or fake it via
+	 *     statx? show_options? there's a lot of touch points but nothing
+	 *     really nice.
+	 *
+	 *     incidentally, the option was added in d34d4f97a8 #16587 so
+	 *     its possibly not so established that we couldn't get away with
+	 *     something else.
+	 *
+	 *       -- robn, 2026-04-03
+	 */     
 
 	put_fs_context(fc);
 	fc = NULL;
