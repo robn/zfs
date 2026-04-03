@@ -1163,6 +1163,7 @@ zfsctl_snapshot_unmount(const char *snapname, int flags)
 
 	if (err == 0 || err == ENOENT) {
 		rw_enter(&zfs_snapshot_lock, RW_WRITER);
+		zfsctl_snapshot_unmount_cancel(se);
 		zfsctl_snapshot_remove(se);
 		rw_exit(&zfs_snapshot_lock);
 	}
