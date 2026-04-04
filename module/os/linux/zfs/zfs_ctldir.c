@@ -203,9 +203,9 @@ zfsctl_snapshot_dump(void)
 		    "snapname=%s objsetid=%llu pmnt=%px dentry=%px "
 		    "[dname=%s mountpoint=%s refcnt=%u] mnt=%px",
 		    se->se_name, se->se_objsetid, se->se_pmnt, se->se_dentry,
-		    dname(se->se_dentry),
-		    d_mountpoint(se->se_dentry) ? "true" : "false",
-		    d_count(se->se_dentry), se->se_mnt);
+		    se->se_dentry ? dname(se->se_dentry) : "[null]",
+		    se->se_dentry && d_mountpoint(se->se_dentry) ? "true" : "false",
+		    se->se_dentry ? d_count(se->se_dentry) : 0, se->se_mnt);
 	}
 	rw_exit(&zfs_snapshot_lock);
 }
