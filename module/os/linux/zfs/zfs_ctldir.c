@@ -1087,7 +1087,7 @@ zfsctl_snapshot_detach(zfs_snapentry_t *se)
 	int err = 0;
 
 	if (!d_mountpoint(se->se_dentry)) {
-		cmn_err(CE_NOTE, "zfsctl_snapshot_unmount: snapname=%s: "
+		cmn_err(CE_NOTE, "zfsctl_snapshot_detach: snapname=%s: "
 		    "dentry %px not a mountpoint", se->se_name, se->se_dentry);
 		err = SET_ERROR(ENOENT);
 		goto out;
@@ -1099,7 +1099,7 @@ zfsctl_snapshot_detach(zfs_snapentry_t *se)
 	path_get(&path);
 
 	if (!follow_down_one(&path)) {
-		cmn_err(CE_NOTE, "zfsctl_snapshot_unmount: snapname=%s: "
+		cmn_err(CE_NOTE, "zfsctl_snapshot_detach: snapname=%s: "
 		    "follow_down_one failed? pmnt=%px dentry=%px",
 		    se->se_name, se->se_pmnt, se->se_dentry);
 		path_put(&path);
@@ -1108,7 +1108,7 @@ zfsctl_snapshot_detach(zfs_snapentry_t *se)
 	}
 
 	if (path.mnt != se->se_mnt) {
-		cmn_err(CE_NOTE, "zfsctl_snapshot_unmount: snapname=%s: "
+		cmn_err(CE_NOTE, "zfsctl_snapshot_detach: snapname=%s: "
 		    "mount mismatch: path.mnt=%px mnt=%px",
 		    se->se_name, path.mnt, se->se_mnt);
 		path_put(&path);
@@ -1120,12 +1120,12 @@ zfsctl_snapshot_detach(zfs_snapentry_t *se)
 	path_put(&path);
 
 	if (!idle) {
-		cmn_err(CE_NOTE, "zfsctl_snapshot_unmount: snapname=%s: "
+		cmn_err(CE_NOTE, "zfsctl_snapshot_detach: snapname=%s: "
 		    "busy", se->se_name);
 		return (SET_ERROR(EBUSY));
 	}
 
-	cmn_err(CE_NOTE, "zfsctl_snapshot_unmount: snapname=%s: "
+	cmn_err(CE_NOTE, "zfsctl_snapshot_detach: snapname=%s: "
 	    "invalidating dentry=%px", se->se_name, se->se_dentry);
 
 	/*
@@ -1174,6 +1174,7 @@ zfsctl_snapshot_unmount(const char *snapname, int flags)
 		rw_exit(&zfs_snapshot_lock);
 		return (SET_ERROR(ENOENT));
 	}
+	zfsctl_snapshot_remove(se);
 	rw_exit(&zfs_snapshot_lock);
 
 	mutex_enter(&se->se_mnt_lock);
@@ -1182,6 +1183,15 @@ zfsctl_snapshot_unmount(const char *snapname, int flags)
 	mutex_exit(&se->se_expire_lock);
 	int err = zfsctl_snapshot_detach(se);
 	mutex_exit(&se->se_mnt_lock);
+
+	cmn_err(CE_NOTE, "zfsctl_snapshot_unmount: "
+	    "snapname=%s flags=%04x: ret %d", snapname, flags, err);
+
+	if (err == EBUSY) {
+		rw_enter(&zfs_snapshot_lock, RW_WRITER);
+		zfsctl_snapshot_add(se);
+		rw_exit(&zfs_snapshot_lock);
+	}
 
 	zfsctl_snapshot_rele(se);
 
@@ -1310,13 +1320,38 @@ zfsctl_snapshot_mount(struct path *path, int flags, struct vfsmount **mntp)
 	se = zfsctl_snapshot_alloc(full_name,
 	    snap_zfsvfs->z_os->os_spa, dmu_objset_id(snap_zfsvfs->z_os));
 
+	rw_enter(&zfs_snapshot_lock, RW_WRITER);
+	zfs_snapentry_t *pse =
+	    zfsctl_snapshot_find_by_objsetid(se->se_spa, se->se_objsetid);
+	if (pse != NULL)
+		zfsctl_snapshot_remove(pse);
+	rw_exit(&zfs_snapshot_lock);
+
+	if (pse != NULL) {
+		cmn_err(CE_NOTE, "zfsctl_snapshot_mount: releasing prev: "
+		    "snapname=%s objsetid=%llu pmnt=%px dentry=%px mnt=%px",
+		    dname(pse->se_dentry), pse->se_objsetid,
+		    pse->se_pmnt, pse->se_dentry, pse->se_mnt);
+
+		mutex_enter(&pse->se_mnt_lock);
+		mutex_enter(&pse->se_expire_lock);
+		zfsctl_snapshot_expire_cancel(pse);
+		mutex_exit(&pse->se_expire_lock);
+		int err = zfsctl_snapshot_detach(pse);
+		mutex_exit(&pse->se_mnt_lock);
+
+		/*
+		 * EBUSY would mean its still live and accessible, and so
+		 * there's no way we can be here.
+		 */
+		ASSERT3U(err, !=, EBUSY);
+
+		zfsctl_snapshot_rele(pse);
+	}
+
 	se->se_pmnt = path->mnt;
 	se->se_dentry = dget(dentry);
 	se->se_mnt = mnt;
-
-	mutex_enter(&se->se_expire_lock)
-	zfsctl_snapshot_expire_delay(se, zfs_expire_snapshot);
-	mutex_exit(&se->se_expire_lock);
 
 	cmn_err(CE_NOTE, "zfsctl_snapshot_mount: "
 	    "snapname=%s objsetid=%llu pmnt=%px dentry=%px mnt=%px",
@@ -1326,6 +1361,10 @@ zfsctl_snapshot_mount(struct path *path, int flags, struct vfsmount **mntp)
 	rw_enter(&zfs_snapshot_lock, RW_WRITER);
 	zfsctl_snapshot_add(se);
 	rw_exit(&zfs_snapshot_lock);
+
+	mutex_enter(&se->se_expire_lock)
+	zfsctl_snapshot_expire_delay(se, zfs_expire_snapshot);
+	mutex_exit(&se->se_expire_lock);
 
 	*mntp = mnt;
 
