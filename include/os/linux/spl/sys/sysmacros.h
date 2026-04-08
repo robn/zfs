@@ -59,7 +59,7 @@
 
 #define	NBBY				8
 
-#define	MAXMSGLEN			256
+#define	MAXMSGLEN			512
 #define	MAXNAMELEN			256
 #define	MAXPATHLEN			4096
 #define	MAXOFFSET_T			LLONG_MAX
