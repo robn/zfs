@@ -383,8 +383,8 @@ zfs_snapentry_validate_or_teardown(zfs_snapentry_t *se)
 		zfs_snapentry_change_state(se, new_state);
 		return;
 	}
-	se->se_state = SE_INVALIDATED;
 
+	zfs_snapentry_change_state_soft(se, new_state);
 	_zfs_snapentry_teardown(se);
 }
 
@@ -394,7 +394,10 @@ static void
 zfs_snapentry_detach_idle(zfs_snapentry_t *se)
 {
 	ASSERT(MUTEX_HELD(&se->se_mtx));
-	ASSERT(SE_LIVE(se));
+	ASSERT(!SE_BUSY(se));
+
+	if (SE_DEAD(se))
+		return;
 
 	struct path path;
 
@@ -687,6 +690,7 @@ zfsctl_snapshot_expire_task(void *data)
 		 * go through the motions but don't actually unmount anything.
 		 */
 		zfs_snapentry_validate_or_teardown(se);
+		zfs_snapentry_debug(se);
 		mutex_exit(&se->se_mtx);
 		zfsctl_snapshot_rele(se);
 		return;
@@ -703,6 +707,7 @@ zfsctl_snapshot_expire_task(void *data)
 		zfsctl_snapshot_expire_delay(se, zfs_expire_snapshot);
 	}
 
+	zfs_snapentry_debug(se);
 	mutex_exit(&se->se_mtx);
 	zfsctl_snapshot_rele(se);
 }
@@ -1753,6 +1758,7 @@ retry_mount:
 
 	se = zfsctl_snapshot_alloc(snapname,
 	    snap_zfsvfs->z_os->os_spa, dmu_objset_id(snap_zfsvfs->z_os));
+	zfs_snapentry_debug_act(se, "new");
 
 retry_snapentry:
 	rw_enter(&zfs_snapshot_lock, RW_WRITER);
@@ -1820,6 +1826,7 @@ retry_snapentry:
 		 *       -- robn, 2026-04-07
 		 */
 
+		zfs_snapentry_debug_act(se, "abandon");
 		zfsctl_snapshot_free(se);
 		*mntp = mnt;
 		goto out;
