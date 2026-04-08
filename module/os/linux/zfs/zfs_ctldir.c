@@ -1678,9 +1678,10 @@ retry_mount:
 	}
 
 	struct vfsmount *mnt = fc_mount(fc);
+	put_fs_context(fc);
+
 	if (IS_ERR(mnt)) {
 		err = -PTR_ERR(mnt);
-		put_fs_context(fc);
 		if (err == EBUSY) {
 			/*
 			 * XXX hack around the old dance in zpl_get_tree(),
