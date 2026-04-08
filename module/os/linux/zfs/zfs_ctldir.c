@@ -400,17 +400,6 @@ _zfs_snapentry_detach(zfs_snapentry_t *se, bool idle)
 		return;
 	}
 
-	/*
-	 * XXX MNT_INTERNAL here? possibly not safe, if its become un-idle since
-	 *     the idle check, but also we probably have enough control now?
-	 *
-	 *     but if we do it async and it fails, we have no way to know what
-	 *     really happened?
-	 *
-	 *     we'll try sync for the moment; if it presents a problem then
-	 *     we'll just pick up locks after and go straight through to DEAD
-	 */
-	path.mnt->mnt_flags |= MNT_INTERNAL;
 	path_put(&path);
 
 	zfs_snapentry_change_state(se, SE_DETACHING);
