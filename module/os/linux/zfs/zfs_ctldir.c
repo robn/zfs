@@ -292,8 +292,10 @@ _zfs_snapentry_validate_path(zfs_snapentry_t *se, struct path *pathp)
 
 	ASSERT3P(se->se_dentry, !=, NULL);
 
-	if (!d_mountpoint(se->se_dentry))
+	if (!d_mountpoint(se->se_dentry)) {
+		zfs_snapentry_log(se, "not mountpoint, invalidated");
 		return (SE_INVALIDATED);
+	}
 
 	struct path path;
 	if (pathp == NULL)
@@ -303,7 +305,13 @@ _zfs_snapentry_validate_path(zfs_snapentry_t *se, struct path *pathp)
 	pathp->dentry = se->se_dentry;
 	path_get(pathp);
 
-	if (!follow_down_one(pathp) || pathp->mnt != se->se_mnt) {
+	if (!follow_down_one(pathp)) {
+		zfs_snapentry_log(se, "didn't find dentry under mount, invalidated");
+		path_put(pathp);
+		return (SE_INVALIDATED);
+	}
+	if (pathp->mnt != se->se_mnt) {
+		zfs_snapentry_log(se, "path mount didn't match (got %px, expected %px), invalidated", pathp->mnt, se->se_mnt);
 		path_put(pathp);
 		return (SE_INVALIDATED);
 	}
