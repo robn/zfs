@@ -244,7 +244,7 @@ _zfs_snapentry_debug(zfs_snapentry_t *se, const char *act,
 	_zfs_snapentry_debug(se, act, __FUNCTION__, __LINE__)
 
 #define	zfs_snapentry_log(se, fmt, ...)		\
-	cmn_err(CE_NOTE, "%s: se=%px: " fmt, __FUNCTION__, se, __VA_ARGS__)
+	cmn_err(CE_NOTE, "%s: se=%px: " fmt, __FUNCTION__, se, ##__VA_ARGS__)
 
 static void
 zfs_snapentry_wait(zfs_snapentry_t *se)
