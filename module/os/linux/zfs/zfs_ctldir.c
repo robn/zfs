@@ -171,6 +171,11 @@ typedef enum {
 	SE_DEAD,	/* to be destroyed when last hold released */
 } zfs_snapentry_state_t;
 
+static const char *se_state_str[] = {
+	"NEW", "MOUNTING", "MOUNTED", "INVALIDATED", "DETACHING",
+	"UNMOUNTING", "UNMOUNTED", "DEAD",
+};
+
 typedef struct {
 	char		*se_name;	/* full snapshot name */
 	spa_t		*se_spa;	/* pool spa (NULL if pending) */
@@ -202,6 +207,46 @@ typedef struct {
 	((se)->se_state == SE_DEAD)
 
 static void
+_zfs_snapentry_debug(zfs_snapentry_t *se, const char *act,
+    const char *func, int line)
+{
+	char pbuf[256], *prefix;
+	if (act == NULL)
+		prefix = "snapentry";
+	else {
+		snprintf(pbuf, sizeof (pbuf), "snapentry[%s]", act);
+		prefix = pbuf;
+	}
+
+	char dbuf[256];
+	if (se->se_dentry == NULL)
+		snprintf(dbuf, sizeof (dbuf), "dentry=%px", se->se_dentry);
+	else
+		snprintf(dbuf, sizeof (dbuf),
+		    "dentry=%px [dname=%s mountpoint=%s refcnt=%u]",
+		    se->se_dentry, dname(se->se_dentry),
+		    d_mountpoint(se->se_dentry) ? "true" : "false",
+		    d_count(se->se_dentry));
+
+	cmn_err(CE_NOTE,
+	    "%s: [%s:%d] [%s#%d] "
+	    "se=%px [name=%s objsetid=%llu refcnt=%llu state=%s taskqid=%lu] "
+	    "pmnt=%px %s mnt=%px",
+	    prefix, getcomm(), getpid(), func, line,
+	    se, se->se_name, se->se_objsetid,
+	    zfs_refcount_count(&se->se_refcount), se_state_str[se->se_state],
+	    se->se_taskqid,
+	    se->se_pmnt, dbuf, se->se_mnt);
+}
+#define	zfs_snapentry_debug(se)			\
+	_zfs_snapentry_debug(se, NULL, __FUNCTION__, __LINE__)
+#define	zfs_snapentry_debug_act(se, act)	\
+	_zfs_snapentry_debug(se, act, __FUNCTION__, __LINE__)
+
+#define	zfs_snapentry_log(se, fmt, ...)		\
+	cmn_err(CE_NOTE, "%s: se=%px: " fmt, __FUNCTION__, se, __VA_ARGS__)
+
+static void
 zfs_snapentry_wait(zfs_snapentry_t *se)
 {
 	ASSERT(MUTEX_HELD(&se->se_mtx));
@@ -214,22 +259,30 @@ zfs_snapentry_wait(zfs_snapentry_t *se)
 }
 
 static void
-zfs_snapentry_change_state(zfs_snapentry_t *se,
-    zfs_snapentry_state_t new_state)
+_zfs_snapentry_change_state(zfs_snapentry_t *se,
+    zfs_snapentry_state_t new_state, bool soft)
 {
 	ASSERT(MUTEX_HELD(&se->se_mtx));
 
 	/* XXX assert valid transition */
 
-	if (se->se_state == new_state) {
-		cmn_err(CE_NOTE, "se=%px state=%d unchanged", se, new_state);
+	if (se->se_state == new_state)
 		return;
-	}
 
-	cmn_err(CE_NOTE, "se=%px state=%d changed new_state=%d", se, se->se_state, new_state);
+	zfs_snapentry_log(se, "state change: %s -> %s%s",
+	    se_state_str[se->se_state], se_state_str[new_state],
+	    soft ? " [soft]" : "");
+
 	se->se_state = new_state;
-	cv_broadcast(&se->se_cv);
+
+	if (!soft)
+		cv_broadcast(&se->se_cv);
 }
+
+#define	zfs_snapentry_change_state(se, new)		\
+	_zfs_snapentry_change_state(se, new, false)
+#define	zfs_snapentry_change_state_soft(se, new)	\
+	_zfs_snapentry_change_state(se, new, true)
 
 static zfs_snapentry_state_t
 _zfs_snapentry_validate_path(zfs_snapentry_t *se, struct path *pathp)
@@ -276,6 +329,7 @@ _zfs_snapentry_teardown(zfs_snapentry_t *se)
 
 	ASSERT3P(se->se_dentry, !=, NULL);
 
+	struct vfsmount *pmnt = se->se_pmnt;
 	struct dentry *dentry = se->se_dentry;
 
 	se->se_pmnt = NULL;
@@ -287,7 +341,7 @@ _zfs_snapentry_teardown(zfs_snapentry_t *se)
 	/*
 	 * XXX safe? we don't want to drop lock without a state change, so
 	 *     we either need a separate TEARDOWN state, or we keep the lock
-	 *     
+	 *
 	 *     should be ok though, because snapshot lock is narrow?
 	 */
 	rw_enter(&zfs_snapshot_lock, RW_WRITER);
@@ -298,11 +352,13 @@ _zfs_snapentry_teardown(zfs_snapentry_t *se)
 	mutex_exit(&se->se_mtx);
 
 	dput(dentry);
+	mntput(pmnt);
 
 	mutex_enter(&se->se_mtx);
 	ASSERT3U(se->se_state, ==, SE_DEAD);
 }
 
+#if 0
 static void __maybe_unused
 zfs_snapentry_validate(zfs_snapentry_t *se)
 {
@@ -310,6 +366,7 @@ zfs_snapentry_validate(zfs_snapentry_t *se)
 
 	zfs_snapentry_change_state(se, _zfs_snapentry_validate_path(se, NULL));
 }
+#endif
 
 static void
 zfs_snapentry_validate_or_teardown(zfs_snapentry_t *se)
@@ -378,7 +435,7 @@ zfs_snapentry_detach_idle(zfs_snapentry_t *se)
 	ASSERT3U(se->se_state, ==, SE_DETACHING);
 
 	/* "soft" state change for validate or teardown */
-	se->se_state = SE_INVALIDATED;
+	zfs_snapentry_change_state_soft(se, SE_INVALIDATED);
 	zfs_snapentry_validate_or_teardown(se);
 }
 
@@ -450,15 +507,8 @@ zfsctl_snapshot_dump(void)
 {
 	rw_enter(&zfs_snapshot_lock, RW_READER);
 	for (zfs_snapentry_t *se = avl_first(&zfs_snapshots_by_name);
-	    se != NULL; se = AVL_NEXT(&zfs_snapshots_by_name, se)) {
-		cmn_err(CE_NOTE, "zfsctl_snapshot_dump: "
-		    "snapname=%s objsetid=%llu pmnt=%px dentry=%px "
-		    "[dname=%s mountpoint=%s refcnt=%u] mnt=%px",
-		    se->se_name, se->se_objsetid, se->se_pmnt, se->se_dentry,
-		    se->se_dentry ? dname(se->se_dentry) : "[null]",
-		    se->se_dentry && d_mountpoint(se->se_dentry) ? "true" : "false",
-		    se->se_dentry ? d_count(se->se_dentry) : 0, se->se_mnt);
-	}
+	    se != NULL; se = AVL_NEXT(&zfs_snapshots_by_name, se))
+		zfs_snapentry_debug(se);
 	rw_exit(&zfs_snapshot_lock);
 }
 
@@ -624,9 +674,9 @@ zfsctl_snapshot_expire_task(void *data)
 {
 	zfs_snapentry_t *se = (zfs_snapentry_t *)data;
 
-	cmn_err(CE_NOTE, "zfsctl_snapshot_expire_task: snapname=%s", se->se_name);
-
 	mutex_enter(&se->se_mtx);
+	zfs_snapentry_debug(se);
+
 	zfs_snapentry_wait(se);
 
 	se->se_taskqid = TASKQID_INVALID;
@@ -877,27 +927,30 @@ zfsctl_destroy(zfsvfs_t *zfsvfs)
 		spa_t *spa = zfsvfs->z_os->os_spa;
 		uint64_t objsetid = dmu_objset_id(zfsvfs->z_os);
 
-		rw_enter(&zfs_snapshot_lock, RW_WRITER);
+		rw_enter(&zfs_snapshot_lock, RW_READER);
 		se = zfsctl_snapshot_find_by_objsetid(spa, objsetid);
-		if (se != NULL)
-			zfsctl_snapshot_remove(se);
 		rw_exit(&zfs_snapshot_lock);
+
 		if (se != NULL) {
+			cmn_err(CE_NOTE, "zfsctl_destroy: se=%px state=%d", se, se->se_state);
+
 			/*
-			 * Don't wait if snapentry_expire task is calling
-			 * umount, which may have resulted in this destroy
-			 * call. Waiting would deadlock: snapentry_expire
-			 * waits for umount while umount waits for task.
+			 * XXX just messing around; I don't think I have the
+			 *     tools for this yet
 			 */
-#if 0
-			mutex_enter(&se->se_expire_lock);
-			zfsctl_snapshot_expire_cancel(se);
-			mutex_exit(&se->se_expire_lock);
-#endif
+			mutex_enter(&se->se_mtx);
+			zfs_snapentry_wait(se);
+			zfs_snapentry_validate_or_teardown(se);
+			if (SE_LIVE(se))
+				zfs_snapentry_detach_idle(se);
+			mutex_exit(&se->se_mtx);
 
 			zfsctl_snapshot_rele(se);
+		} else {
+			cmn_err(CE_NOTE, "zfsctl_destroy: snap spa=%s objsetid=%llu no snapentry", spa_name(spa), objsetid);
 		}
 	} else if (zfsvfs->z_ctldir) {
+		cmn_err(CE_NOTE, "zfsctl_destroy: iput ctldir");
 		iput(zfsvfs->z_ctldir);
 		zfsvfs->z_ctldir = NULL;
 	}
@@ -1439,6 +1492,8 @@ zfsctl_snapshot_unmount(const char *snapname, int flags)
 	rw_exit(&zfs_snapshot_lock);
 
 	mutex_enter(&se->se_mtx);
+	zfs_snapentry_debug(se);
+
 	zfs_snapentry_wait(se);
 	zfs_snapentry_detach_idle(se);
 
@@ -1690,7 +1745,7 @@ retry_mount:
 	 *     something else.
 	 *
 	 *       -- robn, 2026-04-03
-	 */     
+	 */
 
 	/* Create new snapentry for this mount. */
 	zfsvfs_t *snap_zfsvfs = ITOZSB(mnt->mnt_root->d_inode);
@@ -1720,11 +1775,8 @@ retry_snapentry:
 		 * down if its no longer valid.
 		 */
 		mutex_enter(&pse->se_mtx);
+		zfs_snapentry_debug(pse);
 		zfs_snapentry_wait(pse);
-
-		if (pse->se_dentry == NULL)
-			cmn_err(CE_NOTE, "pse state %d", pse->se_state);
-
 		zfs_snapentry_validate_or_teardown(pse);
 
 		zfs_snapentry_state_t state = pse->se_state;
@@ -1778,18 +1830,14 @@ retry_snapentry:
 	rw_exit(&zfs_snapshot_lock);
 
 	mutex_enter(&se->se_mtx);
-	se->se_pmnt = path->mnt;
+	se->se_pmnt = mntget(path->mnt);
 	se->se_dentry = dget(dentry);
 	se->se_mnt = mnt;
 
 	zfsctl_snapshot_expire_delay(se, zfs_expire_snapshot);
 
-	cmn_err(CE_NOTE, "zfsctl_snapshot_mount: "
-	    "snapname=%s objsetid=%llu pmnt=%px dentry=%px mnt=%px",
-	    dname(se->se_dentry), se->se_objsetid,
-	    se->se_pmnt, se->se_dentry, se->se_mnt);
-
 	zfs_snapentry_change_state(se, SE_MOUNTED);
+	zfs_snapentry_debug(se);
 	mutex_exit(&se->se_mtx);
 
 	*mntp = mnt;
