@@ -402,10 +402,12 @@ _zfs_snapentry_detach(zfs_snapentry_t *se, bool idle)
 
 	path_put(&path);
 
+	struct dentry *dentry = se->se_dentry;
+
 	zfs_snapentry_change_state(se, SE_DETACHING);
 	mutex_exit(&se->se_mtx);
 
-	d_invalidate(se->se_dentry);
+	d_invalidate(dentry);
 
 	exportfs_flush(); /* XXX delay a moment? */
 
