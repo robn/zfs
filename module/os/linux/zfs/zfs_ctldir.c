@@ -400,6 +400,20 @@ _zfs_snapentry_detach(zfs_snapentry_t *se, bool idle)
 		return;
 	}
 
+	/*
+	 * MNT_INTERNAL has the side-effect that the unmount will happen "now"
+	 * (inside d_invalidate()) rather than being deferred until the return
+	 * to userspace. That's important to ensure that zfsctl_destroy()
+	 * doesn't return until after the mount is dead (provided its not
+	 * busy), otherwise the mount will hold the dataset and so cause the
+	 * calling operation (eg `zfs destroy`) to fail with EBUSY.
+	 */
+	/*
+	 * XXX TODO: don't set this if this is not a ZFS mount; userspace can
+	 *     legitimately move a foreign mount onto this slot, and we
+	 *     shouldn't go messing inside it.
+	 */
+	path.mnt->mnt_flags |= MNT_INTERNAL;
 	path_put(&path);
 
 	struct dentry *dentry = se->se_dentry;
@@ -922,8 +936,14 @@ zfsctl_destroy(zfsvfs_t *zfsvfs)
 			 *     tools for this yet
 			 */
 			mutex_enter(&se->se_mtx);
-			zfs_snapentry_wait(se);
-			zfs_snapentry_detach(se);
+			/*
+			 * XXX skip the wait if called from DETACHING,
+			 *     otherwise we deadlock
+			 */
+			if (se->se_state != SE_DETACHING) {
+				zfs_snapentry_wait(se);
+				zfs_snapentry_detach(se);
+			}
 			mutex_exit(&se->se_mtx);
 
 			zfsctl_snapshot_rele(se);
