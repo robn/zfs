@@ -1504,6 +1504,7 @@ zfsctl_snapshot_unmount(const char *snapname, int flags)
 
 	int err = se->se_state == SE_MOUNTED ? SET_ERROR(EBUSY) : 0;
 
+	mutex_exit(&se->se_mtx);
 	zfsctl_snapshot_rele(se);
 
 	return (err);
@@ -1798,7 +1799,7 @@ retry_snapentry:
 			 * the old one, so we have to retry to make sure we
 			 * don't clash with that one, and on and on...
 			 */
-			ASSERT3U(pse->se_state, ==, SE_DEAD);
+			ASSERT3U(state, ==, SE_DEAD);
 			goto retry_snapentry;
 		}
 
