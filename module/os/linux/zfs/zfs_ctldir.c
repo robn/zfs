@@ -116,15 +116,23 @@ static int zfs_admin_snapshot = 0;
 static int zfs_snapshot_no_setuid = 0;
 
 /*
- * XXX thinking about state transitions:
+ * XXX rough state stuff. Write me better! -- robn, 2026-04-10
  *
  * MOUNTING: first caller to d_automount() is working through fc setup,
- *           fc_mount, filling out the struct. other arrivals must wait until
- *           the state moves on
+ *           fc_mount, filling out the snapentry. other arrivals will just
+ *           get whatever fc_mount() returns, and we'll let the kernel sort
+ *           out the graft conflicts.
  *
- * MOUNTED: up and running. use and enjoy
+ * MOUNTED: we've been through mount, and the timer is armed. that's all we
+ *          know; we can't really tell what's actually mounted at the
+ *          snapentry position, if anything - we can check, but we don't get
+ *          told when the kernel moves mounts around, so there's always a
+ *          TOCTOU problem. we try our best.
  *
- * DETACHING: entry is being detached (ie inode being invalidated)
+ * DETACHING: anything mounted at the slot is being detached so we can
+ *            clean up the snapentry. can be requested directly, or might be
+ *            from a timer expiry. the timer will be disarmed if this wasn't
+ *            a timer request.
  *
  * DEAD: unublished, unmounted, unusable. will be freed when the last hold is
  *       released.
@@ -217,8 +225,6 @@ zfs_snapentry_change_state(zfs_snapentry_t *se,
 {
 	ASSERT(MUTEX_HELD(&se->se_mtx));
 
-	/* XXX assert valid transition */
-
 	if (se->se_state == new_state)
 		return;
 
@@ -283,10 +289,26 @@ _zfs_snapentry_teardown(zfs_snapentry_t *se)
 	zfsctl_snapshot_expire_cancel(se);
 
 	/*
-	 * XXX safe? we don't want to drop lock without a state change, so
-	 *     we either need a separate TEARDOWN state, or we keep the lock
+	 * XXX I dislike this, because se_mtx is held. however, we never
+	 *     take an se_mtx with zfs_snapshot_lock held, and sleeping here
+	 *     should never be for very long, because the global lock is
+	 *     very narrowly used.
 	 *
-	 *     should be ok though, because snapshot lock is narrow?
+	 *     the alternative is to allow callers to see a SE_DEAD entry
+	 *     on the global lists, which I think we don't want - what if
+	 *     they're actually looking for that name? - or a separate
+	 *     TEARDOWN state, which seems like a huge overkill
+	 *
+	 *     all that said, all the callers that arrive here (or _don't_
+	 *     arrive here but could) immediately drop their se_mtx afterwards,
+	 *     so we could possibly just not pickup se_mtx again afterwards.
+	 *     I fear this makes it more difficult to see what's happening
+	 *     though. unless, perhaps, zfs_snapentry_wait() becomes our
+	 *     acquisition function?
+	 *
+	 *     or maybe it all just doesn't matter: its weird, but it works,
+	 *     and everyone will like that.
+	 *       -- robn, 2026-04-10
 	 */
 	rw_enter(&zfs_snapshot_lock, RW_WRITER);
 	zfsctl_snapshot_remove(se);
@@ -870,14 +892,11 @@ zfsctl_destroy(zfsvfs_t *zfsvfs)
 		if (se != NULL) {
 			cmn_err(CE_NOTE, "zfsctl_destroy: se=%px state=%d", se, se->se_state);
 
-			/*
-			 * XXX just messing around; I don't think I have the
-			 *     tools for this yet
-			 */
 			mutex_enter(&se->se_mtx);
 			/*
-			 * XXX skip the wait if called from DETACHING,
-			 *     otherwise we deadlock
+			 * Don't detach if we're already detaching; likely
+			 * we're being called as a result of d_invalidate()
+			 * and waiting here would deadlock.
 			 */
 			if (se->se_state != SE_DETACHING) {
 				zfs_snapentry_wait(se);
@@ -1353,9 +1372,13 @@ exportfs_flush(void)
 }
 
 /*
- * XXX legacy, needed for zfs_snapdir_remove() and zfs_destroy_unmount_origin()
- *     and zfs_ioc_destroy_snaps(). we'll nbeed to iterate all the ones we
- *     have, if we can. -- robn, 2026-04-02
+ * XXX Called from zfs_snapdir_remove(), zfs_destroy_unmount_origin() and
+ *     zfs_ioc_destroy_snaps() to "forcibly" unmount whatever is in this
+ *     position. Need to check call sites and understand what they're
+ *     expecting; possibly this should not be have an busy check, but also,
+ *     what is the expected behaviour if there's some other weird mount
+ *     hanging out here?
+ *	 -- robn, 2026-04-10
  */
 int
 zfsctl_snapshot_unmount(const char *snapname, int flags)
@@ -1380,7 +1403,7 @@ zfsctl_snapshot_unmount(const char *snapname, int flags)
 	zfs_snapentry_wait(se);
 	zfs_snapentry_detach_idle(se);
 
-	int err = se->se_state == SE_MOUNTED ? SET_ERROR(EBUSY) : 0;
+	int err = (se->se_state == SE_MOUNTED) ? SET_ERROR(EBUSY) : 0;
 
 	mutex_exit(&se->se_mtx);
 	zfsctl_snapshot_rele(se);
@@ -1480,10 +1503,11 @@ retry_mount:
 		err = -PTR_ERR(mnt);
 		if (err == EBUSY) {
 			/*
-			 * XXX hack around the old dance in zpl_get_tree(),
-			 *     where the zfsvfs might be in setup or teardown
-			 *     when we arrive. better to fix this over there
-			 *     but its involved I think -- robn, 2026-04-07
+			 * Most likely, the zfsvfs was in setup or teardown
+			 * in zpl_get_tree() when we arrived. There might be
+			 * a better way we can handle this over there, but
+			 * regardless it should be resolved soon, so just
+			 * retrying is fine.
 			 */
 			goto retry_mount;
 		}
@@ -1544,25 +1568,6 @@ retry_mount:
 		 */
 		rw_exit(&zfs_snapshot_lock);
 		zfsctl_snapshot_rele(pse);
-
-		/*
-		 * XXX I'm uncertain what it would mean for the existing entry
-		 *     to have a different spa/objsetid to the new one.
-		 *     similarly, if we'd used zfsctl_snapshot_find_by_objsetid
-		 *     above, I'm uncertain what a different name would mean.
-		 *
-		 *     I suppose it would mean either a rename (name) or
-		 *     rollback (spa/objsetid) would have to happen at the
-		 *     same time as a bunch of racing automounts, but its
-		 *     extremely difficult to even think about at this point.
-		 *
-		 *     I'll revisit this once everything seems more or less
-		 *     working well. hopefully its sorta not possible, but
-		 *     if it is, maybe it means extra states? or another lock/
-		 *     throttle somewhere else? I dunno, life is rough when
-		 *     you don't have stable keys...
-		 *       -- robn, 2026-04-07
-		 */
 
 		zfs_snapentry_debug_act(se, "abandon");
 		zfsctl_snapshot_free(se);
