@@ -118,61 +118,27 @@ static int zfs_snapshot_no_setuid = 0;
 /*
  * XXX thinking about state transitions:
  *
- * NEW: allocated, being added to global list
- *      XXX might not be necessary, since its not visible immediately
- *          maybe it just starts at MOUNTING
- *
  * MOUNTING: first caller to d_automount() is working through fc setup,
  *           fc_mount, filling out the struct. other arrivals must wait until
  *           the state moves on
  *
  * MOUNTED: up and running. use and enjoy
  *
- * INVALIDATED: something detected that the mount referred to by the snapentry
- *              is no longer a valid mount for us to manage (eg unmounted
- *              from userspace, moved, etc), but couldn't clean it up at that
- *              moment (due to locking etc). callers may error or wait, but
- *              the wait may be long (ie until the expiry task runs). also,
- *              it may move back to MOUNTED from here (eg the mount is moved
- *              back)
- *
- *              XXX might not be necessary, depends if _everything_ is able
- *                  to do the cleanup on the spot
- *
  * DETACHING: entry is being detached (ie inode being invalidated)
- *
- *              XXX might not be necessary, depends if lock is down between
- *                  eg MOUNTED and UNMOUNTING
- *
- *              XXX actually, this might be for any time we want to trigger
- *                  the unmount ourselves? so maybe its DETACHING or sth?
- *
- * UNMOUNTING: unmount in progress, via call through kill_super. will be
- *             removed from global lists. other arrivals must wait.
- *
- * UNMOUNTED: unmounted, no longer valid for use. unpublished, waiting for
- *            cleanup
- *
- *              XXX might not be necessary if timer can be disarmed during
- *                  UNMOUNTING
  *
  * DEAD: unublished, unmounted, unusable. will be freed when the last hold is
  *       released.
  */
 
 typedef enum {
-	SE_NEW,		/* just allocated, unpublished */
 	SE_MOUNTING,	/* being mounted, others must wait */
 	SE_MOUNTED,	/* up and running, please enjoy */
 	SE_DETACHING,	/* detaching on demand (from expiry task) */
-	SE_UNMOUNTING,	/* unmount in progress */
-	SE_UNMOUNTED,	/* unmounted, being cleaned up */
 	SE_DEAD,	/* to be destroyed when last hold released */
 } zfs_snapentry_state_t;
 
 static const char *se_state_str[] = {
-	"NEW", "MOUNTING", "MOUNTED", "DETACHING",
-	"UNMOUNTING", "UNMOUNTED", "DEAD",
+	"MOUNTING", "MOUNTED", "DETACHING", "DEAD",
 };
 
 typedef struct {
@@ -193,15 +159,6 @@ typedef struct {
 
 	taskqid_t	se_taskqid;	/* scheduled expire taskqid */
 } zfs_snapentry_t;
-
-#define	SE_BUSY(se)				\
-	((se)->se_state == SE_MOUNTING ||	\
-	(se)->se_state == SE_DETACHING ||	\
-	(se)->se_state == SE_UNMOUNTING)
-#define	SE_LIVE(se)				\
-	((se)->se_state == SE_MOUNTED)
-#define	SE_DEAD(se)				\
-	((se)->se_state == SE_DEAD)
 
 static void
 _zfs_snapentry_debug(zfs_snapentry_t *se, const char *act,
@@ -248,16 +205,15 @@ zfs_snapentry_wait(zfs_snapentry_t *se)
 {
 	ASSERT(MUTEX_HELD(&se->se_mtx));
 
-	while (SE_BUSY(se)) {
+	while (se->se_state == SE_MOUNTING || se->se_state == SE_DETACHING)
 		cv_wait(&se->se_cv, &se->se_mtx);
-	}
 
 	ASSERT(MUTEX_HELD(&se->se_mtx));
 }
 
 static void
-_zfs_snapentry_change_state(zfs_snapentry_t *se,
-    zfs_snapentry_state_t new_state, bool soft)
+zfs_snapentry_change_state(zfs_snapentry_t *se,
+    zfs_snapentry_state_t new_state)
 {
 	ASSERT(MUTEX_HELD(&se->se_mtx));
 
@@ -266,27 +222,19 @@ _zfs_snapentry_change_state(zfs_snapentry_t *se,
 	if (se->se_state == new_state)
 		return;
 
-	zfs_snapentry_log(se, "state change: %s -> %s%s",
-	    se_state_str[se->se_state], se_state_str[new_state],
-	    soft ? " [soft]" : "");
+	zfs_snapentry_log(se, "state change: %s -> %s",
+	    se_state_str[se->se_state], se_state_str[new_state]);
 
 	se->se_state = new_state;
 
-	if (!soft)
-		cv_broadcast(&se->se_cv);
+	cv_broadcast(&se->se_cv);
 }
-
-#define	zfs_snapentry_change_state(se, new)		\
-	_zfs_snapentry_change_state(se, new, false)
-#define	zfs_snapentry_change_state_soft(se, new)	\
-	_zfs_snapentry_change_state(se, new, true)
 
 static bool
 _zfs_snapentry_validate_path(zfs_snapentry_t *se, struct path *pathp)
 {
 	ASSERT(MUTEX_HELD(&se->se_mtx));
-	ASSERT(SE_LIVE(se));
-
+	ASSERT3U(se->se_state, ==, SE_MOUNTED);
 	ASSERT3P(se->se_dentry, !=, NULL);
 
 	if (!d_mountpoint(se->se_dentry)) {
@@ -321,7 +269,7 @@ _zfs_snapentry_teardown(zfs_snapentry_t *se)
 {
 	ASSERT(MUTEX_HELD(&se->se_mtx));
 
-	if (SE_DEAD(se))
+	if (se->se_state == SE_DEAD)
 		return;
 
 	ASSERT3P(se->se_dentry, !=, NULL);
@@ -354,24 +302,15 @@ _zfs_snapentry_teardown(zfs_snapentry_t *se)
 	ASSERT3U(se->se_state, ==, SE_DEAD);
 }
 
-#if 0
-static void __maybe_unused
-zfs_snapentry_validate(zfs_snapentry_t *se)
-{
-	ASSERT(MUTEX_HELD(&se->se_mtx));
-
-	zfs_snapentry_change_state(se, _zfs_snapentry_validate_path(se, NULL));
-}
-#endif
-
 static void
 zfs_snapentry_teardown_invalid(zfs_snapentry_t *se)
 {
 	ASSERT(MUTEX_HELD(&se->se_mtx));
-	ASSERT(!SE_BUSY(se));
 
-	if (SE_DEAD(se))
+	if (se->se_state == SE_DEAD)
 		return;
+
+	ASSERT3U(se->se_state, ==, SE_MOUNTED);
 
 	if (!_zfs_snapentry_validate_path(se, NULL))
 		_zfs_snapentry_teardown(se);
@@ -383,10 +322,11 @@ static void
 _zfs_snapentry_detach(zfs_snapentry_t *se, bool idle)
 {
 	ASSERT(MUTEX_HELD(&se->se_mtx));
-	ASSERT(!SE_BUSY(se));
 
-	if (SE_DEAD(se))
+	if (se->se_state == SE_DEAD)
 		return;
+
+	ASSERT3U(se->se_state, ==, SE_MOUNTED);
 
 	struct path path;
 
@@ -1381,95 +1321,6 @@ exportfs_flush(void)
 	(void) call_usermodehelper(argv[0], argv, envp, UMH_WAIT_PROC);
 }
 
-#if 0
-/*
- * Attempt to unmount a snapshot by making a call to user space.
- * There is no assurance that this can or will succeed, is just a
- * best effort.  In the case where it does fail, perhaps because
- * it's in use, the unmount will fail harmlessly.
- */
-static int
-zfsctl_snapshot_detach(zfs_snapentry_t *se)
-{
-	ASSERT(MUTEX_HELD(&se->se_mnt_lock));
-	ASSERT(!MUTEX_HELD(&se->se_expire_lock));
-
-	if (se->se_mnt == NULL) {
-		/* Already detached, probabvly we lost a race. Do nothing. */
-		return (ESTALE);
-	}
-
-	int err = 0;
-
-	if (!d_mountpoint(se->se_dentry)) {
-		cmn_err(CE_NOTE, "zfsctl_snapshot_detach: snapname=%s: "
-		    "dentry %px not a mountpoint", se->se_name, se->se_dentry);
-		err = SET_ERROR(ENOENT);
-		goto out;
-	}
-
-	struct path path;
-	path.mnt = se->se_pmnt;
-	path.dentry = se->se_dentry;
-	path_get(&path);
-
-	if (!follow_down_one(&path)) {
-		cmn_err(CE_NOTE, "zfsctl_snapshot_detach: snapname=%s: "
-		    "follow_down_one failed? pmnt=%px dentry=%px",
-		    se->se_name, se->se_pmnt, se->se_dentry);
-		path_put(&path);
-		err = SET_ERROR(ENOENT);
-		goto out;
-	}
-
-	if (path.mnt != se->se_mnt) {
-		cmn_err(CE_NOTE, "zfsctl_snapshot_detach: snapname=%s: "
-		    "mount mismatch: path.mnt=%px mnt=%px",
-		    se->se_name, path.mnt, se->se_mnt);
-		path_put(&path);
-		err = SET_ERROR(ENOENT);
-		goto out;
-	}
-
-	int idle = may_umount_tree(path.mnt);
-	path_put(&path);
-
-	if (!idle) {
-		cmn_err(CE_NOTE, "zfsctl_snapshot_detach: snapname=%s: "
-		    "busy", se->se_name);
-		return (SET_ERROR(EBUSY));
-	}
-
-	cmn_err(CE_NOTE, "zfsctl_snapshot_detach: snapname=%s: "
-	    "invalidating dentry=%px", se->se_name, se->se_dentry);
-
-	/*
-	 * Set MNT_INTERNAL to force unmount to happen immediately on this
-	 * thread if possible, rather than being put on the delayed_mntput
-	 * workqueue.
-	 */
-	se->se_mnt->mnt_flags |= MNT_INTERNAL;
-	d_invalidate(se->se_dentry);
-
-	exportfs_flush(); /* XXX delay a moment? */
-
-out:
-	/*
-	 * At the point, the mount is invalidated and about to be destroyed, or
-	 * something else did something to remove the mount from its original
-	 * location under the snapdir. This entry is now invalid, so we clear
-	 * it out. It will be cleaned up later when the last hold is released.
-	 */
-	dput(se->se_dentry);
-
-	se->se_pmnt = NULL;
-	se->se_dentry = NULL;
-	se->se_mnt = NULL;
-
-	return (err);
-}
-#endif
-
 /*
  * XXX legacy, needed for zfs_snapdir_remove() and zfs_destroy_unmount_origin()
  *     and zfs_ioc_destroy_snaps(). we'll nbeed to iterate all the ones we
@@ -1504,113 +1355,7 @@ zfsctl_snapshot_unmount(const char *snapname, int flags)
 	zfsctl_snapshot_rele(se);
 
 	return (err);
-
-#if 0
-	rw_enter(&zfs_snapshot_lock, RW_WRITER);
-	if ((se = zfsctl_snapshot_find_by_name(snapname)) == NULL) {
-		cmn_err(CE_NOTE, "zfsctl_snapshot_unmount: snapname=%s: "
-		    "not found", snapname);
-		rw_exit(&zfs_snapshot_lock);
-		return (SET_ERROR(ENOENT));
-	}
-	zfsctl_snapshot_remove(se);
-	rw_exit(&zfs_snapshot_lock);
-
-	mutex_enter(&se->se_mnt_lock);
-	mutex_enter(&se->se_expire_lock);
-	zfsctl_snapshot_expire_cancel(se);
-	mutex_exit(&se->se_expire_lock);
-	int err = zfsctl_snapshot_detach(se);
-	mutex_exit(&se->se_mnt_lock);
-
-	cmn_err(CE_NOTE, "zfsctl_snapshot_unmount: "
-	    "snapname=%s flags=%04x: ret %d", snapname, flags, err);
-
-	if (err == EBUSY) {
-		rw_enter(&zfs_snapshot_lock, RW_WRITER);
-		zfsctl_snapshot_add(se);
-		rw_exit(&zfs_snapshot_lock);
-	}
-
-	zfsctl_snapshot_rele(se);
-
-	return (err);
-#endif
 }
-
-#if 0
-int
-zfsctl_snapshot_mount(struct path *path, int flags, struct vfsmount **mntp)
-{
-	struct dentry *dentry = path->dentry;
-	struct inode *ip = dentry->d_inode;
-	zfsvfs_t *zfsvfs;
-	char *snapname;
-	struct fs_context *fc = NULL;
-	int error;
-
-	zfsvfs = ITOZSB(ip);
-	if ((error = zfs_enter(zfsvfs, FTAG)) != 0)
-		return (error);
-
-	snapname = kmem_zalloc(ZFS_MAX_DATASET_NAME_LEN, KM_SLEEP);
-	error = zfsctl_snapshot_name(zfsvfs, dname(dentry),
-	    ZFS_MAX_DATASET_NAME_LEN, snapname);
-	if (error)
-		goto error;
-
-	fc = fs_context_for_submount(path->mnt->mnt_sb->s_type, dentry);
-	if (IS_ERR(fc)) {
-		error = -PTR_ERR(fc);
-		fc = NULL;
-		goto error;
-	}
-
-	error = -vfs_parse_fs_string(fc, "source", snapname);
-	if (error != 0)
-		goto error;
-
-	struct vfsmount *mnt = fc_mount(fc);
-	if (IS_ERR(mnt)) {
-		error = -PTR_ERR(mnt);
-		goto error;
-	}
-
-	cmn_err(CE_NOTE, "zfsctl_snapshot_mount: "
-	    "snapname=%s dentry=%px [dname=%s mountpoint=%s refcnt=%u] "
-	    "mnt=%px dentry=%px [dname=%s mountpoint=%s refcnt=%u]",
-	    snapname, dentry, dname(dentry),
-	    d_mountpoint(dentry) ? "true" : "false", d_count(dentry),
-	    mnt, mnt->mnt_root, dname(mnt->mnt_root),
-	    d_mountpoint(mnt->mnt_root) ? "true" : "false",
-	    d_count(mnt->mnt_root));
-
-	*mntp = mnt;
-
-error:
-	if (fc != NULL)
-		put_fs_context(fc);
-
-	kmem_free(snapname, ZFS_MAX_DATASET_NAME_LEN);
-
-	zfs_exit(zfsvfs, FTAG);
-
-	return (error);
-}
-
-void
-zfsctl_snapshot_postmount(const char *snapname, struct dentry *dentry)
-{
-	cmn_err(CE_NOTE, "zfsctl_snapshot_postmount: "
-	    "snapname=%s dentry=%px [dname=%s mountpoint=%s refcnt=%u] "
-	    "parent dentry=%px [dname=%s mountpoint=%s refcnt=%u]",
-	    snapname, dentry, dname(dentry),
-	    d_mountpoint(dentry) ? "true" : "false", d_count(dentry),
-	    dentry->d_parent, dname(dentry->d_parent),
-	    d_mountpoint(dentry->d_parent) ? "true" : "false",
-	    d_count(dentry->d_parent));
-}
-#endif
 
 int
 zfsctl_snapshot_mount(struct path *path, int flags, struct vfsmount **mntp)
