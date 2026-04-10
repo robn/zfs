@@ -238,7 +238,7 @@ _zfs_snapentry_validate_path(zfs_snapentry_t *se, struct path *pathp)
 	ASSERT3P(se->se_dentry, !=, NULL);
 
 	if (!d_mountpoint(se->se_dentry)) {
-		zfs_snapentry_log(se, "not mountpoint, invalidated");
+		zfs_snapentry_log(se, "not mountpoint, invalid");
 		return (false);
 	}
 
@@ -251,7 +251,7 @@ _zfs_snapentry_validate_path(zfs_snapentry_t *se, struct path *pathp)
 	path_get(pathp);
 
 	if (!follow_down_one(pathp)) {
-		zfs_snapentry_log(se, "didn't find dentry under mount, invalidated");
+		zfs_snapentry_log(se, "didn't find dentry under mount, invalid");
 		path_put(pathp);
 		return (false);
 	}
@@ -331,12 +331,14 @@ _zfs_snapentry_detach(zfs_snapentry_t *se, bool idle)
 	struct path path;
 
 	if (!_zfs_snapentry_validate_path(se, &path)) {
+		zfs_snapentry_log(se, "invalid, proceeding to teardown");
 		_zfs_snapentry_teardown(se);
 		return;
 	}
 
 	if (idle && !may_umount_tree(path.mnt)) {
 		path_put(&path);
+		zfs_snapentry_log(se, "busy");
 		return;
 	}
 
