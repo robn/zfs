@@ -370,13 +370,37 @@ _zfs_snapentry_detach(zfs_snapentry_t *se, bool idle)
 	 * doesn't return until after the mount is dead (provided its not
 	 * busy), otherwise the mount will hold the dataset and so cause the
 	 * calling operation (eg `zfs destroy`) to fail with EBUSY.
+	 *
+	 * However, the thing mounted here may not be a ZFS dataset, if
+	 * userspace has moved something else to this position. Messing inside
+	 * someone else's mount is high danger, so we ensure its really ours
+	 * before we fiddle with it.
+	 *
+	 * This does mean that for things that aren't our mount, they may
+	 * be delayed until after we return, and so a call may fail with EBUSY.
+	 * That's ok in this case; userspace has done something weird; they
+	 * will have to find their own way out of it.
 	 */
-	/*
-	 * XXX TODO: don't set this if this is not a ZFS mount; userspace can
-	 *     legitimately move a foreign mount onto this slot, and we
-	 *     shouldn't go messing inside it.
-	 */
-	path.mnt->mnt_flags |= MNT_INTERNAL;
+	bool is_our_mount = false;
+	if (path.mnt->mnt_sb->s_type == &zpl_fs_type) {
+		zfsvfs_t *zfsvfs = path.mnt->mnt_sb->s_fs_info;
+		spa_t *spa = zfsvfs->z_os->os_spa;
+		uint64_t objsetid = dmu_objset_id(zfsvfs->z_os);
+		if (se->se_spa == spa && se->se_objsetid == objsetid) {
+			is_our_mount = true;
+		}
+	}
+
+	zfs_snapentry_log(se, "%s our mount", is_our_mount ? "is" : "is not");
+
+	if (idle && !is_our_mount) {
+		path_put(&path);
+		zfs_snapentry_log(se, "not ours, busy");
+		return;
+	}
+
+	if (is_our_mount)
+		path.mnt->mnt_flags |= MNT_INTERNAL;
 	path_put(&path);
 
 	struct dentry *dentry = se->se_dentry;
@@ -386,7 +410,8 @@ _zfs_snapentry_detach(zfs_snapentry_t *se, bool idle)
 
 	d_invalidate(dentry);
 
-	exportfs_flush(); /* XXX delay a moment? */
+	if (is_our_mount)
+		exportfs_flush(); /* XXX delay a moment? */
 
 	mutex_enter(&se->se_mtx);
 	ASSERT3U(se->se_state, ==, SE_DETACHING);
