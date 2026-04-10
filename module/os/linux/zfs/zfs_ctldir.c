@@ -597,6 +597,8 @@ zfsctl_snapshot_expire_delay(zfs_snapentry_t *se, int delay)
 	if (se->se_taskqid != TASKQID_INVALID)
 		return;
 
+	zfs_snapentry_log(se, "arming timer: delay=%d", delay);
+
 	zfsctl_snapshot_hold(se);
 	se->se_taskqid = taskq_dispatch_delay(system_delay_taskq,
 	    zfsctl_snapshot_expire_task, se, TQ_SLEEP,
@@ -681,30 +683,29 @@ zfsctl_snapshot_expire_cancel(zfs_snapentry_t *se)
 int
 zfsctl_snapshot_unmount_delay(spa_t *spa, uint64_t objsetid, int delay)
 {
-	(void) spa, (void) objsetid, (void) delay;
-	return (0);
-
-#if 0
-	/* XXX same confusion as above */
-
 	zfs_snapentry_t *se;
 
-	rw_enter(&zfs_snapshot_lock, RW_WRITER);
+	rw_enter(&zfs_snapshot_lock, RW_READER);
 	se = zfsctl_snapshot_find_by_objsetid(spa, objsetid);
 	rw_exit(&zfs_snapshot_lock);
 
 	if (se == NULL)
 		return (SET_ERROR(ENOENT));
 
-	mutex_enter(&se->se_expire_lock);
+	mutex_enter(&se->se_mtx);
+	zfs_snapentry_wait(se);
+	if (se->se_state == SE_DEAD) {
+		mutex_exit(&se->se_mtx);
+		return (SET_ERROR(ENOENT));
+	}
+
 	zfsctl_snapshot_expire_cancel(se);
 	zfsctl_snapshot_expire_delay(se, delay);
-	mutex_exit(&se->se_expire_lock);
+	mutex_exit(&se->se_mtx);
 
 	zfsctl_snapshot_rele(se);
 
 	return (0);
-#endif
 }
 
 /*
