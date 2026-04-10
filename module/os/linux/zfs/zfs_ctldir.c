@@ -263,6 +263,7 @@ _zfs_snapentry_validate_path(zfs_snapentry_t *se, struct path *pathp)
 }
 
 static void zfsctl_snapshot_remove(zfs_snapentry_t *se);
+static void zfsctl_snapshot_expire_cancel(zfs_snapentry_t *se);
 
 static void
 _zfs_snapentry_teardown(zfs_snapentry_t *se)
@@ -279,7 +280,7 @@ _zfs_snapentry_teardown(zfs_snapentry_t *se)
 	se->se_pmnt = NULL;
 	se->se_dentry = NULL;
 
-	/* XXX pretty sure cancel expiry here too */
+	zfsctl_snapshot_expire_cancel(se);
 
 	/*
 	 * XXX safe? we don't want to drop lock without a state change, so
@@ -644,13 +645,6 @@ zfsctl_snapshot_expire_task(void *data)
 	zfsctl_snapshot_rele(se);
 }
 
-#if 0
-/*
- * XXX not sure what this means yet. maybe it should be cancelled as a
- *     side-effect of unmounting etc. does mean that the bump has to cancel
- *     and rearm, but not sure
- */
-
 /*
  * Cancel an automatic unmount of a snapname.  This callback is responsible
  * for dropping the reference on the zfs_snapentry_t which was taken when
@@ -659,7 +653,12 @@ zfsctl_snapshot_expire_task(void *data)
 static void
 zfsctl_snapshot_expire_cancel(zfs_snapentry_t *se)
 {
-	ASSERT(MUTEX_HELD(&se->se_expire_lock));
+	ASSERT(MUTEX_HELD(&se->se_mtx));
+
+	if (se->se_taskqid == TASKQID_INVALID)
+		return;
+
+	zfs_snapentry_log(se, "disarming timer");
 
 	int err = taskq_cancel_id(system_delay_taskq, se->se_taskqid, B_FALSE);
 	/*
@@ -672,7 +671,6 @@ zfsctl_snapshot_expire_cancel(zfs_snapentry_t *se)
 		zfsctl_snapshot_rele(se);
 	}
 }
-#endif
 
 /*
  * Schedule an automatic unmount of objset id to occur in delay seconds from
