@@ -596,35 +596,6 @@ zfsctl_snapshot_find_by_objsetid(spa_t *spa, uint64_t objsetid)
 }
 
 /*
- * Rename a zfs_snapentry_t in the zfs_snapshots_by_name.  The structure is
- * removed, renamed, and added back to the new correct location in the tree.
- */
-static int
-zfsctl_snapshot_rename(const char *old_snapname, const char *new_snapname)
-{
-	zfs_snapentry_t *se;
-
-	ASSERT(RW_WRITE_HELD(&zfs_snapshot_lock));
-
-	se = zfsctl_snapshot_find_by_name(old_snapname);
-	if (se == NULL)
-		return (SET_ERROR(ENOENT));
-	if (se->se_spa == NULL) {
-		/* Snapshot mount is in progress */
-		zfsctl_snapshot_rele(se);
-		return (SET_ERROR(EBUSY));
-	}
-
-	zfsctl_snapshot_remove(se);
-	kmem_strfree(se->se_name);
-	se->se_name = kmem_strdup(new_snapname);
-	zfsctl_snapshot_add(se);
-	zfsctl_snapshot_rele(se);
-
-	return (0);
-}
-
-/*
  * Dispatch the unmount task for delayed handling with a hold protecting it.
  */
 static void zfsctl_snapshot_expire_task(void *);
@@ -1271,13 +1242,82 @@ zfsctl_snapdir_rename(struct inode *sdip, const char *snm,
 		goto out;
 	}
 
+	/*
+	 * For the rename proper, we need to ensure the that all snapentry
+	 * names remain where they are until we change them. That means the
+	 * write lock.
+	 */
+retry:
 	rw_enter(&zfs_snapshot_lock, RW_WRITER);
+	zfs_snapentry_t *se = zfsctl_snapshot_find_by_name(snm);
 
+	if (se != NULL) {
+		/*
+		 * If the old entry exists (almost certainly, but might have
+		 * been expired since the call was made), we need to make sure
+		 * its in a safe state before we change its name. To check
+		 * state we must take se_mtx, but to avoid an inversion we have
+		 * to drop the snapshot lock first.
+		 */
+		rw_exit(&zfs_snapshot_lock);
+
+		/* Take lock, and wait for a stable state */
+		mutex_enter(&se->se_mtx);
+		zfs_snapentry_wait(se);
+
+		if (se->se_state == SE_DEAD) {
+			/*
+			 * While locks were down, it was removed from the
+			 * global list. Drop locks and go around again, in
+			 * case a new entry was created for the old name.
+			 */
+			mutex_exit(&se->se_mtx);
+			zfsctl_snapshot_rele(se);
+			goto retry;
+		}
+
+		/*
+		 * snapentry is in the MOUNTED state, and can't move while
+		 * we have se_mtx. Pick up the snapshot lock again to protect
+		 * the new name as well.
+		 */
+		rw_enter(&zfs_snapshot_lock, RW_WRITER);
+	}
+
+	/* Rename the snapshot proper. */
 	error = dsl_dataset_rename_snapshot(fsname, snm, tnm, B_FALSE);
-	if (error == 0)
-		(void) zfsctl_snapshot_rename(snm, tnm);
 
+	if (error == 0 && se != NULL) {
+		/* Success, now rename the snapshot entry proper. */
+		ASSERT3U(se->se_state, ==, SE_MOUNTED);
+
+		/*
+		 * The new name can't be on the global lists already; the
+		 * target name didn't already exist or
+		 * dsl_dataset_rename_snapshot() would have failed, and there
+		 * can't be any left over from a previous generation of that
+		 * name, because they would have unmounted and removed when
+		 * the name was released. Still, it's tricky, so lets assert
+		 * that.
+		 */
+		ASSERT0P(zfsctl_snapshot_find_by_name(tnm));
+
+		/* Remove entry, change the name, and put it back. */
+		zfsctl_snapshot_remove(se);
+		kmem_strfree(se->se_name);
+		se->se_name = kmem_strdup(tnm);
+		zfsctl_snapshot_add(se);
+	}
+
+	/* Make the new name visible. */
 	rw_exit(&zfs_snapshot_lock);
+
+	if (se != NULL) {
+		/* Release the entry. */
+		mutex_exit(&se->se_mtx);
+		zfsctl_snapshot_rele(se);
+	}
+
 out:
 	kmem_free(from, ZFS_MAX_DATASET_NAME_LEN);
 	kmem_free(to, ZFS_MAX_DATASET_NAME_LEN);
