@@ -743,6 +743,7 @@ zfsctl_snapshot_unmount_delay(spa_t *spa, uint64_t objsetid, int delay)
 	zfs_snapentry_wait(se);
 	if (se->se_state == SE_DEAD) {
 		mutex_exit(&se->se_mtx);
+		zfsctl_snapshot_rele(se);
 		return (SET_ERROR(ENOENT));
 	}
 
@@ -1469,8 +1470,10 @@ zfsctl_snapshot_mount(struct path *path, int flags, struct vfsmount **mntp)
 	snapname = kmem_zalloc(ZFS_MAX_DATASET_NAME_LEN, KM_SLEEP);
 	err = zfsctl_snapshot_name(zfsvfs, dname(dentry),
 	    ZFS_MAX_DATASET_NAME_LEN, snapname);
-	if (err != 0)
+	if (err != 0) {
+		zfs_exit(zfsvfs, FTAG);
 		goto out;
+	}
 
 	/*
 	 * Release z_teardown_lock before potentially blocking operations
