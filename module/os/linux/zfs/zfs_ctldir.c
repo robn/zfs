@@ -274,7 +274,6 @@ _zfs_snapentry_teardown(zfs_snapentry_t *se)
 
 	ASSERT3P(se->se_dentry, !=, NULL);
 
-	struct vfsmount *pmnt = se->se_pmnt;
 	struct dentry *dentry = se->se_dentry;
 
 	se->se_pmnt = NULL;
@@ -296,7 +295,6 @@ _zfs_snapentry_teardown(zfs_snapentry_t *se)
 	mutex_exit(&se->se_mtx);
 
 	dput(dentry);
-	mntput(pmnt);
 
 	mutex_enter(&se->se_mtx);
 	ASSERT3U(se->se_state, ==, SE_DEAD);
@@ -893,7 +891,39 @@ zfsctl_destroy(zfsvfs_t *zfsvfs)
 			cmn_err(CE_NOTE, "zfsctl_destroy: snap spa=%s objsetid=%llu no snapentry", spa_name(spa), objsetid);
 		}
 	} else if (zfsvfs->z_ctldir) {
-		cmn_err(CE_NOTE, "zfsctl_destroy: iput ctldir");
+		char dsname[ZFS_MAX_DATASET_NAME_LEN];
+		dmu_objset_name(zfsvfs->z_os, dsname);
+		size_t dsnamelen = strlen(dsname);
+
+		cmn_err(CE_NOTE, "zfsctl_destroy: dsname=%s: detaching snapshots", dsname);
+
+		rw_enter(&zfs_snapshot_lock, RW_READER);
+		zfs_snapentry_t *se = avl_first(&zfs_snapshots_by_name);
+
+		while (se != NULL) {
+			if (strncmp(se->se_name, dsname, dsnamelen) != 0 ||
+			    se->se_name[dsnamelen] != '@') {
+				se = AVL_NEXT(&zfs_snapshots_by_name, se);
+				continue;
+			}
+
+			zfsctl_snapshot_hold(se);
+			rw_exit(&zfs_snapshot_lock);
+
+			mutex_enter(&se->se_mtx);
+			zfs_snapentry_wait(se);
+			zfs_snapentry_detach(se);
+			mutex_exit(&se->se_mtx);
+
+			zfsctl_snapshot_rele(se);
+
+			rw_enter(&zfs_snapshot_lock, RW_READER);
+			se = avl_first(&zfs_snapshots_by_name);
+		}
+
+		rw_exit(&zfs_snapshot_lock);
+
+		cmn_err(CE_NOTE, "zfsctl_destroy: dsname=%s: collapsing snapdir", dsname);
 		iput(zfsvfs->z_ctldir);
 		zfsvfs->z_ctldir = NULL;
 	}
@@ -1546,7 +1576,7 @@ retry_mount:
 	rw_exit(&zfs_snapshot_lock);
 
 	mutex_enter(&se->se_mtx);
-	se->se_pmnt = mntget(path->mnt);
+	se->se_pmnt = path->mnt;
 	se->se_dentry = dget(dentry);
 
 	zfsctl_snapshot_expire_delay(se, zfs_expire_snapshot);
