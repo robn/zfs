@@ -171,10 +171,10 @@ zpl_snapdir_automount(struct path *path)
 	struct vfsmount *mntp = NULL;
 	int error;
 
-	cmn_err(CE_NOTE, "zpl_snapdir_automount: %s:%d: starting automount", getcomm(), getpid());
+	//cmn_err(CE_NOTE, "zpl_snapdir_automount: %s:%d: starting automount", getcomm(), getpid());
 
 	error = -zfsctl_snapshot_mount(path, 0, &mntp);
-	cmn_err(CE_NOTE, "zpl_snapdir_automount: %s:%d: returning: err=%d mntp=%px", getcomm(), getpid(), error, mntp);
+	//cmn_err(CE_NOTE, "zpl_snapdir_automount: %s:%d: returning: err=%d mntp=%px", getcomm(), getpid(), error, mntp);
 	if (error)
 		return (ERR_PTR(error));
 

@@ -145,9 +145,11 @@ typedef enum {
 	SE_DEAD,	/* to be destroyed when last hold released */
 } zfs_snapentry_state_t;
 
+#ifdef SNAPENTRY_DEBUG
 static const char *se_state_str[] = {
 	"MOUNTING", "MOUNTED", "DETACHING", "DEAD",
 };
+#endif
 
 typedef struct {
 	char		*se_name;	/* full snapshot name */
@@ -168,6 +170,7 @@ typedef struct {
 	taskqid_t	se_taskqid;	/* scheduled expire taskqid */
 } zfs_snapentry_t;
 
+#ifdef SNAPENTRY_DEBUG
 static void
 _zfs_snapentry_debug(zfs_snapentry_t *se, const char *act,
     const char *func, int line)
@@ -207,6 +210,11 @@ _zfs_snapentry_debug(zfs_snapentry_t *se, const char *act,
 
 #define	zfs_snapentry_log(se, fmt, ...)		\
 	cmn_err(CE_NOTE, "%s: se=%px: " fmt, __FUNCTION__, se, ##__VA_ARGS__)
+#else
+#define	zfs_snapentry_debug(se)
+#define	zfs_snapentry_debug_act(se, act)
+#define	zfs_snapentry_log(se, fmt, ...)
+#endif
 
 static void
 zfs_snapentry_wait(zfs_snapentry_t *se)
@@ -887,7 +895,9 @@ zfsctl_destroy(zfsvfs_t *zfsvfs)
 		rw_exit(&zfs_snapshot_lock);
 
 		if (se != NULL) {
+#ifdef SNAPENTRY_DEBUG
 			cmn_err(CE_NOTE, "zfsctl_destroy: se=%px state=%d", se, se->se_state);
+#endif
 
 			mutex_enter(&se->se_mtx);
 			/*
@@ -903,14 +913,18 @@ zfsctl_destroy(zfsvfs_t *zfsvfs)
 
 			zfsctl_snapshot_rele(se);
 		} else {
+#ifdef SNAPENTRY_DEBUG
 			cmn_err(CE_NOTE, "zfsctl_destroy: snap spa=%s objsetid=%llu no snapentry", spa_name(spa), objsetid);
+#endif
 		}
 	} else if (zfsvfs->z_ctldir) {
 		char dsname[ZFS_MAX_DATASET_NAME_LEN];
 		dmu_objset_name(zfsvfs->z_os, dsname);
 		size_t dsnamelen = strlen(dsname);
 
+#ifdef SNAPENTRY_DEBUG
 		cmn_err(CE_NOTE, "zfsctl_destroy: dsname=%s: detaching snapshots", dsname);
+#endif
 
 		rw_enter(&zfs_snapshot_lock, RW_READER);
 		zfs_snapentry_t *se = avl_first(&zfs_snapshots_by_name);
@@ -938,7 +952,9 @@ zfsctl_destroy(zfsvfs_t *zfsvfs)
 
 		rw_exit(&zfs_snapshot_lock);
 
+#ifdef SNAPENTRY_DEBUG
 		cmn_err(CE_NOTE, "zfsctl_destroy: dsname=%s: collapsing snapdir", dsname);
+#endif
 		iput(zfsvfs->z_ctldir);
 		zfsvfs->z_ctldir = NULL;
 	}
@@ -1451,13 +1467,17 @@ zfsctl_snapshot_unmount(const char *snapname, int flags)
 {
 	zfs_snapentry_t *se;
 
+#ifdef SNAPENTRY_DEBUG
 	cmn_err(CE_NOTE, "zfsctl_snapshot_unmount: snapname=%s flags=%04x",
 	    snapname, flags);
+#endif
 
 	rw_enter(&zfs_snapshot_lock, RW_READER);
 	if ((se = zfsctl_snapshot_find_by_name(snapname)) == NULL) {
+#ifdef SNAPENTRY_DEBUG
 		cmn_err(CE_NOTE, "zfsctl_snapshot_unmount: snapname=%s: "
 		    "not found", snapname);
+#endif
 		rw_exit(&zfs_snapshot_lock);
 		return (SET_ERROR(ENOENT));
 	}
