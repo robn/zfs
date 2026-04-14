@@ -36,6 +36,7 @@
 #include <sys/dmu.h>
 #include <sys/dsl_dataset.h>
 #include <sys/zap.h>
+#include <linux/version.h>
 
 /*
  * Common open routine.  Disallow any write access.
@@ -177,6 +178,23 @@ zpl_snapdir_automount(struct path *path)
 	//cmn_err(CE_NOTE, "zpl_snapdir_automount: %s:%d: returning: err=%d mntp=%px", getcomm(), getpid(), error, mntp);
 	if (error)
 		return (ERR_PTR(error));
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 16, 0)
+	/*
+	 * XXX before:
+	 *   006ff7498fe89 saner calling conventions for ->d_automount()
+	 *
+	 * d_automount() is expected to return a mount with _two_ refs; the
+	 * extra prevents an immediate expiry before the mount is grafted.
+	 * finish_automount() will BUG() if its <2, and will release the extra
+	 * when its done, so take an extra here.
+	 *
+	 * haven't looked to see if there's a way we can detect this
+	 * specifically. if not, check RHEL8/9 version numbering for backport
+	 *   -- robn, 2026-04-14
+	 */
+	mntget(mntp);
+#endif
 
 	return (mntp);
 }
