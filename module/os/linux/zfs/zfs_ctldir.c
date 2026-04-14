@@ -1499,6 +1499,15 @@ zfsctl_snapshot_unmount(const char *snapname, int flags)
 	return (err);
 }
 
+/* 6.18 compat: 4th arg removed; function will do strlen() internally. */
+#ifdef HAVE_VFS_PARSE_FS_STRING_3ARGS
+#define	zpl_vfs_parse_fs_string(fc, key, val)	\
+	vfs_parse_fs_string((fc), (key), (val))
+#else
+#define	zpl_vfs_parse_fs_string(fc, key, val)	\
+	vfs_parse_fs_string((fc), (key), (val), strlen(val))
+#endif
+
 int
 zfsctl_snapshot_mount(struct path *path, int flags, struct vfsmount **mntp)
 {
@@ -1580,7 +1589,7 @@ retry_mount:
 		goto out;
 	}
 
-	err = -vfs_parse_fs_string(fc, "source", snapname);
+	err = -zpl_vfs_parse_fs_string(fc, "source", snapname);
 	if (err != 0) {
 		put_fs_context(fc);
 		goto out;
