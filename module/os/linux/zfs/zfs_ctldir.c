@@ -494,6 +494,7 @@ zfsctl_snapshot_rele(zfs_snapentry_t *se)
 		zfsctl_snapshot_free(se);
 }
 
+#ifdef SNAPENTRY_DEBUG_DUMP
 static void
 zfsctl_snapshot_dump(void)
 {
@@ -503,6 +504,7 @@ zfsctl_snapshot_dump(void)
 		zfs_snapentry_debug(se);
 	rw_exit(&zfs_snapshot_lock);
 }
+#endif
 
 /*
  * Add a zfs_snapentry_t to the zfs_snapshots_by_name tree.  If the entry
@@ -1786,6 +1788,7 @@ zfsctl_shares_lookup(struct inode *dip, char *name, struct inode **ipp,
 	return (error);
 }
 
+#ifdef SNAPENTRY_DEBUG_DUMP
 taskqid_t dumptask = TASKQID_INVALID;
 
 static void
@@ -1798,6 +1801,7 @@ snapshot_dump_task(void *data)
 	dumptask = taskq_dispatch_delay(system_delay_taskq,
 	    snapshot_dump_task, NULL, TQ_SLEEP, ddi_get_lbolt() + 5 * HZ);
 }
+#endif
 
 /*
  * Initialize the various pieces we'll need to create and manipulate .zfs
@@ -1814,8 +1818,10 @@ zfsctl_init(void)
 	    se_node_objsetid));
 	rw_init(&zfs_snapshot_lock, NULL, RW_DEFAULT, NULL);
 
+#ifdef SNAPENTRY_DEBUG_DUMP
 	dumptask = taskq_dispatch_delay(system_delay_taskq,
 	    snapshot_dump_task, NULL, TQ_SLEEP, ddi_get_lbolt() + 5 * HZ);
+#endif
 }
 
 /*
@@ -1825,7 +1831,9 @@ zfsctl_init(void)
 void
 zfsctl_fini(void)
 {
+#ifdef SNAPENTRY_DEBUG_DUMP
 	taskq_cancel_id(system_delay_taskq, dumptask, B_FALSE);
+#endif
 
 	avl_destroy(&zfs_snapshots_by_name);
 	avl_destroy(&zfs_snapshots_by_objsetid);
