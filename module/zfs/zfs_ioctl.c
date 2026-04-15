@@ -4250,6 +4250,8 @@ zfs_destroy_unmount_origin(const char *fsname)
 		char originname[ZFS_MAX_DATASET_NAME_LEN];
 		dsl_dataset_name(ds->ds_prev, originname);
 		dmu_objset_rele(os, FTAG);
+		cmn_err(CE_NOTE, "zfs_destroy_unmount_origin: "
+		    "requesting unmount: name=%s", fsname);
 		zfs_unmount_snap(originname);
 	} else {
 		dmu_objset_rele(os, FTAG);
@@ -4294,6 +4296,8 @@ zfs_ioc_destroy_snaps(const char *poolname, nvlist_t *innvl, nvlist_t *outnvl)
 		    (name[poollen] != '/' && name[poollen] != '@'))
 			return (SET_ERROR(EXDEV));
 
+		cmn_err(CE_NOTE, "zfs_ioc_destroy_snaps: "
+		    "requesting unmount: name=%s", nvpair_name(pair));
 		zfs_unmount_snap(nvpair_name(pair));
 		if (spa_open(name, &spa, FTAG) == 0) {
 			zvol_remove_minors(spa, name, B_TRUE);
@@ -4564,8 +4568,11 @@ zfs_ioc_destroy(zfs_cmd_t *zc)
 	ost = dmu_objset_type(os);
 	dmu_objset_rele(os, FTAG);
 
-	if (ost == DMU_OST_ZFS)
+	if (ost == DMU_OST_ZFS) {
+		cmn_err(CE_NOTE, "zfs_ioc_destroy: "
+		    "requesting unmount: name=%s", zc->zc_name);
 		zfs_unmount_snap(zc->zc_name);
+	}
 
 	if (strchr(zc->zc_name, '@')) {
 		err = dsl_destroy_snapshot(zc->zc_name, zc->zc_defer_destroy);
@@ -5013,6 +5020,8 @@ recursive_unmount(const char *fsname, void *arg)
 	char *fullname;
 
 	fullname = kmem_asprintf("%s@%s", fsname, snapname);
+	cmn_err(CE_NOTE, "recursive_unmount: "
+	    "requesting unmount: name=%s", fullname);
 	zfs_unmount_snap(fullname);
 	kmem_strfree(fullname);
 
@@ -5095,9 +5104,13 @@ zfs_ioc_rename(zfs_cmd_t *zc)
 			return (SET_ERROR(EXDEV));
 		*at = '\0';
 		if (ost == DMU_OST_ZFS && !nounmount) {
+			cmn_err(CE_NOTE, "zfs_ioc_rename: starting unmount: "
+			    "root=%s", zc->zc_name);
 			error = dmu_objset_find(zc->zc_name,
 			    recursive_unmount, at + 1,
 			    recursive ? DS_FIND_CHILDREN : 0);
+			cmn_err(CE_NOTE, "zfs_ioc_rename: finished unmount: "
+			    "root=%s [err=%d]", zc->zc_name, error);
 			if (error != 0) {
 				*at = '@';
 				return (error);
@@ -6600,8 +6613,10 @@ zfs_ioc_promote(zfs_cmd_t *zc)
 	cp = strchr(origin, '@');
 	if (cp)
 		*cp = '\0';
+	cmn_err(CE_NOTE, "zfs_ioc_promote: starting unmount: root=%s", origin);
 	(void) dmu_objset_find(origin,
 	    zfs_unmount_snap_cb, NULL, DS_FIND_SNAPSHOTS);
+	cmn_err(CE_NOTE, "zfs_ioc_promote: finished unmount: root=%s", origin);
 	return (dsl_dataset_promote(zc->zc_name, zc->zc_string));
 }
 

@@ -1476,6 +1476,9 @@ zfsctl_snapshot_unmount(const char *snapname, int flags)
 	mutex_exit(&se->se_mtx);
 	zfsctl_snapshot_rele(se);
 
+	cmn_err(CE_NOTE, "zfsctl_snapshot_unmount: snapname=%s: return=%d",
+	    snapname, err);
+
 	return (err);
 }
 
