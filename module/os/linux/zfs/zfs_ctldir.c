@@ -419,6 +419,7 @@ _zfs_snapentry_detach(zfs_snapentry_t *se, bool idle)
 
 	cmn_err(CE_NOTE, "_zfs_snapentry_detach: se=%px dentry=%px: d_invalidate call", se, dentry);
 	d_invalidate(dentry);
+	__flush_workqueue(system_wq);
 	cmn_err(CE_NOTE, "_zfs_snapentry_detach: se=%px dentry-%px: d_invalidate return", se, dentry);
 
 	if (is_our_mount)
