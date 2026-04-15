@@ -401,6 +401,7 @@ _zfs_snapentry_detach(zfs_snapentry_t *se, bool idle)
 
 	if (is_our_mount)
 		path.mnt->mnt_flags |= MNT_INTERNAL;
+	cmn_err(CE_NOTE, "_zfs_snapentry_detach: se=%px dentry=%px mnt=%px [flags=%08x]", se, se->se_dentry, path.mnt, path.mnt->mnt_flags);
 	path_put(&path);
 
 	struct dentry *dentry = se->se_dentry;
@@ -408,7 +409,17 @@ _zfs_snapentry_detach(zfs_snapentry_t *se, bool idle)
 	zfs_snapentry_change_state(se, SE_DETACHING);
 	mutex_exit(&se->se_mtx);
 
+	spin_lock(&dentry->d_lock);
+	if (d_unhashed(dentry)) {
+		cmn_err(CE_NOTE, "_zfs_snapentry_detach: se=%px dentry=%px: already unhashed", se, dentry);
+	} else if (!dentry->d_inode) {
+		cmn_err(CE_NOTE, "_zfs_snapentry_detach: se=%px dentry=%px: negative inode", se, dentry);
+	}
+	spin_unlock(&dentry->d_lock);
+
+	cmn_err(CE_NOTE, "_zfs_snapentry_detach: se=%px dentry=%px: d_invalidate call", se, dentry);
 	d_invalidate(dentry);
+	cmn_err(CE_NOTE, "_zfs_snapentry_detach: se=%px dentry-%px: d_invalidate return", se, dentry);
 
 	if (is_our_mount)
 		exportfs_flush(); /* XXX delay a moment? */
@@ -1595,6 +1606,8 @@ retry_mount:
 		}
 		goto out;
 	}
+
+	cmn_err(CE_NOTE, "zfsctl_snapshout_mount: path=%px [mnt=%px flags=%08x] mnt=%px [flags=%08x]", path, path->mnt, path->mnt->mnt_flags, mnt, mnt->mnt_flags);
 
 	/*
 	 * XXX ideally, we would do this here:
