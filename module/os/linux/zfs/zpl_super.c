@@ -154,7 +154,7 @@ zpl_put_super(struct super_block *sb)
 	fstrans_cookie_t cookie;
 	int error;
 
-	//cmn_err(CE_NOTE, "zpl_put_super: sb=%px", sb);
+	cmn_err(CE_NOTE, "zpl_put_super: sb=%px", sb);
 	//spl_dumpstack();
 
 	cookie = spl_fstrans_mark();
