@@ -166,6 +166,91 @@ const struct inode_operations zpl_ops_root = {
 	.getattr	= zpl_root_getattr,
 };
 
+static int
+zpl_snapdir_manage(const struct path *path, bool rcu_walk)
+{
+	struct dentry *dentry = path->dentry;
+
+	if (rcu_walk) {
+		/*
+		 * XXX per autofs.rst, we are in RCU-walk mode and can return:
+		 *
+		 *       0: nothing special, continue with mount & automount
+		 *
+		 *       -EISDIR: ignore mounts, do not automount,
+		 *                disables "mount-trap" behaviour
+		 *
+		 *       -ECHILD: unsafe to enter (eg mount in progress), fall
+		 *                back to REF-walk
+		 *
+		 *       anything else: returned to caller
+		 *
+		 *     importantly, we can't block here.
+		 */
+		/*
+		 * XXX maybe we can do a "light" mount check (d_mountpoint()
+		 *     vs path_is_mountpoint()) here?
+		 */
+		cmn_err(CE_NOTE, "zpl_snapdir_manage: dname=%s: "
+		    "in RCU walk, requesting management", dname(dentry));
+		return (-ECHILD);
+	}
+
+	if (path_is_mountpoint(path)) {
+		cmn_err(CE_NOTE, "zpl_snapdir_manage: dname=%s "
+		    "mountpoint active: mnt=%px flags=%08x",
+		    dname(dentry), path->mnt, path->mnt->mnt_flags);
+		return (0);
+	}
+
+	spin_lock(&dentry->d_lock);
+	if (dentry->d_fsdata == current) {
+		spin_unlock(&dentry->d_lock);
+		cmn_err(CE_NOTE, "zpl_snapdir_manage: dname=%s: "
+		    "recursive entry; allowing to proceed to automount",
+		    dname(dentry));
+		return (0);
+	} else if (dentry->d_fsdata != NULL) {
+		/* XXX another task is doing automount; block until its done */
+		spin_unlock(&dentry->d_lock);
+		cmn_err(CE_NOTE, "zpl_snapdir_manage: dname=%s: "
+		    "automount in progress; abandon walk", dname(dentry));
+		return (-EBUSY);
+	}
+	dentry->d_fsdata = current;
+	spin_unlock(&dentry->d_lock);
+
+	cmn_err(CE_NOTE, "zpl_snapdir_manage: dname=%s: "
+	    "triggering automount", dname(dentry));
+
+	struct path am_path = *path;
+	path_get(&am_path);
+	int err = follow_down(&am_path, LOOKUP_AUTOMOUNT);
+	if (err != 0) {
+		path_put(&am_path);
+		cmn_err(CE_NOTE, "zpl_snapdir_manage: dname=%s err=%d: "
+		    "follow_down for automount failed", dname(dentry), -err);
+		goto out;
+	}
+
+	cmn_err(CE_NOTE, "zpl_snapdir_manage: "
+	    "orig path [mnt=%px dentry=%px dname=%s] "
+	    "new path [mnt=%px dentry=%px dname=%s]",
+	    path->mnt, path->dentry, dname(path->dentry),
+	    am_path.mnt, am_path.dentry, dname(am_path.dentry));
+
+	am_path.mnt->mnt_flags |= MNT_NOSUID;
+
+	path_put(&am_path);
+
+out:
+	spin_lock(&dentry->d_lock);
+	dentry->d_fsdata = NULL;
+	spin_unlock(&dentry->d_lock);
+
+	return (err);
+}
+
 static struct vfsmount *
 zpl_snapdir_automount(struct path *path)
 {
@@ -226,6 +311,7 @@ static const struct dentry_operations zpl_dops_snapdirs = {
  * name space.  While it might be possible to add compatibility
  * code to accomplish this it would require considerable care.
  */
+	.d_manage	= zpl_snapdir_manage,
 	.d_automount	= zpl_snapdir_automount,
 	.d_revalidate	= zpl_snapdir_revalidate,
 };
@@ -296,7 +382,8 @@ zpl_snapdir_lookup(struct inode *dip, struct dentry *dentry,
 		return (ERR_PTR(error));
 
 	ASSERT(error == 0 || ip == NULL);
-	set_snapdir_dentry_ops(dentry, DCACHE_NEED_AUTOMOUNT);
+	set_snapdir_dentry_ops(dentry,
+	    DCACHE_MANAGE_TRANSIT | DCACHE_NEED_AUTOMOUNT);
 	return (d_splice_alias(ip, dentry));
 }
 
