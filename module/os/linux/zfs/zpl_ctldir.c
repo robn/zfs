@@ -166,10 +166,21 @@ const struct inode_operations zpl_ops_root = {
 	.getattr	= zpl_root_getattr,
 };
 
+typedef struct {
+	kmutex_t		sd_mtx;
+	kcondvar_t		sd_cv;
+
+	struct dentry		*sd_dentry;
+
+	struct task_struct	*sd_mount_task;
+} zpl_snapdir_t;
+
 static int
 zpl_snapdir_manage(const struct path *path, bool rcu_walk)
 {
 	struct dentry *dentry = path->dentry;
+	zpl_snapdir_t *sd = dentry->d_fsdata;
+	ASSERT3P(sd->sd_dentry, ==, dentry);
 
 	if (rcu_walk) {
 		/*
@@ -196,29 +207,29 @@ zpl_snapdir_manage(const struct path *path, bool rcu_walk)
 		return (-ECHILD);
 	}
 
+	mutex_enter(&sd->sd_mtx);
+	if (sd->sd_mount_task == current) {
+		mutex_exit(&sd->sd_mtx);
+		cmn_err(CE_NOTE, "zpl_snapdir_manage: dname=%s: "
+		    "recursive entry; allowing to proceed to automount",
+		    dname(dentry));
+		return (0);
+	}
+	while (sd->sd_mount_task != NULL) {
+		cmn_err(CE_NOTE, "zpl_snapdir_manage: dname=%s: "
+		    "automount in progress; waiting", dname(dentry));
+		cv_wait(&sd->sd_cv, &sd->sd_mtx);
+	}
+	sd->sd_mount_task = current;
+	mutex_exit(&sd->sd_mtx);
+
 	if (path_is_mountpoint(path)) {
+		/* XXX actually that its ours */
 		cmn_err(CE_NOTE, "zpl_snapdir_manage: dname=%s "
 		    "mountpoint active: mnt=%px flags=%08x",
 		    dname(dentry), path->mnt, path->mnt->mnt_flags);
 		return (0);
 	}
-
-	spin_lock(&dentry->d_lock);
-	if (dentry->d_fsdata == current) {
-		spin_unlock(&dentry->d_lock);
-		cmn_err(CE_NOTE, "zpl_snapdir_manage: dname=%s: "
-		    "recursive entry; allowing to proceed to automount",
-		    dname(dentry));
-		return (0);
-	} else if (dentry->d_fsdata != NULL) {
-		/* XXX another task is doing automount; block until its done */
-		spin_unlock(&dentry->d_lock);
-		cmn_err(CE_NOTE, "zpl_snapdir_manage: dname=%s: "
-		    "automount in progress; abandon walk", dname(dentry));
-		return (-EBUSY);
-	}
-	dentry->d_fsdata = current;
-	spin_unlock(&dentry->d_lock);
 
 	cmn_err(CE_NOTE, "zpl_snapdir_manage: dname=%s: "
 	    "triggering automount", dname(dentry));
@@ -244,9 +255,10 @@ zpl_snapdir_manage(const struct path *path, bool rcu_walk)
 	path_put(&am_path);
 
 out:
-	spin_lock(&dentry->d_lock);
+	mutex_enter(&sd->sd_mtx);
 	dentry->d_fsdata = NULL;
-	spin_unlock(&dentry->d_lock);
+	cv_broadcast(&sd->sd_cv);
+	mutex_exit(&sd->sd_mtx);
 
 	return (err);
 }
@@ -302,6 +314,27 @@ zpl_snapdir_revalidate(struct dentry *dentry, unsigned int flags)
 	return (!!dentry->d_inode);
 }
 
+static void
+zpl_snapdir_release(struct dentry *dentry)
+{
+	spin_lock(&dentry->d_lock);
+	zpl_snapdir_t *sd = dentry->d_fsdata;
+	dentry->d_fsdata = NULL;
+	spin_unlock(&dentry->d_lock);
+
+	/*
+	 * Release can be called more than once if part of the release was
+	 * deferred, so we might have already cleaned up. Do nothing if so.
+	 */
+	if (sd == NULL)
+		return;
+
+	ASSERT3P(dentry, ==, sd->sd_dentry);
+	mutex_destroy(&sd->sd_mtx);
+	cv_destroy(&sd->sd_cv);
+	kmem_free(sd, sizeof (zpl_snapdir_t));
+}
+
 static const struct dentry_operations zpl_dops_snapdirs = {
 /*
  * Auto mounting of snapshots is only supported for 2.6.37 and
@@ -314,6 +347,7 @@ static const struct dentry_operations zpl_dops_snapdirs = {
 	.d_manage	= zpl_snapdir_manage,
 	.d_automount	= zpl_snapdir_automount,
 	.d_revalidate	= zpl_snapdir_revalidate,
+	.d_release	= zpl_snapdir_release,
 };
 
 /*
@@ -382,6 +416,16 @@ zpl_snapdir_lookup(struct inode *dip, struct dentry *dentry,
 		return (ERR_PTR(error));
 
 	ASSERT(error == 0 || ip == NULL);
+
+	zpl_snapdir_t *sd = kmem_zalloc(sizeof (zpl_snapdir_t), KM_SLEEP);
+	mutex_init(&sd->sd_mtx, NULL, MUTEX_DEFAULT, NULL);
+	cv_init(&sd->sd_cv, NULL, CV_DEFAULT, NULL);
+	sd->sd_dentry = dentry;
+
+	spin_lock(&dentry->d_lock);
+	dentry->d_fsdata = sd;
+	spin_unlock(&dentry->d_lock);
+
 	set_snapdir_dentry_ops(dentry,
 	    DCACHE_MANAGE_TRANSIT | DCACHE_NEED_AUTOMOUNT);
 	return (d_splice_alias(ip, dentry));
