@@ -41,11 +41,13 @@ log_assert "CI-UN FS: delete succeeds using any name form"
 # Can delete using any case/normalization form
 create_testfs "-o casesensitivity=insensitive -o normalization=formD"
 
-for name1 in $NAMES_ALL ; do
-	for name2 in $NAMES_ALL ; do
-		log_must create_file $name1
-		log_must delete_file $name2
-		log_mustnot lookup_any
+for spec1 in $SPECS_ALL ; do
+	for spec2 in $SPECS_ALL ; do
+		log_must casenorm create $spec1 $TESTDIR
+		log_must casenorm delete $spec2 $TESTDIR
+		for spec3 in $SPECS_ALL ; do
+			log_mustnot casenorm lookup $spec3
+		done
 	done
 done
 

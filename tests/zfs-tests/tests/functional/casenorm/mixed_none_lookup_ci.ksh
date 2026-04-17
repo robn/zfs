@@ -40,27 +40,49 @@ log_assert "CM-not-UN FS: CI lookup succeeds only if (norm=same)"
 
 create_testfs "-o casesensitivity=mixed -o normalization=none"
 
-for name1 in $NAMES_C ; do
-	log_must create_file $name1
-	for name2 in $NAMES_C ; do
-		log_must lookup_file_ci $name2
+for spec1 in $SPECS_C ; do
+	log_must casenorm create $spec1 $TESTDIR
+	for spec2 in $SPECS_C ; do
+		log_must casenorm lookup $spec2 $TESTDIR
 	done
-	for name2 in $NAMES_D; do
-		log_mustnot lookup_file_ci $name2
+	for spec2 in $SPECS_D; do
+		log_mustnot casenorm lookup $spec2 $TESTDIR
 	done
-	delete_file $name1
+	log_must casenorm delete $spec1 $TESTDIR
 done
 
-for name1 in $NAMES_D ; do
-	log_must create_file $name1
-	for name2 in $NAMES_D ; do
-		log_must lookup_file_ci $name2
+for spec1 in $SPECS_D ; do
+	log_must casenorm create $spec1 $TESTDIR
+	for spec2 in $SPECS_D ; do
+		log_must casenorm lookup $spec2 $TESTDIR
 	done
-	for name2 in $NAMES_C; do
-		log_mustnot lookup_file_ci $name2
+	for spec2 in $SPECS_C; do
+		log_mustnot casenorm lookup $spec2 $TESTDIR
 	done
-	delete_file $name1
+	log_must casenorm delete $spec1 $TESTDIR
 done
+
+#for name1 in $NAMES_C ; do
+#	log_must create_file $name1
+#	for name2 in $NAMES_C ; do
+#		log_must lookup_file_ci $name2
+#	done
+#	for name2 in $NAMES_D; do
+#		log_mustnot lookup_file_ci $name2
+#	done
+#	delete_file $name1
+#done
+#
+#for name1 in $NAMES_D ; do
+#	log_must create_file $name1
+#	for name2 in $NAMES_D ; do
+#		log_must lookup_file_ci $name2
+#	done
+#	for name2 in $NAMES_C; do
+#		log_mustnot lookup_file_ci $name2
+#	done
+#	delete_file $name1
+#done
 
 destroy_testfs
 

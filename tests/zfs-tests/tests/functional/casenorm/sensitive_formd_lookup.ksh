@@ -40,17 +40,29 @@ log_assert "CS-UN FS: lookup succeeds if (case=same)"
 
 create_testfs "-o casesensitivity=sensitive -o normalization=formD"
 
-for name1 in $NAMES_ALL; do
-	log_must create_file $name1
-	for name2 in $NAMES_ALL; do
-		if [[ $(get_case $name2) == $(get_case $name1) ]]; then
-			log_must lookup_file $name2
+for spec1 in $SPECS_ALL ; do
+	log_must casenorm create $spec1 $TESTDIR
+	for spec2 in $SPECS_ALL ; do
+		if [[ ${spec2:2:1} == ${spec1:2:1} ]] ; then
+			log_must casenorm lookup $spec2 $TESTDIR
 		else
-			log_mustnot lookup_file $name2
+			log_mustnot casenorm lookup $spec2 $TESTDIR
 		fi
 	done
-	delete_file $name1
+	log_must casenorm delete $spec1 $TESTDIR
 done
+
+#for name1 in $NAMES_ALL; do
+#	log_must create_file $name1
+#	for name2 in $NAMES_ALL; do
+#		if [[ $(get_case $name2) == $(get_case $name1) ]]; then
+#			log_must lookup_file $name2
+#		else
+#			log_mustnot lookup_file $name2
+#		fi
+#	done
+#	delete_file $name1
+#done
 
 destroy_testfs
 

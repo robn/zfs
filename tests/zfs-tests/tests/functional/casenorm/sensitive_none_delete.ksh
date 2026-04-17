@@ -41,15 +41,17 @@ log_assert "CS-not-UN FS: delete succeeds only if using exact name form"
 
 create_testfs "-o casesensitivity=sensitive -o normalization=none"
 
-for name1 in $NAMES_ALL ; do
-	log_must create_file $name1
-	for name2 in $NAMES_ALL ; do
-		if [[ $name2 != $name1 ]] ; then
-			log_mustnot delete_file $name2
+for spec1 in $SPECS_ALL ; do
+	log_must casenorm create $spec1 $TESTDIR
+	for spec2 in $SPECS_ALL ; do
+		if [[ $spec2 != $spec1 ]] ; then
+			log_mustnot casenorm delete $spec2 $TESTDIR
 		fi
 	done
-	delete_file $name1
-	log_mustnot lookup_any
+	log_must casenorm delete $spec1 $TESTDIR
+	for spec2 in $SPECS_ALL ; do
+		log_mustnot casenorm lookup $spec2 $TESTDIR
+	done
 done
 
 destroy_testfs

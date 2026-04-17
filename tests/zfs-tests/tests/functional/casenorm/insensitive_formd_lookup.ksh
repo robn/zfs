@@ -39,12 +39,12 @@ log_assert "CI-UN FS: lookup succeeds using any name form"
 
 create_testfs "-o casesensitivity=insensitive -o normalization=formD"
 
-for name1 in $NAMES_ALL ; do
-	log_must create_file $name1
-	for name2 in $NAMES_ALL ; do
-		log_must lookup_file $name2
+for spec1 in $SPECS_ALL ; do
+	log_must casenorm create $spec1 $TESTDIR
+	for spec2 in $SPECS_ALL ; do
+		log_must casenorm lookup $spec2 $TESTDIR
 	done
-	delete_file $name1
+	log_must casenorm delete $spec1 $TESTDIR
 done
 
 destroy_testfs

@@ -39,15 +39,25 @@ log_assert "CM-not-UN FS: lookup succeeds only if using exact name form"
 
 create_testfs "-o casesensitivity=mixed -o normalization=none"
 
-for name1 in $NAMES_ALL; do
-	for name2 in $NAMES_ALL; do
-		log_must create_file $name1
-		if [[ $name2 != $name1 ]]; then
-			log_mustnot lookup_file $name2
+for spec1 in $SPECS_ALL ; do
+	for spec2 in $SPECS_ALL ; do
+		log_must casenorm create $spec1 $TESTDIR
+		if [[ $spec2 != $spec1 ]] ; then
+			log_mustnot casenorm lookup $spec2 $TESTDIR
 		fi
-		delete_file $name1
+		log_must casenorm delete $spec1 $TESTDIR
 	done
 done
+
+#for name1 in $NAMES_ALL; do
+#	for name2 in $NAMES_ALL; do
+#		log_must create_file $name1
+#		if [[ $name2 != $name1 ]]; then
+#			log_mustnot lookup_file $name2
+#		fi
+#		delete_file $name1
+#	done
+#done
 
 destroy_testfs
 

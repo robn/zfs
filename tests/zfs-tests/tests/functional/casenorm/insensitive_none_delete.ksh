@@ -41,29 +41,33 @@ log_assert "CI-not-UN FS: delete succeeds if (norm=same)"
 
 create_testfs "-o casesensitivity=insensitive -o normalization=none"
 
-for name1 in $NAMES_C ; do
-	for name2 in $NAMES_C ; do
-		log_must create_file $name1
-		log_must delete_file $name2
-		log_mustnot lookup_any
+for spec1 in $SPECS_C ; do
+	for spec2 in $SPECS_C ; do
+		log_must casenorm create $spec1 $TESTDIR
+		log_must casenorm delete $spec2 $TESTDIR
+		for spec3 in $SPECS_ALL ; do
+			log_mustnot casenorm lookup $spec3 $TESTDIR
+		done
 	done
-	for name2 in $NAMES_D ; do
-		log_must create_file $name1
-		log_mustnot delete_file $name2
-		delete_file $name1
+	for spec2 in $NAMES_D ; do
+		log_must casenorm create $spec1 $TESTDIR
+		log_mustnot casenorm delete $spec2 $TESTDIR
+		log_must casenorm delete $spec1 $TESTDIR
 	done
 done
 
-for name1 in $NAMES_D ; do
-	for name2 in $NAMES_D ; do
-		log_must create_file $name1
-		log_must delete_file $name2
-		log_mustnot lookup_any
+for spec1 in $SPECS_D ; do
+	for spec2 in $SPECS_D ; do
+		log_must casenorm create $spec1 $TESTDIR
+		log_must casenorm delete $spec2 $TESTDIR
+		for spec3 in $SPECS_ALL ; do
+			log_mustnot casenorm lookup $spec3 $TESTDIR
+		done
 	done
-	for name2 in $NAMES_C ; do
-		log_must create_file $name1
-		log_mustnot delete_file $name2
-		delete_file $name1
+	for spec2 in $NAMES_C ; do
+		log_must casenorm create $spec1 $TESTDIR
+		log_mustnot casenorm delete $spec2 $TESTDIR
+		log_must casenorm delete $spec1 $TESTDIR
 	done
 done
 
