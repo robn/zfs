@@ -223,12 +223,13 @@ zpl_snapdir_manage(const struct path *path, bool rcu_walk)
 	sd->sd_mount_task = current;
 	mutex_exit(&sd->sd_mtx);
 
+	int err = 0;
 	if (path_is_mountpoint(path)) {
-		/* XXX actually that its ours */
+		/* XXX actually check that its ours */
 		cmn_err(CE_NOTE, "zpl_snapdir_manage: dname=%s "
 		    "mountpoint active: mnt=%px flags=%08x",
 		    dname(dentry), path->mnt, path->mnt->mnt_flags);
-		return (0);
+		goto out;
 	}
 
 	cmn_err(CE_NOTE, "zpl_snapdir_manage: dname=%s: "
@@ -236,7 +237,7 @@ zpl_snapdir_manage(const struct path *path, bool rcu_walk)
 
 	struct path am_path = *path;
 	path_get(&am_path);
-	int err = follow_down(&am_path, LOOKUP_AUTOMOUNT);
+	err = follow_down(&am_path, LOOKUP_AUTOMOUNT);
 	if (err != 0) {
 		path_put(&am_path);
 		cmn_err(CE_NOTE, "zpl_snapdir_manage: dname=%s err=%d: "
@@ -256,7 +257,7 @@ zpl_snapdir_manage(const struct path *path, bool rcu_walk)
 
 out:
 	mutex_enter(&sd->sd_mtx);
-	dentry->d_fsdata = NULL;
+	sd->sd_mount_task = NULL;
 	cv_broadcast(&sd->sd_cv);
 	mutex_exit(&sd->sd_mtx);
 
@@ -326,8 +327,12 @@ zpl_snapdir_release(struct dentry *dentry)
 	 * Release can be called more than once if part of the release was
 	 * deferred, so we might have already cleaned up. Do nothing if so.
 	 */
-	if (sd == NULL)
+	if (sd == NULL) {
+		cmn_err(CE_NOTE, "zpl_snapdir_release: dentry=%px: already gone", dentry);
 		return;
+	}
+
+	cmn_err(CE_NOTE, "zpl_snapdir_release: dentry=%px sd=%px: destroying", dentry, sd);
 
 	ASSERT3P(dentry, ==, sd->sd_dentry);
 	mutex_destroy(&sd->sd_mtx);
