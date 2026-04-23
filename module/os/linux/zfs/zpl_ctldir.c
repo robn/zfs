@@ -175,6 +175,68 @@ typedef struct {
 	struct task_struct	*sd_mount_task;
 } zpl_snapdir_t;
 
+/*
+ * After zpl_snapdir_lookup() has created the snapshot "directory", the
+ * dentry tree of the "virtual" .zfs/ control dir looks like.
+ *
+ * [.zfs] -> [snapshot] -> [snapname]
+ *
+ * [snapname] has two dentry operations registered:
+ *  - MANAGE_TRANSIT (d_manage)
+ *  - NEED_AUTOMOUNT (d_automount)
+ *
+ * On request to look "inside" a dentry, __traverse_mounts() in the kernel is
+ * called. Ultimately, it calls d_automount(), which is expected to return a
+ * struct vfsmount * (or fail). On return, this is passed to
+ * finish_automount(), which grafts the mount into the dentry tree, resulting
+ * in:
+ *
+ * [.zfs] -> [snapshot] -> [snapname] -> {vfsmount} -> [/] -> ...
+ *
+ * This approach works well enough, but has a couple of problems:
+ *
+ * - finish_automount() overwrites any mount flags set by d_automount(),
+ *   which makes it hard to apply "reduced privilege" flags (eg MNT_NOSUID).
+ *
+ * - we never get to see the completed mount before the return to userspace.
+ *
+ * That second part is a problem because (a) the graft may fail for some
+ * reason (typically a lost race) and (b) because at expiry, we don't actually
+ * know the link between between the snapdir, the mount and the root dentry.
+ * Userspace may have moved the mount away (mount --move), manually unmounted,
+ * or even moved a different and unrelated mount to this position (maybe not
+ * even ZFS!).
+ *
+ * This is where d_manage() comes in. This is called earlier in
+ * __traverse_mounts(), to allow autofs to stop later callers passing into
+ * d_automount() while an earlier caller is already there, setting up the
+ * mount. On leaving d_manage(), the dentry is reexamined and if there's
+ * a mount there, d_automount() is never even called.
+ *
+ * This allows us to neatly solve both problems.
+ * 
+ * When we create the snapdir dentry, we create a zpl_snapdir_t and stash it on
+ * the dentry in d_fsdata. On the first call to d_manage(), we record the
+ * current task in sd_mount_task, Then, we call back into __traverse_mounts()
+ * (via follow_down()) to request a second traversal into the snapdir dentry.
+ *
+ * We arrive back in d_manage(). We check sd_mount_task and find the same
+ * current task, so we know this is the same thread, and we simply return,
+ * which proceeds into d_automount(). That returns the mount and
+ * finish_automount() performs the graft. Once done, it returns to
+ * __traverse_mounts(), follow_down() and back into the original call to
+ * d_manage(), where we can inspect the completed dentry and mount, set any
+ * flags on it, and record any details we need, all before we return to the
+ * original caller.
+ *
+ * While this is happening, any other callers to d_manage() will see that
+ * sd_mount_task is set to some other thread, and sleep on sd_cv.
+ *
+ * Regardless of how they get there, all "true" callers to d_manage() will
+ * return, do the mount check in __traverse_mounts(), see that the mount
+ * exists, and move into it.
+ */
+
 static int
 zpl_snapdir_manage(const struct path *path, bool rcu_walk)
 {
