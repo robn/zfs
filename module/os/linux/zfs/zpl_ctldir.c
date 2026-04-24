@@ -173,6 +173,8 @@ typedef struct {
 	struct dentry		*sd_dentry;
 
 	struct task_struct	*sd_mount_task;
+
+	int			sd_mnt_flags;
 } zpl_snapdir_t;
 
 /*
@@ -418,15 +420,12 @@ zpl_snapdir_manage(const struct path *path, bool rcu_walk)
 		goto out;
 	}
 
-	/*
-	 * Post-mount fixups.
-	 *
-	 * XXX I guess smuggle "true" mount flags back from
-	 *     zfsctl_snapshot_mount() eg sd->sd_mnt_flags = mnt->mnt_flags
-	 */
+	/* Post-mount fixups */
 	cmn_err(CE_NOTE, "zpl_snapdir_manage: dname=%s flags=%08x: "
-	    "applying mount flags", dname(dentry), MNT_NOSUID);
-	am_path.mnt->mnt_flags |= MNT_NOSUID;
+	    "applying mount flags", dname(dentry), sd->sd_mnt_flags);
+	am_path.mnt->mnt_flags =
+	    (am_path.mnt->mnt_flags & ~MNT_USER_SETTABLE_MASK) |
+	    sd->sd_mnt_flags;
 
 	path_put(&am_path);
 
@@ -442,6 +441,11 @@ out:
 static struct vfsmount *
 zpl_snapdir_automount(struct path *path)
 {
+	struct dentry *dentry = path->dentry;
+	zpl_snapdir_t *sd = dentry->d_fsdata;
+	ASSERT3P(sd->sd_dentry, ==, dentry);
+	ASSERT3P(sd->sd_mount_task, ==, current);
+
 	struct vfsmount *mntp = NULL;
 	int error;
 
@@ -468,6 +472,8 @@ zpl_snapdir_automount(struct path *path)
 	 */
 	mntget(mntp);
 #endif
+
+	sd->sd_mnt_flags = mntp->mnt_flags & MNT_USER_SETTABLE_MASK;
 
 	return (mntp);
 }
