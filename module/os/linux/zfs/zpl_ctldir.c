@@ -246,19 +246,13 @@ zpl_snapdir_manage(const struct path *path, bool rcu_walk)
 
 	if (rcu_walk) {
 		/*
-		 * XXX per autofs.rst, we are in RCU-walk mode and can return:
+		 * In "RCU-walk" mode we must not block. Returning -ECHILD here
+		 * signals "unsafe to enter", and so falls back to "REF-walk"
+		 * mode, where we can.
 		 *
-		 *       0: nothing special, continue with mount & automount
-		 *
-		 *       -EISDIR: ignore mounts, do not automount,
-		 *                disables "mount-trap" behaviour
-		 *
-		 *       -ECHILD: unsafe to enter (eg mount in progress), fall
-		 *                back to REF-walk
-		 *
-		 *       anything else: returned to caller
-		 *
-		 *     importantly, we can't block here.
+		 * This is not especially efficient, but this path is only
+		 * reached while the snapshot is being mounted, so the window
+		 * is narrow and not performance-sensitive.
 		 */
 		/*
 		 * XXX maybe we can do a "light" mount check (d_mountpoint()
@@ -271,36 +265,87 @@ zpl_snapdir_manage(const struct path *path, bool rcu_walk)
 
 	mutex_enter(&sd->sd_mtx);
 	if (sd->sd_mount_task == current) {
+		/*
+		 * Caller is our own task, reentering through follow_down().
+		 * Allow it to proceed.
+		 */
 		mutex_exit(&sd->sd_mtx);
 		cmn_err(CE_NOTE, "zpl_snapdir_manage: dname=%s: "
 		    "recursive entry; allowing to proceed to automount",
 		    dname(dentry));
 		return (0);
 	}
+
 	while (sd->sd_mount_task != NULL) {
+		/* Another task is doing the mount, sleep and wait for it. */
 		cmn_err(CE_NOTE, "zpl_snapdir_manage: dname=%s: "
 		    "automount in progress; waiting", dname(dentry));
 		cv_wait(&sd->sd_cv, &sd->sd_mtx);
 	}
+
+	/*
+	 * If we reach here, either we are the first task to arrive and so
+	 * should begin the mount, or we were sleeping while the mount was
+	 * happening.
+	 *
+	 * Regardless, we become the "primary" task for the checks below, so
+	 * there is only ever one task in the next section with the locks down
+	 * at any moment. If the mount needs to happen, we'll kick it off; if
+	 * not, we just skip it.
+	 */
 	sd->sd_mount_task = current;
 	mutex_exit(&sd->sd_mtx);
 
 	int err = 0;
 	if (path_is_mountpoint(path)) {
-		/* XXX actually check that its ours */
+		/*
+		 * Something is mounted here already; almost certainly we
+		 * were sleeping above. There's nothing we can do here, just
+		 * leave. Caller (__traverse_mounts()) will see the mount and
+		 * continue into it.
+		 */
+		/*
+		 * XXX we could check that its ours and if not, do something?
+		 *     only thing I can think of is to cancel snapentry expiry
+		 *     etc; but I think its more effort than its worth - this
+		 *     is such a narrow window, and userspace did something
+		 *     very strange in this time.
+		 */
 		cmn_err(CE_NOTE, "zpl_snapdir_manage: dname=%s "
 		    "mountpoint active: mnt=%px flags=%08x",
 		    dname(dentry), path->mnt, path->mnt->mnt_flags);
 		goto out;
 	}
 
+	/*
+	 * Nothing mounted here, and any other callers are waiting on sd_cv,
+	 * so we can trigger the automount.
+	 *
+	 * Note: since locks are down, userspace may have mounted something at
+	 * this position after the path_is_mountpoint() call.  This is not a
+	 * problem in practice; right now we're only deciding if this thread
+	 * may proceed in __traverse_mounts(); if a mount has appeared, it will
+	 * be used as-is; d_automount() won't be called.
+	 *
+	 */
 	cmn_err(CE_NOTE, "zpl_snapdir_manage: dname=%s: "
 	    "triggering automount", dname(dentry));
 
+	/*
+	 * struct path is a dentry+vfsmount pointer pair. follow_down() will
+	 * modify the calling path with its results. So we take a copy of the
+	 * path for follow_down(), and then we can look inside and compare
+	 * with the original to understand what happened.
+	 */
 	struct path am_path = *path;
 	path_get(&am_path);
 	err = follow_down(&am_path, LOOKUP_AUTOMOUNT);
 	if (err != 0) {
+		/*
+		 * follow_down() failure probably means that d_automount()
+		 * failed, but could be anything. This just returns it to
+		 * the caller.
+		 */
 		path_put(&am_path);
 		cmn_err(CE_NOTE, "zpl_snapdir_manage: dname=%s err=%d: "
 		    "follow_down for automount failed", dname(dentry), -err);
@@ -309,10 +354,78 @@ zpl_snapdir_manage(const struct path *path, bool rcu_walk)
 
 	cmn_err(CE_NOTE, "zpl_snapdir_manage: "
 	    "orig path [mnt=%px dentry=%px dname=%s] "
-	    "new path [mnt=%px dentry=%px dname=%s]",
+	    "orig root [dentry=%px dname=%s] "
+	    "new path [mnt=%px dentry=%px dname=%s] "
+	    "new root [dentry=%px dname=%s]",
 	    path->mnt, path->dentry, dname(path->dentry),
-	    am_path.mnt, am_path.dentry, dname(am_path.dentry));
+	    path->mnt->mnt_root, dname(path->mnt->mnt_root),
+	    am_path.mnt, am_path.dentry, dname(am_path.dentry),
+	    am_path.mnt->mnt_root, dname(am_path.mnt->mnt_root));
 
+	/*
+	 * Now inspect the completed mount to see what happened. We can't
+	 * assume that am_path definitely has the snapshot mount, as something
+	 * else may have beaten us to mounting something at that position (see
+	 * note above). We can't even assume that there is a mount there at
+	 * all, or that its a ZFS mount, so we must carefully check all of
+	 * this first before digging around.
+	 *
+	 * XXX not sure about this comment exactly, depends what we end up
+	 *     needing to do. at least, we need to recognise the automount
+	 *     on the return into d_manage() to reset the flags, but later
+	 *     we will need to recognise the same mount as an overmount for
+	 *     teardown (or not). I'm not sure if the latter is the same
+	 *     mechanism yet, and won't until I get this new manage_transit
+	 *     thing wired into the snapentry code.
+	 *       -- robn, 2026-04-24
+	 */
+
+	/*
+	 * This path is for the wanted snapshot mount if:
+	 * - the path dentry is the mount root dentry
+	 * - the mount superblock is ZFS
+	 * - ...
+	 *
+	 * XXX this might be akin to the is_our_mount check from
+	 *     _zfs_snapentry_detach() (copied here just in case that gets
+	 *     refactored away/out):
+	 *
+	 *	bool is_our_mount = false;
+	 *	if (path.mnt->mnt_sb->s_type == &zpl_fs_type) {
+	 *		zfsvfs_t *zfsvfs = path.mnt->mnt_sb->s_fs_info;
+	 *		spa_t *spa = zfsvfs->z_os->os_spa;
+	 *		uint64_t objsetid = dmu_objset_id(zfsvfs->z_os);
+	 *		if (se->se_spa == spa && se->se_objsetid == objsetid) {
+	 *			is_our_mount = true;
+	 *		}
+	 *	}
+	 *
+	 *     or maybe its a simple name check? or maybe its not anything?
+	 *     not sure. this is sorta a further case for snapdir_t and
+	 *     snapentry_t being same thing?
+	 *       -- robn, 2026-04-24
+	 */
+	if (am_path.dentry != am_path.mnt->mnt_root ||
+	    am_path.mnt->mnt_sb->s_type != &zpl_fs_type) {
+		/*
+		 * Wherever am_path ended up, its not at the root of the
+		 * snapshot we're expecting to be mounted here. Nothing else
+		 * for us to do in this case.
+		 */
+		path_put(&am_path);
+		cmn_err(CE_NOTE, "zpl_snapdir_manage: dname=%s: "
+		    "mount not ours!", dname(dentry));
+		goto out;
+	}
+
+	/*
+	 * Post-mount fixups.
+	 *
+	 * XXX I guess smuggle "true" mount flags back from
+	 *     zfsctl_snapshot_mount() eg sd->sd_mnt_flags = mnt->mnt_flags
+	 */
+	cmn_err(CE_NOTE, "zpl_snapdir_manage: dname=%s flags=%08x: "
+	    "applying mount flags", dname(dentry), MNT_NOSUID);
 	am_path.mnt->mnt_flags |= MNT_NOSUID;
 
 	path_put(&am_path);
