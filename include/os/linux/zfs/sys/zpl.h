@@ -26,6 +26,7 @@
 #ifndef	_SYS_ZPL_H
 #define	_SYS_ZPL_H
 
+#include <sys/zfs_context.h>
 #include <sys/mntent.h>
 #include <sys/vfs.h>
 #include <linux/aio.h>
@@ -111,6 +112,17 @@ extern const struct inode_operations zpl_ops_snapdir;
 
 extern const struct file_operations zpl_fops_shares;
 extern const struct inode_operations zpl_ops_shares;
+
+typedef struct {
+	kmutex_t		se_mtx;
+	kcondvar_t		se_cv;
+
+	struct dentry		*se_dentry;
+
+	struct task_struct	*se_mount_task;
+
+	int			se_mnt_flags;
+} zpl_snapentry_t;
 
 /* zpl_file_range.c */
 
