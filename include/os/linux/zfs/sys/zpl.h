@@ -27,6 +27,7 @@
 #define	_SYS_ZPL_H
 
 #include <sys/zfs_context.h>
+#include <sys/spa.h>
 #include <sys/mntent.h>
 #include <sys/vfs.h>
 #include <linux/aio.h>
@@ -113,16 +114,54 @@ extern const struct inode_operations zpl_ops_snapdir;
 extern const struct file_operations zpl_fops_shares;
 extern const struct inode_operations zpl_ops_shares;
 
+typedef enum {
+	SE_READY,	/* exists, ready for automount */
+	SE_MOUNTING,	/* being mounted, others must wait */
+	SE_MOUNTED,	/* up and running, please enjoy */
+	SE_DETACHING,	/* detaching on demand (from expiry task) */
+	SE_DEAD,	/* to be destroyed when last hold released */
+} zpl_snapentry_state_t;
+
 typedef struct {
 	kmutex_t		se_mtx;
 	kcondvar_t		se_cv;
 
-	struct dentry		*se_dentry;
+	/*
+	 * ctldir mount and dentry for the snapshot; the dentry is the one that
+	 * triggers the automount and becomes the mountpoint. We track both so
+	 * we can get at the current mount without holding an explicit
+	 * reference, which would prevent unmount.
+	 */
+	struct path		se_path;
 
+	/* active task managing transit through automount and back */
 	struct task_struct	*se_mount_task;
 
-	int			se_mnt_flags;
+	/*
+	 * full snapshot name, and spa and objsetid. these are used for
+	 * direct lookup on the AVLs.
+	 */
+	char		*se_name;	/* full snapshot name */
+	spa_t		*se_spa;	/* pool spa (NULL if pending) */
+	uint64_t	se_objsetid;	/* snapshot objset id */
+
+
+	avl_node_t	se_node_name;	/* zfs_snapshots_by_name link */
+	avl_node_t	se_node_objsetid; /* zfs_snapshots_by_objsetid link */
+
+#if 0
+	zfs_refcount_t	se_refcount;	/* reference count */
+
+	struct vfsmount	*se_pmnt;	/* parent mount, for unmount */
+	struct dentry	*se_dentry;	/* mount root dentry, for unmount */
+
+	taskqid_t	se_taskqid;	/* scheduled expire taskqid */
+#endif
 } zpl_snapentry_t;
+
+extern int zpl_snapentry_mount(zpl_snapentry_t *se, struct vfsmount **mntp);
+extern void zpl_snapentry_finish_mount(zpl_snapentry_t *se,
+    struct vfsmount *mnt);
 
 /* zpl_file_range.c */
 
