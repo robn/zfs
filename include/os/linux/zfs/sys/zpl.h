@@ -127,12 +127,18 @@ typedef struct {
 	kcondvar_t		se_cv;
 
 	/*
-	 * ctldir mount and dentry for the snapshot; the dentry is the one that
-	 * triggers the automount and becomes the mountpoint. We track both so
-	 * we can get at the current mount without holding an explicit
-	 * reference, which would prevent unmount.
+	 * ctldir dentry for the snapshot; the dentry is the one that triggers
+	 * the automount and becomes the mountpoint, and is also the owner of
+	 * this struct (d_fsdata).
 	 */
-	struct path		se_path;
+	struct dentry		*se_dentry;
+
+	/*
+	 * ctldir mount, ie the mount that se_dentry belongs to. We can use
+	 * this with the dentry to find the snapshot mount without holding an
+	 * explicit reference to it, which would prevent unmount.
+	 */
+	struct vfsmount		*se_pmnt;
 
 	/* active task managing transit through automount and back */
 	struct task_struct	*se_mount_task;
@@ -151,12 +157,9 @@ typedef struct {
 
 #if 0
 	zfs_refcount_t	se_refcount;	/* reference count */
-
-	struct vfsmount	*se_pmnt;	/* parent mount, for unmount */
-	struct dentry	*se_dentry;	/* mount root dentry, for unmount */
+#endif
 
 	taskqid_t	se_taskqid;	/* scheduled expire taskqid */
-#endif
 } zpl_snapentry_t;
 
 extern int zpl_snapentry_mount(zpl_snapentry_t *se, struct vfsmount **mntp);

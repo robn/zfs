@@ -157,23 +157,15 @@ _zfs_snapentry_debug(zpl_snapentry_t *se, const char *act,
 		prefix = pbuf;
 	}
 
-	char dbuf[256];
-	if (se->se_path.dentry == NULL)
-		snprintf(dbuf, sizeof (dbuf), "dentry=%px", se->se_path.dentry);
-	else
-		snprintf(dbuf, sizeof (dbuf),
-		    "dentry=%px [dname=%s mountpoint=%s refcnt=%u]",
-		    se->se_path.dentry, dname(se->se_path.dentry),
-		    d_mountpoint(se->se_path.dentry) ? "true" : "false",
-		    d_count(se->se_path.dentry));
-
 	cmn_err(CE_NOTE,
 	    "%s: [%s:%d] [%s#%d] "
 	    "se=%px [name=%s objsetid=%llu] "
-	    "%s",
+	    "dentry=%px [dname=%s mountpoint=%s refcnt=%u]",
 	    prefix, getcomm(), getpid(), func, line,
 	    se, se->se_name, se->se_objsetid,
-	    dbuf);
+	    se->se_dentry, dname(se->se_dentry),
+	    d_mountpoint(se->se_dentry) ? "true" : "false",
+	    d_count(se->se_dentry));
 
 	/*
 	cmn_err(CE_NOTE,
@@ -1540,7 +1532,7 @@ zfsctl_snapshot_unmount(const char *snapname, int flags)
 int
 zpl_snapentry_mount(zpl_snapentry_t *se, struct vfsmount **mntp)
 {
-	struct dentry *dentry = se->se_path.dentry;
+	struct dentry *dentry = se->se_dentry;
 	zfsvfs_t *zfsvfs;
 	char *snapname;
 	struct fs_context *fc = NULL;
@@ -1684,7 +1676,7 @@ zpl_snapentry_teardown(zpl_snapentry_t *se)
 	 *     dentry or inode. more study if cbf
 	 *       -- robn, 2026-04-24
 	 */
-	memset(&se->se_path, 0, sizeof (struct path));
+	se->se_pmnt = NULL;
 	mutex_exit(&se->se_mtx);
 }
 

@@ -285,11 +285,9 @@ zpl_snapdir_manage(const struct path *path, bool rcu_walk)
 	 */
 	se->se_mount_task = current;
 	
-	/* First time through, track the mount and dentry. */
-	if (se->se_path.mnt == NULL) {
-		se->se_path = *path;
-	}
-	ASSERT(path_equal(path, &se->se_path));
+	/* First time through, track the ctldir mount. */
+	if (se->se_pmnt == NULL)
+		se->se_pmnt = path->mnt;
 	mutex_exit(&se->se_mtx);
 
 	int err = 0;
@@ -433,7 +431,7 @@ zpl_snapdir_automount(struct path *path)
 {
 	struct dentry *dentry = path->dentry;
 	zpl_snapentry_t *se = dentry->d_fsdata;
-	ASSERT(path_equal(path, &se->se_path));
+	ASSERT3P(path->mnt, ==, se->se_pmnt);
 	ASSERT3P(se->se_mount_task, ==, current);
 
 	struct vfsmount *mnt = NULL;
@@ -499,7 +497,7 @@ zpl_snapdir_release(struct dentry *dentry)
 
 	cmn_err(CE_NOTE, "zpl_snapdir_release: dentry=%px se=%px: destroying", dentry, se);
 
-	ASSERT3P(dentry, ==, se->se_path.dentry); /// XXX probably but anyway
+	ASSERT3P(dentry, ==, se->se_dentry);
 	mutex_destroy(&se->se_mtx);
 	cv_destroy(&se->se_cv);
 	kmem_free(se, sizeof (zpl_snapentry_t));
@@ -590,6 +588,7 @@ zpl_snapdir_lookup(struct inode *dip, struct dentry *dentry,
 	zpl_snapentry_t *se = kmem_zalloc(sizeof (zpl_snapentry_t), KM_SLEEP);
 	mutex_init(&se->se_mtx, NULL, MUTEX_DEFAULT, NULL);
 	cv_init(&se->se_cv, NULL, CV_DEFAULT, NULL);
+	se->se_dentry = dentry;
 
 	spin_lock(&dentry->d_lock);
 	dentry->d_fsdata = se;
