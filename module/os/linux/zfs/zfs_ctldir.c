@@ -144,8 +144,7 @@ static const char *se_state_str[] = {
 };
 #endif
 
-#if 0
-static void
+static void __maybe_unused
 _zfs_snapentry_debug(zpl_snapentry_t *se, const char *act,
     const char *func, int line)
 {
@@ -186,7 +185,6 @@ _zfs_snapentry_debug(zpl_snapentry_t *se, const char *act,
 
 #define	zfs_snapentry_log(se, fmt, ...)		\
 	cmn_err(CE_NOTE, "%s: se=%px: " fmt, __FUNCTION__, se, ##__VA_ARGS__)
-#endif
 
 #if 0
 static void
@@ -619,7 +617,6 @@ zfsctl_snapshot_find_by_objsetid(spa_t *spa, uint64_t objsetid)
 	return (se);
 }
 
-#if 0
 /*
  * Dispatch the unmount task for delayed handling with a hold protecting it.
  */
@@ -642,7 +639,7 @@ zfsctl_snapshot_expire_delay(zpl_snapentry_t *se, int delay)
 
 	zfs_snapentry_log(se, "arming timer: delay=%d", delay);
 
-	zfsctl_snapshot_hold(se);
+	//zfsctl_snapshot_hold(se);
 	se->se_taskqid = taskq_dispatch_delay(system_delay_taskq,
 	    zfsctl_snapshot_expire_task, se, TQ_SLEEP,
 	    ddi_get_lbolt() + delay * HZ);
@@ -657,39 +654,40 @@ zfsctl_snapshot_expire_task(void *data)
 	zpl_snapentry_t *se = (zpl_snapentry_t *)data;
 
 	mutex_enter(&se->se_mtx);
-	zfs_snapentry_debug(se);
-	zfs_snapentry_wait(se);
-
 	se->se_taskqid = TASKQID_INVALID;
+
+	//zfs_snapentry_debug(se);
+	//zfs_snapentry_wait(se);
 
 	if (zfs_expire_snapshot <= 0) {
 		/*
 		 * Expiry was disabled via tunable since we armed the timer;
 		 * go through the motions but don't actually unmount anything.
 		 */
-		zpl_snapentry_teardown_invalid(se);
+		//zpl_snapentry_teardown_invalid(se);
 		zfs_snapentry_debug(se);
 		mutex_exit(&se->se_mtx);
-		zfsctl_snapshot_rele(se);
+		//zfsctl_snapshot_rele(se);
 		return;
 	}
 
-	zfs_snapentry_detach_idle(se);
+	//zfs_snapentry_detach_idle(se);
 
-	if (se->se_state == SE_MOUNTED) {
+	//if (se->se_state == SE_MOUNTED) {
 		/*
 		 * Snapshot still active; re-arm the expiry timer. Will take a
 		 * fresh hold if the timer is set, so its always safe to
 		 * release ours below.
 		 */
 		zfsctl_snapshot_expire_delay(se, zfs_expire_snapshot);
-	}
+	//}
 
 	zfs_snapentry_debug(se);
 	mutex_exit(&se->se_mtx);
-	zfsctl_snapshot_rele(se);
+	//zfsctl_snapshot_rele(se);
 }
 
+#if 0
 /*
  * Cancel an automatic unmount of a snapname.  This callback is responsible
  * for dropping the reference on the zpl_snapentry_t which was taken when
@@ -1643,7 +1641,9 @@ zpl_snapentry_finish_mount(zpl_snapentry_t *se, struct vfsmount *mnt)
 	if (zfs_snapshot_no_setuid)
 		mnt->mnt_flags |= MNT_NOSUID;
 
-	/* XXX setup expiry here */
+	mutex_enter(&se->se_mtx);
+	zfsctl_snapshot_expire_delay(se, zfs_expire_snapshot);
+	mutex_exit(&se->se_mtx);
 
 	rw_enter(&zfs_snapshot_lock, RW_WRITER);
 	zfsctl_snapshot_add(se);
