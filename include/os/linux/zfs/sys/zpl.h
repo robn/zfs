@@ -162,6 +162,7 @@ typedef struct {
 extern int zpl_snapentry_mount(zpl_snapentry_t *se, struct vfsmount **mntp);
 extern void zpl_snapentry_finish_mount(zpl_snapentry_t *se,
     struct vfsmount *mnt);
+extern void zpl_snapentry_teardown(zpl_snapentry_t *se);
 
 /* zpl_file_range.c */
 

@@ -538,7 +538,6 @@ zfsctl_snapshot_add(zpl_snapentry_t *se)
 	avl_add(&zfs_snapshots_by_objsetid, se);
 }
 
-#if 0
 /*
  * Remove a zpl_snapentry_t from the zfs_snapshots_by_name tree and
  * zfs_snapshots_by_objsetid tree (if not pending).  Upon removal a
@@ -553,7 +552,6 @@ zfsctl_snapshot_remove(zpl_snapentry_t *se)
 	avl_remove(&zfs_snapshots_by_objsetid, se);
 	// XXX zfsctl_snapshot_rele(se);
 }
-#endif
 
 /*
  * Snapshot name comparison function for the zfs_snapshots_by_name.
@@ -924,11 +922,11 @@ zfsctl_destroy(zfsvfs_t *zfsvfs)
 		se = zfsctl_snapshot_find_by_objsetid(spa, objsetid);
 		rw_exit(&zfs_snapshot_lock);
 
-		cmn_err(CE_NOTE, "zfsctl_destroy: se=%px: writeme!", se);
-#if 0
 		if (se != NULL) {
-			cmn_err(CE_NOTE, "zfsctl_destroy: se=%px state=%d", se, se->se_state);
+			cmn_err(CE_NOTE, "zfsctl_destroy: se=%px teardown", se);
+			zpl_snapentry_teardown(se);
 
+#if 0
 			mutex_enter(&se->se_mtx);
 			/*
 			 * Don't detach if we're already detaching; likely
@@ -942,10 +940,10 @@ zfsctl_destroy(zfsvfs_t *zfsvfs)
 			mutex_exit(&se->se_mtx);
 
 			zfsctl_snapshot_rele(se);
+#endif
 		} else {
 			cmn_err(CE_NOTE, "zfsctl_destroy: snap spa=%s objsetid=%llu no snapentry", spa_name(spa), objsetid);
 		}
-#endif
 	} else if (zfsvfs->z_ctldir) {
 		char dsname[ZFS_MAX_DATASET_NAME_LEN];
 		dmu_objset_name(zfsvfs->z_os, dsname);
@@ -1653,11 +1651,41 @@ zpl_snapentry_finish_mount(zpl_snapentry_t *se, struct vfsmount *mnt)
 	if (zfs_snapshot_no_setuid)
 		mnt->mnt_flags |= MNT_NOSUID;
 
+	/* XXX setup expiry here */
+
 	rw_enter(&zfs_snapshot_lock, RW_WRITER);
 	zfsctl_snapshot_add(se);
 	rw_exit(&zfs_snapshot_lock);
+}
 
-	/* XXX setup expiry here */
+void
+zpl_snapentry_teardown(zpl_snapentry_t *se)
+{
+	rw_enter(&zfs_snapshot_lock, RW_WRITER);
+	zfsctl_snapshot_remove(se);
+	rw_exit(&zfs_snapshot_lock);
+
+	/* XXX kill expiry task */
+
+	mutex_enter(&se->se_mtx);
+	ASSERT3P(se->se_name, !=, NULL); // XXX the cleanup mentioned above
+	kmem_free(se->se_name, ZFS_MAX_DATASET_NAME_LEN);
+	se->se_name = NULL;
+	se->se_spa = 0;
+	se->se_objsetid = 0;
+
+	/*
+	 * XXX doesn't really belong to us as such; it sorta belongs to
+	 *     a d_unmount, if that existed. but it doesn't so this might be
+	 *     the first time we get a look at it
+	 *
+	 *     at least maybe, as I write this I'm messing with
+	 *     zfsctl_destroy() via kill_sb(). might be an earlier look, via
+	 *     dentry or inode. more study if cbf
+	 *       -- robn, 2026-04-24
+	 */
+	memset(&se->se_path, 0, sizeof (struct path));
+	mutex_exit(&se->se_mtx);
 }
 
 #if 0
