@@ -234,22 +234,37 @@ zpl_snapdir_manage(const struct path *path, bool rcu_walk)
 	struct dentry *dentry = path->dentry;
 	zpl_snapentry_t *se = dentry->d_fsdata;
 
+	if (!atomic_load_32(&se->se_mount_wanted)) {
+		/* Mount not requested or in-flight, pass. */
+		cmn_err(CE_NOTE, "zpl_snapdir_manage: dname=%s: "
+		    "no mount wanted, pass", dname(dentry));
+		return (0);
+	}
+
+	cmn_err(CE_NOTE, "zpl_snapdir_manage: rcu_walk=%d dname=%s inode=%px",
+	    rcu_walk, dname(dentry), dentry->d_inode);
+
 	if (rcu_walk) {
 		/*
-		 * In "RCU-walk" mode we must not block. Returning -ECHILD here
-		 * signals "unsafe to enter", and so falls back to "REF-walk"
-		 * mode, where we can.
+		 * In "RCU-walk" mode we must not block. We can only signal
+		 * that the walk should definitely proceed (ie enter the mount,
+		 * or trigger automount), definitely not proceed (ie this is a
+		 * normal directory), or that we can't determine without
+		 * blocking and the walk should fall back to "REF-walk".
 		 *
-		 * This is not especially efficient, but this path is only
-		 * reached while the snapshot is being mounted, so the window
-		 * is narrow and not performance-sensitive.
+		 * Because of our reentrant d_manage->d_automount->d_manage
+		 * construction, we can't do anything here without taking
+		 * se_mtx first to determine if we are the mount task, which
+		 * means potentially blocking. Any check we do without that
+		 * check first risks being inaccurate, for example, if we
+		 * checked if there is a mountpoint and allow it proceed, we
+		 * might be letting a different thread through to the
+		 * mount before the mount task has returned to d_manage() and
+		 * called zpl_snapentry_finish_mount(), so the mount is
+		 * technically incomplete.
+		 *
+		 * So, we simply always request fallback to the slow path.
 		 */
-		/*
-		 * XXX maybe we can do a "light" mount check (d_mountpoint()
-		 *     vs path_is_mountpoint()) here?
-		 */
-		cmn_err(CE_NOTE, "zpl_snapdir_manage: dname=%s: "
-		    "in RCU walk, requesting management", dname(dentry));
 		return (-ECHILD);
 	}
 
@@ -285,7 +300,11 @@ zpl_snapdir_manage(const struct path *path, bool rcu_walk)
 	 */
 	se->se_mount_task = current;
 	
-	/* First time through, track the ctldir mount. */
+	/*
+	 * First time through, track the ctldir mount. It's not needed until
+	 * much later, during unmount, but this is the first time we've had
+	 * the chance to record it with se_mtx held.
+	 */
 	if (se->se_pmnt == NULL)
 		se->se_pmnt = path->mnt;
 	mutex_exit(&se->se_mtx);
@@ -419,6 +438,11 @@ zpl_snapdir_manage(const struct path *path, bool rcu_walk)
 
 out:
 	mutex_enter(&se->se_mtx);
+	if (err == 0) {
+		atomic_store_32(&se->se_mount_wanted, 0);
+		cmn_err(CE_NOTE, "zpl_snapdir_manage: dname=%s: "
+		    "clearing mount wanted", dname(dentry));
+	}
 	se->se_mount_task = NULL;
 	cv_broadcast(&se->se_cv);
 	mutex_exit(&se->se_mtx);
@@ -435,6 +459,9 @@ zpl_snapdir_automount(struct path *path)
 	ASSERT3P(se->se_mount_task, ==, current);
 
 	struct vfsmount *mnt = NULL;
+
+	cmn_err(CE_NOTE, "zpl_snapdir_automount: dname=%s inode=%px",
+	    dname(dentry), dentry->d_inode);
 
 	int err = zpl_snapentry_mount(se, &mnt);
 	if (err)
@@ -475,7 +502,19 @@ static int
 zpl_snapdir_revalidate(struct dentry *dentry, unsigned int flags)
 #endif
 {
-	return (!!dentry->d_inode);
+	zpl_snapentry_t *se = dentry->d_fsdata;
+
+	if (dentry->d_inode) {
+		if (flags & (LOOKUP_PARENT | LOOKUP_DIRECTORY | LOOKUP_OPEN |
+		    LOOKUP_CREATE | LOOKUP_AUTOMOUNT)) {
+			atomic_store_32(&se->se_mount_wanted, 1);
+			cmn_err(CE_NOTE, "zpl_snapdir_revalidate: dname=%s: "
+			    "setting mount wanted", dname(dentry));
+		}
+		return (1);
+	}
+
+	return (0);
 }
 
 static void
@@ -589,6 +628,13 @@ zpl_snapdir_lookup(struct inode *dip, struct dentry *dentry,
 	mutex_init(&se->se_mtx, NULL, MUTEX_DEFAULT, NULL);
 	cv_init(&se->se_cv, NULL, CV_DEFAULT, NULL);
 	se->se_dentry = dentry;
+
+	if (flags & (LOOKUP_PARENT | LOOKUP_DIRECTORY | LOOKUP_OPEN |
+	    LOOKUP_CREATE | LOOKUP_AUTOMOUNT)) {
+		se->se_mount_wanted = 1;
+		cmn_err(CE_NOTE, "zpl_snapdir_lookup: dname=%s: "
+		    "setting mount wanted", dname(dentry));
+	}
 
 	spin_lock(&dentry->d_lock);
 	dentry->d_fsdata = se;

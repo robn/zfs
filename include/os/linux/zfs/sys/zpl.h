@@ -144,6 +144,12 @@ typedef struct {
 	struct task_struct	*se_mount_task;
 
 	/*
+	 * flag; next call to d_manage must trigger automount. atomic, set
+	 * in revalidate and lookup in response to pathwalk intent flags.
+	 */
+	uint32_t		se_mount_wanted;
+
+	/*
 	 * full snapshot name, and spa and objsetid. these are used for
 	 * direct lookup on the AVLs.
 	 */
