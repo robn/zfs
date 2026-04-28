@@ -26,6 +26,8 @@
 #ifndef	_SYS_ZPL_H
 #define	_SYS_ZPL_H
 
+#include <sys/zfs_context.h>
+#include <sys/spa.h>
 #include <sys/mntent.h>
 #include <sys/vfs.h>
 #include <linux/aio.h>
@@ -111,6 +113,21 @@ extern const struct inode_operations zpl_ops_snapdir;
 
 extern const struct file_operations zpl_fops_shares;
 extern const struct inode_operations zpl_ops_shares;
+
+typedef struct {
+	char		*se_name;	/* full snapshot name */
+	char		*se_path;	/* full mount path */
+	spa_t		*se_spa;	/* pool spa (NULL if pending) */
+	uint64_t	se_objsetid;	/* snapshot objset id */
+	taskqid_t	se_taskqid;	/* scheduled unmount taskqid */
+	avl_node_t	se_node_name;	/* zfs_snapshots_by_name link */
+	avl_node_t	se_node_objsetid; /* zfs_snapshots_by_objsetid link */
+	zfs_refcount_t	se_refcount;	/* reference count */
+	kmutex_t	se_mtx;		/* protects se_mounting and se_cv */
+	kcondvar_t	se_cv;		/* signal mount completion */
+	boolean_t	se_mounting;	/* mount operation in progress */
+	int		se_mount_error;	/* error from failed mount */
+} zfs_snapentry_t;
 
 /* zpl_file_range.c */
 

@@ -114,21 +114,6 @@ int zfs_expire_snapshot = ZFSCTL_EXPIRE_SNAPSHOT;
 static int zfs_admin_snapshot = 0;
 static int zfs_snapshot_no_setuid = 0;
 
-typedef struct {
-	char		*se_name;	/* full snapshot name */
-	char		*se_path;	/* full mount path */
-	spa_t		*se_spa;	/* pool spa (NULL if pending) */
-	uint64_t	se_objsetid;	/* snapshot objset id */
-	taskqid_t	se_taskqid;	/* scheduled unmount taskqid */
-	avl_node_t	se_node_name;	/* zfs_snapshots_by_name link */
-	avl_node_t	se_node_objsetid; /* zfs_snapshots_by_objsetid link */
-	zfs_refcount_t	se_refcount;	/* reference count */
-	kmutex_t	se_mtx;		/* protects se_mounting and se_cv */
-	kcondvar_t	se_cv;		/* signal mount completion */
-	boolean_t	se_mounting;	/* mount operation in progress */
-	int		se_mount_error;	/* error from failed mount */
-} zfs_snapentry_t;
-
 static void zfsctl_snapshot_unmount_delay_impl(zfs_snapentry_t *se);
 
 /*
