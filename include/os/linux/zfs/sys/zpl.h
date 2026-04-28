@@ -26,6 +26,8 @@
 #ifndef	_SYS_ZPL_H
 #define	_SYS_ZPL_H
 
+#include <sys/zfs_context.h>
+#include <sys/spa.h>
 #include <sys/mntent.h>
 #include <sys/vfs.h>
 #include <linux/aio.h>
@@ -111,6 +113,28 @@ extern const struct inode_operations zpl_ops_snapdir;
 
 extern const struct file_operations zpl_fops_shares;
 extern const struct inode_operations zpl_ops_shares;
+
+typedef enum {
+	SE_MOUNTING,	/* mount operation in progress (userspace called) */
+	SE_ACTIVE,	/* mount complete */
+	SE_UNMOUNTING,	/* unmount operation in progress (userspace called) */
+	SE_INACTIVE,	/* mount failed or unmount complete */
+} zfs_snapentry_state_t;
+
+typedef struct {
+	char		*se_name;	/* full snapshot name */
+	char		*se_path;	/* full mount path */
+	spa_t		*se_spa;	/* pool spa (NULL if pending) */
+	uint64_t	se_objsetid;	/* snapshot objset id */
+	taskqid_t	se_taskqid;	/* scheduled unmount taskqid */
+	avl_node_t	se_node_name;	/* zfs_snapshots_by_name link */
+	avl_node_t	se_node_objsetid; /* zfs_snapshots_by_objsetid link */
+	zfs_refcount_t	se_refcount;	/* reference count */
+	kmutex_t	se_mtx;		/* protects se_state and se_cv */
+	kcondvar_t	se_cv;		/* signal mount completion */
+	zfs_snapentry_state_t	se_state; /* current snapentry lifetime state */
+	int		se_mount_error;	/* error from failed mount */
+} zfs_snapentry_t;
 
 /* zpl_file_range.c */
 
