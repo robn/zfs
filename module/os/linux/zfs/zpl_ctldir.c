@@ -165,12 +165,59 @@ const struct inode_operations zpl_ops_root = {
 	.getattr	= zpl_root_getattr,
 };
 
+typedef struct {
+	kmutex_t	st_mtx;
+	kcondvar_t	st_cv;
+	bool		st_automounting;
+} zpl_snapdir_transit_t;
+
+static int
+zpl_snapdir_manage(const struct path *path, bool rcu_walk)
+{
+	struct dentry *dentry = path->dentry;
+	zpl_snapdir_transit_t *st = dentry->d_fsdata;
+
+	if (path_is_mountpoint(path))
+		return (0);
+
+	if (rcu_walk)
+		return (-ECHILD);
+
+	mutex_enter(&st->st_mtx);
+	while (st->st_automounting)
+		cv_wait(&st->st_cv, &st->st_mtx);
+	mutex_exit(&st->st_mtx);
+
+	return (0);
+}
+
 static struct vfsmount *
 zpl_snapdir_automount(struct path *path)
 {
-	int error;
+	struct dentry *dentry = path->dentry;
+	zpl_snapdir_transit_t *st = dentry->d_fsdata;
 
-	error = -zfsctl_snapshot_mount(path);
+	mutex_enter(&st->st_mtx);
+	if (st->st_automounting) {
+		mutex_exit(&st->st_mtx);
+		return (NULL);
+	}
+
+	if (path_is_mountpoint(path)) {
+		mutex_exit(&st->st_mtx);
+		return (NULL);
+	}
+
+	st->st_automounting = true;
+	mutex_exit(&st->st_mtx);
+
+	int error = -zfsctl_snapshot_mount(path);
+
+	mutex_enter(&st->st_mtx);
+	st->st_automounting = false;
+	cv_broadcast(&st->st_cv);
+	mutex_exit(&st->st_mtx);
+
 	if (error)
 		return (ERR_PTR(error));
 
@@ -202,6 +249,26 @@ zpl_snapdir_revalidate(struct dentry *dentry, unsigned int flags)
 	return (!!dentry->d_inode);
 }
 
+static void
+zpl_snapdir_release(struct dentry *dentry)
+{
+	spin_lock(&dentry->d_lock);
+	zpl_snapdir_transit_t *st = dentry->d_fsdata;
+	dentry->d_fsdata = NULL;
+	spin_unlock(&dentry->d_lock);
+
+	/*
+	 * Release can be called more than once if part of the release was
+	 * deferred, so we might have already cleaned up. Do nothing if so.
+	 */
+	if (st == NULL)
+		return;
+
+	mutex_destroy(&st->st_mtx);
+	cv_destroy(&st->st_cv);
+	kmem_free(st, sizeof (zpl_snapdir_transit_t));
+}
+
 static const struct dentry_operations zpl_dops_snapdirs = {
 /*
  * Auto mounting of snapshots is only supported for 2.6.37 and
@@ -211,8 +278,10 @@ static const struct dentry_operations zpl_dops_snapdirs = {
  * name space.  While it might be possible to add compatibility
  * code to accomplish this it would require considerable care.
  */
+	.d_manage	= zpl_snapdir_manage,
 	.d_automount	= zpl_snapdir_automount,
 	.d_revalidate	= zpl_snapdir_revalidate,
+	.d_release	= zpl_snapdir_release,
 };
 
 /*
@@ -281,7 +350,20 @@ zpl_snapdir_lookup(struct inode *dip, struct dentry *dentry,
 		return (ERR_PTR(error));
 
 	ASSERT(error == 0 || ip == NULL);
-	set_snapdir_dentry_ops(dentry, DCACHE_NEED_AUTOMOUNT);
+
+	zpl_snapdir_transit_t *st =
+	    kmem_zalloc(sizeof (zpl_snapdir_transit_t), KM_SLEEP);
+	mutex_init(&st->st_mtx, NULL, MUTEX_DEFAULT, NULL);
+	cv_init(&st->st_cv, NULL, CV_DEFAULT, NULL);
+	st->st_automounting = false;
+
+	spin_lock(&dentry->d_lock);
+	ASSERT0P(dentry->d_fsdata);
+	dentry->d_fsdata = st;
+	spin_unlock(&dentry->d_lock);
+
+	set_snapdir_dentry_ops(dentry,
+	    DCACHE_NEED_AUTOMOUNT | DCACHE_MANAGE_TRANSIT);
 	return (d_splice_alias(ip, dentry));
 }
 
