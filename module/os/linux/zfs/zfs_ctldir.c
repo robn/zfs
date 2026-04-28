@@ -117,23 +117,43 @@ static int zfs_snapshot_no_setuid = 0;
 static void zfsctl_snapshot_unmount_delay_impl(zfs_snapentry_t *se);
 
 /*
- * Initialise a zfs_snapentry_t with a copy of the snapshot name and
- * provided mountpoint.  No reference is taken.
+ * Allocate a new zfs_snapentry_t being careful to make a copy of the
+ * the snapshot name and provided mount point.  No reference is taken.
  */
-static void
-zfsctl_snapshot_init(zfs_snapentry_t *se,
-    const char *full_name, const char *full_path)
+static zfs_snapentry_t *
+zfsctl_snapshot_alloc(const char *full_name, const char *full_path)
 {
-	ASSERT0P(se->se_name);
-	ASSERT0P(se->se_path);
+	zfs_snapentry_t *se;
+
+	se = kmem_zalloc(sizeof (zfs_snapentry_t), KM_SLEEP);
 
 	se->se_name = kmem_strdup(full_name);
 	se->se_path = kmem_strdup(full_path);
-	se->se_spa = NULL;
-	se->se_objsetid = 0;
 	se->se_taskqid = TASKQID_INVALID;
+	mutex_init(&se->se_mtx, NULL, MUTEX_DEFAULT, NULL);
+	cv_init(&se->se_cv, NULL, CV_DEFAULT, NULL);
 	se->se_mounting = B_FALSE;
 	se->se_mount_error = 0;
+
+	zfs_refcount_create(&se->se_refcount);
+
+	return (se);
+}
+
+/*
+ * Free a zfs_snapentry_t the caller must ensure there are no active
+ * references.
+ */
+static void
+zfsctl_snapshot_free(zfs_snapentry_t *se)
+{
+	zfs_refcount_destroy(&se->se_refcount);
+	kmem_strfree(se->se_name);
+	kmem_strfree(se->se_path);
+	mutex_destroy(&se->se_mtx);
+	cv_destroy(&se->se_cv);
+
+	kmem_free(se, sizeof (zfs_snapentry_t));
 }
 
 /*
@@ -147,17 +167,13 @@ zfsctl_snapshot_hold(zfs_snapentry_t *se)
 
 /*
  * Release a reference on the zfs_snapentry_t.  When the number of
- * references drops to zero the structure will be emptied.
+ * references drops to zero the structure will be freed.
  */
 static void
 zfsctl_snapshot_rele(zfs_snapentry_t *se)
 {
-	if (zfs_refcount_remove(&se->se_refcount, NULL) == 0) {
-		kmem_strfree(se->se_name);
-		kmem_strfree(se->se_path);
-		se->se_name = NULL;
-		se->se_path = NULL;
-	}
+	if (zfs_refcount_remove(&se->se_refcount, NULL) == 0)
+		zfsctl_snapshot_free(se);
 }
 
 /*
@@ -1251,10 +1267,9 @@ zfsctl_snapshot_mount(struct path *path)
 	}
 
 	/*
-	 * Init pending entry and mark mount in progress.
+	 * Create pending entry and mark mount in progress.
 	 */
-	se = dentry->d_fsdata;
-	zfsctl_snapshot_init(se, full_name, full_path);
+	se = zfsctl_snapshot_alloc(full_name, full_path);
 	se->se_mounting = B_TRUE;
 	zfsctl_snapshot_add(se);
 	zfsctl_snapshot_hold(se);
