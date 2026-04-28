@@ -471,6 +471,7 @@ zfsctl_snapshot_free(zpl_snapentry_t *se)
 
 	kmem_free(se, sizeof (zpl_snapentry_t));
 }
+#endif
 
 /*
  * Hold a reference on the zpl_snapentry_t.
@@ -478,7 +479,10 @@ zfsctl_snapshot_free(zpl_snapentry_t *se)
 static void
 zfsctl_snapshot_hold(zpl_snapentry_t *se)
 {
-	zfs_refcount_add(&se->se_refcount, NULL);
+	ASSERT(!MUTEX_HELD(&se->se_mtx));
+	dget(se->se_dentry);
+	cmn_err(CE_NOTE, "zfsctl_snapshot_hold: snap=%s refcnt=%d",
+	    dname(se->se_dentry), d_count(se->se_dentry));
 }
 
 /*
@@ -488,10 +492,11 @@ zfsctl_snapshot_hold(zpl_snapentry_t *se)
 static void
 zfsctl_snapshot_rele(zpl_snapentry_t *se)
 {
-	if (zfs_refcount_remove(&se->se_refcount, NULL) == 0)
-		zfsctl_snapshot_free(se);
+	ASSERT(!MUTEX_HELD(&se->se_mtx));
+	cmn_err(CE_NOTE, "zfsctl_snapshot_hold: snap=%s refcnt=%d",
+	    dname(se->se_dentry), d_count(se->se_dentry)-1);
+	dput(se->se_dentry);
 }
-#endif
 
 #ifdef SNAPENTRY_DEBUG_DUMP
 static void
@@ -514,16 +519,7 @@ static void
 zfsctl_snapshot_add(zpl_snapentry_t *se)
 {
 	ASSERT(RW_WRITE_HELD(&zfs_snapshot_lock));
-	/*
-	 * XXX no refcount for the moment; I'm sort of assuming that the
-	 *     dentry will keep the thing alive, but I'm not entirely clear
-	 *     on that. keeping things simple until I can be sure.
-	 *
-	 *     (I notice we used to dget(se_dentry) (or equivalent) in the
-	 *     old code, which would have kept the dentry alive, but that's
-	 *     obviously circular now. still, big hmmm...)
-	 */
-	// XXX zfsctl_snapshot_hold(se);
+	zfsctl_snapshot_hold(se);
 	avl_add(&zfs_snapshots_by_name, se);
 	avl_add(&zfs_snapshots_by_objsetid, se);
 }
@@ -540,7 +536,7 @@ zfsctl_snapshot_remove(zpl_snapentry_t *se)
 	ASSERT(RW_WRITE_HELD(&zfs_snapshot_lock));
 	avl_remove(&zfs_snapshots_by_name, se);
 	avl_remove(&zfs_snapshots_by_objsetid, se);
-	// XXX zfsctl_snapshot_rele(se);
+	zfsctl_snapshot_rele(se);
 }
 
 /*
@@ -586,10 +582,8 @@ zfsctl_snapshot_find_by_name(const char *snapname)
 
 	search.se_name = (char *)snapname;
 	se = avl_find(&zfs_snapshots_by_name, &search, NULL);
-	/* XXX no refcounts
 	if (se)
 		zfsctl_snapshot_hold(se);
-	*/
 
 	return (se);
 }
@@ -609,10 +603,8 @@ zfsctl_snapshot_find_by_objsetid(spa_t *spa, uint64_t objsetid)
 	search.se_spa = spa;
 	search.se_objsetid = objsetid;
 	se = avl_find(&zfs_snapshots_by_objsetid, &search, NULL);
-	/* XXX no refcounts
 	if (se)
 		zfsctl_snapshot_hold(se);
-	*/
 
 	return (se);
 }
@@ -937,11 +929,10 @@ zfsctl_destroy(zfsvfs_t *zfsvfs)
 	} else if (zfsvfs->z_ctldir) {
 		char dsname[ZFS_MAX_DATASET_NAME_LEN];
 		dmu_objset_name(zfsvfs->z_os, dsname);
-		// XXX size_t dsnamelen = strlen(dsname);
+		size_t dsnamelen = strlen(dsname);
 
 		cmn_err(CE_NOTE, "zfsctl_destroy: dsname=%s: detaching snapshots", dsname);
 
-#if 0
 		rw_enter(&zfs_snapshot_lock, RW_READER);
 		zpl_snapentry_t *se = avl_first(&zfs_snapshots_by_name);
 
@@ -955,17 +946,18 @@ zfsctl_destroy(zfsvfs_t *zfsvfs)
 			zfsctl_snapshot_hold(se);
 			rw_exit(&zfs_snapshot_lock);
 
+#if 0
 			mutex_enter(&se->se_mtx);
 			zfs_snapentry_wait(se);
 			zfs_snapentry_detach(se);
 			mutex_exit(&se->se_mtx);
+#endif
 
 			zfsctl_snapshot_rele(se);
 
 			rw_enter(&zfs_snapshot_lock, RW_READER);
 			se = avl_first(&zfs_snapshots_by_name);
 		}
-#endif
 
 		rw_exit(&zfs_snapshot_lock);
 
