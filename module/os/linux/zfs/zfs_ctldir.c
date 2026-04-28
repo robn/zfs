@@ -89,6 +89,7 @@
 #include <sys/dsl_deleg.h>
 #include <sys/zpl.h>
 #include <sys/mntent.h>
+#include <linux/fs_context.h>
 #include "zfs_namecheck.h"
 
 /*
@@ -115,9 +116,11 @@ static int zfs_admin_snapshot = 0;
 static int zfs_snapshot_no_setuid = 0;
 
 typedef struct {
+	struct vfsmount	*se_ctldir_mnt;	/* mount holding the ctldir */
+	struct dentry	*se_ctldir_dentry;	/* ctldir dentry */
 	char		*se_name;	/* full snapshot name */
 	char		*se_path;	/* full mount path */
-	spa_t		*se_spa;	/* pool spa (NULL if pending) */
+	spa_t		*se_spa;	/* pool spa */
 	uint64_t	se_objsetid;	/* snapshot objset id */
 	taskqid_t	se_taskqid;	/* scheduled unmount taskqid */
 	avl_node_t	se_node_name;	/* zfs_snapshots_by_name link */
@@ -125,8 +128,6 @@ typedef struct {
 	zfs_refcount_t	se_refcount;	/* reference count */
 	kmutex_t	se_mtx;		/* protects se_mounting and se_cv */
 	kcondvar_t	se_cv;		/* signal mount completion */
-	boolean_t	se_mounting;	/* mount operation in progress */
-	int		se_mount_error;	/* error from failed mount */
 } zfs_snapentry_t;
 
 static void zfsctl_snapshot_unmount_delay_impl(zfs_snapentry_t *se);
@@ -136,7 +137,8 @@ static void zfsctl_snapshot_unmount_delay_impl(zfs_snapentry_t *se);
  * the snapshot name and provided mount point.  No reference is taken.
  */
 static zfs_snapentry_t *
-zfsctl_snapshot_alloc(const char *full_name, const char *full_path)
+zfsctl_snapshot_alloc(const char *full_name, const char *full_path,
+    spa_t *spa, uint64_t objsetid)
 {
 	zfs_snapentry_t *se;
 
@@ -144,11 +146,11 @@ zfsctl_snapshot_alloc(const char *full_name, const char *full_path)
 
 	se->se_name = kmem_strdup(full_name);
 	se->se_path = kmem_strdup(full_path);
+	se->se_spa = spa;
+	se->se_objsetid = objsetid;
 	se->se_taskqid = TASKQID_INVALID;
 	mutex_init(&se->se_mtx, NULL, MUTEX_DEFAULT, NULL);
 	cv_init(&se->se_cv, NULL, CV_DEFAULT, NULL);
-	se->se_mounting = B_FALSE;
-	se->se_mount_error = 0;
 
 	zfs_refcount_create(&se->se_refcount);
 
@@ -192,9 +194,9 @@ zfsctl_snapshot_rele(zfs_snapentry_t *se)
 }
 
 /*
- * Add a zfs_snapentry_t to the zfs_snapshots_by_name tree.  If the entry
- * is not pending (se_spa != NULL), also add to zfs_snapshots_by_objsetid.
- * While the zfs_snapentry_t is part of the trees a reference is held.
+ * Add a zfs_snapentry_t to the zfs_snapshots_by_name and
+ * zfs_snapshots_by_objsetid trees.  While the zfs_snapentry_t is part of the
+ * trees a reference is held.
  */
 static void
 zfsctl_snapshot_add(zfs_snapentry_t *se)
@@ -202,38 +204,22 @@ zfsctl_snapshot_add(zfs_snapentry_t *se)
 	ASSERT(RW_WRITE_HELD(&zfs_snapshot_lock));
 	zfsctl_snapshot_hold(se);
 	avl_add(&zfs_snapshots_by_name, se);
-	if (se->se_spa != NULL)
-		avl_add(&zfs_snapshots_by_objsetid, se);
+	avl_add(&zfs_snapshots_by_objsetid, se);
 }
 
 /*
  * Remove a zfs_snapentry_t from the zfs_snapshots_by_name tree and
- * zfs_snapshots_by_objsetid tree (if not pending).  Upon removal a
- * reference is dropped, this can result in the structure being freed
- * if that was the last remaining reference.
+ * zfs_snapshots_by_objsetid tree.  Upon removal a reference is dropped, this
+ * can result in the structure being freed if that was the last remaining
+ * reference.
  */
 static void
 zfsctl_snapshot_remove(zfs_snapentry_t *se)
 {
 	ASSERT(RW_WRITE_HELD(&zfs_snapshot_lock));
 	avl_remove(&zfs_snapshots_by_name, se);
-	if (se->se_spa != NULL)
-		avl_remove(&zfs_snapshots_by_objsetid, se);
+	avl_remove(&zfs_snapshots_by_objsetid, se);
 	zfsctl_snapshot_rele(se);
-}
-
-/*
- * Fill a pending zfs_snapentry_t after mount succeeds.  Fills in the
- * remaining fields and adds the entry to the zfs_snapshots_by_objsetid tree.
- */
-static void
-zfsctl_snapshot_fill(zfs_snapentry_t *se, spa_t *spa, uint64_t objsetid)
-{
-	ASSERT(RW_WRITE_HELD(&zfs_snapshot_lock));
-	ASSERT3P(se->se_spa, ==, NULL);
-	se->se_spa = spa;
-	se->se_objsetid = objsetid;
-	avl_add(&zfs_snapshots_by_objsetid, se);
 }
 
 /*
@@ -1124,14 +1110,6 @@ zfsctl_snapshot_unmount(const char *snapname)
 	}
 	rw_exit(&zfs_snapshot_lock);
 
-	/*
-	 * Wait for any pending auto-mount to complete before unmounting.
-	 */
-	mutex_enter(&se->se_mtx);
-	while (se->se_mounting)
-		cv_wait(&se->se_cv, &se->se_mtx);
-	mutex_exit(&se->se_mtx);
-
 	exportfs_flush();
 
 	argv[5] = se->se_path;
@@ -1151,20 +1129,25 @@ zfsctl_snapshot_unmount(const char *snapname)
 	return (error);
 }
 
+/* 6.18 compat: 4th arg removed; function will do strlen() internally. */
+#ifdef HAVE_VFS_PARSE_FS_STRING_3ARGS
+#define	zpl_vfs_parse_fs_string(fc, key, val)	\
+	vfs_parse_fs_string((fc), (key), (val))
+#else
+#define	zpl_vfs_parse_fs_string(fc, key, val)	\
+	vfs_parse_fs_string((fc), (key), (val), strlen(val))
+#endif
+
 int
-zfsctl_snapshot_mount(struct path *path)
+zfsctl_snapshot_mount(struct path *path, struct vfsmount **mntp)
 {
 	struct dentry *dentry = path->dentry;
 	struct inode *ip = dentry->d_inode;
 	zfsvfs_t *zfsvfs;
 	zfsvfs_t *snap_zfsvfs;
 	zfs_snapentry_t *se;
-	char *full_name, *full_path, *options;
-	char *argv[] = { "/usr/bin/env", "mount", "-i", "-t", "zfs", "-n",
-	    "-o", NULL, NULL, NULL, NULL };
-	char *envp[] = { NULL };
+	char *full_name, *full_path;
 	int error;
-	struct path spath;
 
 	if (ip == NULL)
 		return (SET_ERROR(EISDIR));
@@ -1175,7 +1158,6 @@ zfsctl_snapshot_mount(struct path *path)
 
 	full_name = kmem_zalloc(ZFS_MAX_DATASET_NAME_LEN, KM_SLEEP);
 	full_path = kmem_zalloc(MAXPATHLEN, KM_SLEEP);
-	options = kmem_zalloc(7, KM_SLEEP);
 
 	error = zfsctl_snapshot_name(zfsvfs, dname(dentry),
 	    ZFS_MAX_DATASET_NAME_LEN, full_name);
@@ -1230,9 +1212,6 @@ zfsctl_snapshot_mount(struct path *path)
 	    dname(dentry));
 	mutex_exit(&zfsvfs->z_vfs->vfs_mntpt_lock);
 
-	snprintf(options, 7, "%s",
-	    zfs_snapshot_no_setuid ? "nosuid" : "suid");
-
 	/*
 	 * Release z_teardown_lock before potentially blocking operations
 	 * (cv_wait for concurrent mounts, call_usermodehelper for the mount
@@ -1260,121 +1239,52 @@ zfsctl_snapshot_mount(struct path *path)
 	 */
 	zfs_exit(zfsvfs, FTAG);
 
-	/*
-	 * Check if snapshot is already being mounted. If found, wait for
-	 * pending mount to complete before returning success.
-	 */
-	rw_enter(&zfs_snapshot_lock, RW_WRITER);
-	if ((se = zfsctl_snapshot_find_by_name(full_name)) != NULL) {
-		rw_exit(&zfs_snapshot_lock);
-		mutex_enter(&se->se_mtx);
-		while (se->se_mounting)
-			cv_wait(&se->se_cv, &se->se_mtx);
+	struct fs_context *fc =
+	    fs_context_for_submount(dentry->d_sb->s_type, dentry);
+	if (IS_ERR(fc)) {
+		error = -PTR_ERR(fc);
+		goto error;
+	}
 
-		/*
-		 * Return the same error as the first mount attempt (0 if
-		 * succeeded, error code if failed).
-		 */
-		error = se->se_mount_error;
-		mutex_exit(&se->se_mtx);
-		zfsctl_snapshot_rele(se);
+	error = -zpl_vfs_parse_fs_string(fc, "source", full_name);
+	if (error != 0) {
+		put_fs_context(fc);
+		goto error;
+	}
+
+	struct vfsmount *mnt = fc_mount(fc);
+	put_fs_context(fc);
+
+	if (IS_ERR(mnt)) {
+		error = -PTR_ERR(mnt);
 		goto error;
 	}
 
 	/*
-	 * Create pending entry and mark mount in progress.
+	 * TODO: apply MNT_NOSUID if zfs_snapshot_no_setuid is set. Can't do
+	 *       it here for complicated reasons that will be made clear in
+	 *       future commits.
 	 */
-	se = zfsctl_snapshot_alloc(full_name, full_path);
-	se->se_mounting = B_TRUE;
+
+	/* Point the snapshot mount back to the parent mount. */
+	snap_zfsvfs = ITOZSB(mnt->mnt_root->d_inode);
+	snap_zfsvfs->z_parent = zfsvfs;
+
+	/* Create and publish entry. */
+	se = zfsctl_snapshot_alloc(full_name, full_path,
+	    dmu_objset_spa(snap_zfsvfs->z_os),
+	    dmu_objset_id(snap_zfsvfs->z_os));
+
+	rw_enter(&zfs_snapshot_lock, RW_WRITER);
 	zfsctl_snapshot_add(se);
-	zfsctl_snapshot_hold(se);
+	zfsctl_snapshot_unmount_delay_impl(se);
 	rw_exit(&zfs_snapshot_lock);
 
-	/*
-	 * Attempt to mount the snapshot from user space.  Normally this
-	 * would be done using the vfs_kern_mount() function, however that
-	 * function is marked GPL-only and cannot be used.  On error we
-	 * careful to log the real error to the console and return EISDIR
-	 * to safely abort the automount.  This should be very rare.
-	 *
-	 * If the user mode helper happens to return EBUSY, a concurrent
-	 * mount is already in progress in which case the error is ignored.
-	 * Take note that if the program was executed successfully the return
-	 * value from call_usermodehelper() will be (exitcode << 8 + signal).
-	 */
-	dprintf("mount; name=%s path=%s\n", full_name, full_path);
-	argv[7] = options;
-	argv[8] = full_name;
-	argv[9] = full_path;
-	error = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_PROC);
-	if (error) {
-		/*
-		 * Mount failed - cleanup pending entry and signal waiters.
-		 */
-		if (!(error & MOUNT_BUSY << 8)) {
-			zfs_dbgmsg("Unable to automount %s error=%d",
-			    full_path, error);
-			error = SET_ERROR(EISDIR);
-		} else {
-			/*
-			 * EBUSY, this could mean a concurrent mount, or the
-			 * snapshot has already been mounted at completely
-			 * different place. We return 0 so VFS will retry. For
-			 * the latter case the VFS will retry several times
-			 * and return ELOOP, which is probably not a very good
-			 * behavior.
-			 */
-			error = 0;
-		}
+	*mntp = mnt;
 
-		rw_enter(&zfs_snapshot_lock, RW_WRITER);
-		zfsctl_snapshot_remove(se);
-		rw_exit(&zfs_snapshot_lock);
-		mutex_enter(&se->se_mtx);
-		se->se_mount_error = error;
-		se->se_mounting = B_FALSE;
-		cv_broadcast(&se->se_cv);
-		mutex_exit(&se->se_mtx);
-		zfsctl_snapshot_rele(se);
-		goto error;
-	}
-
-	/*
-	 * Follow down in to the mounted snapshot and set MNT_SHRINKABLE
-	 * to identify this as an automounted filesystem.
-	 */
-	spath = *path;
-	path_get(&spath);
-	if (follow_down_one(&spath)) {
-		snap_zfsvfs = ITOZSB(spath.dentry->d_inode);
-		snap_zfsvfs->z_parent = zfsvfs;
-		dentry = spath.dentry;
-		spath.mnt->mnt_flags |= MNT_SHRINKABLE;
-
-		rw_enter(&zfs_snapshot_lock, RW_WRITER);
-		zfsctl_snapshot_fill(se, dmu_objset_spa(snap_zfsvfs->z_os),
-		    dmu_objset_id(snap_zfsvfs->z_os));
-		zfsctl_snapshot_unmount_delay_impl(se);
-		rw_exit(&zfs_snapshot_lock);
-	} else {
-		rw_enter(&zfs_snapshot_lock, RW_WRITER);
-		zfsctl_snapshot_remove(se);
-		rw_exit(&zfs_snapshot_lock);
-	}
-	path_put(&spath);
-
-	/*
-	 * Signal mount completion and cleanup.
-	 */
-	mutex_enter(&se->se_mtx);
-	se->se_mounting = B_FALSE;
-	cv_broadcast(&se->se_cv);
-	mutex_exit(&se->se_mtx);
-	zfsctl_snapshot_rele(se);
 error:
 	kmem_free(full_name, ZFS_MAX_DATASET_NAME_LEN);
 	kmem_free(full_path, MAXPATHLEN);
-	kmem_free(options, 7);
 
 	return (error);
 }

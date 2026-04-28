@@ -211,7 +211,8 @@ zpl_snapdir_automount(struct path *path)
 	st->st_automounting = true;
 	mutex_exit(&st->st_mtx);
 
-	int error = -zfsctl_snapshot_mount(path);
+	struct vfsmount *mnt;
+	int error = -zfsctl_snapshot_mount(path, &mnt);
 
 	mutex_enter(&st->st_mtx);
 	st->st_automounting = false;
@@ -221,14 +222,7 @@ zpl_snapdir_automount(struct path *path)
 	if (error)
 		return (ERR_PTR(error));
 
-	/*
-	 * Rather than returning the new vfsmount for the snapshot we must
-	 * return NULL to indicate a mount collision.  This is done because
-	 * the user space mount calls do_add_mount() which adds the vfsmount
-	 * to the name space.  If we returned the new mount here it would be
-	 * added again to the vfsmount list resulting in list corruption.
-	 */
-	return (NULL);
+	return (mnt);
 }
 
 /*
