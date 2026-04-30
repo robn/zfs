@@ -117,7 +117,8 @@ static int zfs_snapshot_no_setuid = 0;
 typedef enum {
 	SE_MOUNTING,	/* mount operation in progress (userspace called) */
 	SE_ACTIVE,	/* mount complete */
-	SE_INACTIVE,	/* mount failed */
+	SE_UNMOUNTING,	/* unmount operation in progress (userspace called) */
+	SE_INACTIVE,	/* mount failed or unmount complete */
 } zfs_snapentry_state_t;
 
 typedef struct {
@@ -1131,12 +1132,34 @@ zfsctl_snapshot_unmount(const char *snapname)
 	}
 	rw_exit(&zfs_snapshot_lock);
 
-	/*
-	 * Wait for any pending auto-mount to complete before unmounting.
-	 */
 	mutex_enter(&se->se_mtx);
+
+	/* Wait for any pending auto-mount to complete before unmounting. */
 	while (se->se_state == SE_MOUNTING)
 		cv_wait(&se->se_cv, &se->se_mtx);
+
+	if (se->se_state != SE_ACTIVE) {
+		/*
+		 * It's not in the ACTIVE state after being mounted; something
+		 * else may have started the unmount; wait for it.
+		 */
+		while (se->se_state == SE_UNMOUNTING)
+			cv_wait(&se->se_cv, &se->se_mtx);
+
+		if (se->se_state != SE_ACTIVE) {
+			/*
+			 * Either successfully unmounted or mount failed.
+			 * Either way, nothing more to do!
+			 */
+			ASSERT3U(se->se_state, ==, SE_INACTIVE);
+			mutex_exit(&se->se_mtx);
+			zfsctl_snapshot_rele(se);
+			return (0);
+		}
+	}
+
+	/* We will trigger unmount. */
+	se->se_state = SE_UNMOUNTING;
 	mutex_exit(&se->se_mtx);
 
 	argv[5] = se->se_path;
@@ -1158,15 +1181,21 @@ zfsctl_snapshot_unmount(const char *snapname)
 		    UMH_WAIT_PROC);
 	}
 
-	zfsctl_snapshot_rele(se);
-
 	/*
 	 * The umount system utility will return 256 on error.  We must
 	 * assume this error is because the file system is busy so it is
 	 * converted to the more sensible EBUSY.
 	 */
-	if (error)
+	mutex_enter(&se->se_mtx);
+	if (error) {
 		error = SET_ERROR(EBUSY);
+		se->se_state = SE_ACTIVE;
+	} else
+		se->se_state = SE_INACTIVE;
+	cv_broadcast(&se->se_cv);
+	mutex_exit(&se->se_mtx);
+
+	zfsctl_snapshot_rele(se);
 
 	return (error);
 }
