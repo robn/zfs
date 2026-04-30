@@ -115,6 +115,12 @@ int zfs_expire_snapshot = ZFSCTL_EXPIRE_SNAPSHOT;
 static int zfs_admin_snapshot = 0;
 static int zfs_snapshot_no_setuid = 0;
 
+typedef enum {
+	SE_ACTIVE,
+	SE_INVALIDATED,
+	SE_UNMOUNTED,
+}
+
 typedef struct {
 	struct vfsmount	*se_ctldir_mnt;	/* mount holding the ctldir */
 	struct dentry	*se_ctldir_dentry;	/* ctldir dentry */
@@ -128,6 +134,9 @@ typedef struct {
 	zfs_refcount_t	se_refcount;	/* reference count */
 	kmutex_t	se_mtx;		/* protects se_mounting and se_cv */
 	kcondvar_t	se_cv;		/* signal mount completion */
+	enum { SE_INVALIDATING
+	bool		se_invalidating;
+	bool		se_unmounting;
 } zfs_snapentry_t;
 
 static void zfsctl_snapshot_unmount_delay_impl(zfs_snapentry_t *se);
@@ -572,6 +581,7 @@ zfsctl_create(zfsvfs_t *zfsvfs)
 	return (0);
 }
 
+static void zfsctl_snapshot_invalidate(zfs_snapentry_t *se);
 /*
  * Destroy the '.zfs' directory or remove a snapshot from zfs_snapshots_by_name.
  * Only called when the filesystem is unmounted.
@@ -588,16 +598,27 @@ zfsctl_destroy(zfsvfs_t *zfsvfs)
 		se = zfsctl_snapshot_find_by_objsetid(spa, objsetid);
 		if (se != NULL) {
 			zfsctl_snapshot_remove(se);
+			rw_exit(&zfs_snapshot_lock);
+
+			zfsctl_snapshot_invalidate(se);
+
+			mutex_enter(&se->se_mtx);
+			ASSERT(se->se_unmounting);
+			se->se_unmounting = false;
+			cv_broadcast(&se->se_cv);
+			mutex_exit(&se->se_mtx);
+
 			/*
 			 * Don't wait if snapentry_expire task is calling
 			 * umount, which may have resulted in this destroy
 			 * call. Waiting would deadlock: snapentry_expire
 			 * waits for umount while umount waits for task.
 			 */
-			zfsctl_snapshot_unmount_cancel(se);
+			//zfsctl_snapshot_unmount_cancel(se);
 			zfsctl_snapshot_rele(se);
+		} else {
+			rw_exit(&zfs_snapshot_lock);
 		}
-		rw_exit(&zfs_snapshot_lock);
 	} else if (zfsvfs->z_ctldir) {
 		iput(zfsvfs->z_ctldir);
 		zfsvfs->z_ctldir = NULL;
@@ -1094,12 +1115,57 @@ is_current_chrooted(void)
  * best effort.  In the case where it does fail, perhaps because
  * it's in use, the unmount will fail harmlessly.
  */
+static void
+zfsctl_snapshot_invalidate_task(void *arg)
+{
+	struct dentry *dentry = arg;
+	cmn_err(CE_NOTE, "invalidate %px", dentry);
+	spl_dumpstack();
+	d_invalidate(dentry);
+	dput(dentry);
+}
+
+static void
+zfsctl_snapshot_invalidate(zfs_snapentry_t *se)
+{
+	mutex_enter(&se->se_mtx);
+
+	if (se->se_ctldir_dentry == NULL) {
+		mutex_exit(&se->se_mtx);
+		return;
+	}
+
+	if (se->se_invalidating) {
+		while (se->se_invalidating)
+			cv_wait(&se->se_cv, &se->se_mtx);
+		ASSERT0P(se->se_ctldir_dentry);
+		mutex_exit(&se->se_mtx);
+		return;
+	}
+
+	se->se_invalidating = true;
+	mutex_exit(&se->se_mtx);
+
+	cmn_err(CE_NOTE, "dispatch invalidate %px", se->se_ctldir_dentry);
+	spl_dumpstack();
+
+	taskqid_t id = taskq_dispatch(system_taskq,
+	    zfsctl_snapshot_invalidate_task, se->se_ctldir_dentry, TQ_SLEEP);
+	if (id != TASKQID_INVALID)
+		taskq_wait_id(system_taskq, id);
+
+	mutex_enter(&se->se_mtx);
+	se->se_ctldir_mnt = NULL;
+	se->se_ctldir_dentry = NULL;
+	se->se_invalidating = false;
+	se->se_unmounting = true;
+	cv_broadcast(&se->se_cv);
+	mutex_exit(&se->se_mtx);
+}
+
 int
 zfsctl_snapshot_unmount(const char *snapname)
 {
-	char *argv[] = { "/usr/bin/env", "umount", "-t", "zfs", "-n", NULL,
-	    NULL };
-	char *envp[] = { NULL };
 	zfs_snapentry_t *se;
 	int error;
 
@@ -1112,11 +1178,16 @@ zfsctl_snapshot_unmount(const char *snapname)
 
 	exportfs_flush();
 
-	argv[5] = se->se_path;
-	dprintf("unmount; path=%s\n", se->se_path);
-	error = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_PROC);
+	zfsctl_snapshot_invalidate(se);
+
+	mutex_enter(&se->se_mtx);
+	while (se->se_unmounting)
+		cv_wait(&se->se_cv, &se->se_mtx);
+	mutex_exit(&se->se_mtx);
+
 	zfsctl_snapshot_rele(se);
 
+	error = 0;
 
 	/*
 	 * The umount system utility will return 256 on error.  We must
@@ -1274,6 +1345,9 @@ zfsctl_snapshot_mount(struct path *path, struct vfsmount **mntp)
 	se = zfsctl_snapshot_alloc(full_name, full_path,
 	    dmu_objset_spa(snap_zfsvfs->z_os),
 	    dmu_objset_id(snap_zfsvfs->z_os));
+	se->se_ctldir_mnt = path->mnt;
+	se->se_ctldir_dentry = path->dentry;
+	dget(se->se_ctldir_dentry);
 
 	rw_enter(&zfs_snapshot_lock, RW_WRITER);
 	zfsctl_snapshot_add(se);
