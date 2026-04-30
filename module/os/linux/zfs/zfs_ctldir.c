@@ -345,6 +345,8 @@ zfsctl_snapshot_rename(const char *old_snapname, const char *new_snapname)
 /*
  * Delayed task responsible for unmounting an expired automounted snapshot.
  */
+static int zfsctl_snapshot_unmount_impl(zfs_snapentry_t *se);
+
 static void
 snapentry_expire(void *data)
 {
@@ -357,7 +359,7 @@ snapentry_expire(void *data)
 		return;
 	}
 
-	(void) zfsctl_snapshot_unmount(se->se_name);
+	(void) zfsctl_snapshot_unmount_impl(se);
 
 	/*
 	 * Clear taskqid and reschedule if the snapshot wasn't removed.
@@ -1116,21 +1118,13 @@ is_current_chrooted(void)
  * best effort.  In the case where it does fail, perhaps because
  * it's in use, the unmount will fail harmlessly.
  */
-int
-zfsctl_snapshot_unmount(const char *snapname)
+static int
+zfsctl_snapshot_unmount_impl(zfs_snapentry_t *se)
 {
 	char *argv[] = { "/usr/bin/env", "umount", "-t", "zfs", "-n", NULL,
 	    NULL };
 	char *envp[] = { NULL };
-	zfs_snapentry_t *se;
 	int error;
-
-	rw_enter(&zfs_snapshot_lock, RW_READER);
-	if ((se = zfsctl_snapshot_find_by_name(snapname)) == NULL) {
-		rw_exit(&zfs_snapshot_lock);
-		return (SET_ERROR(ENOENT));
-	}
-	rw_exit(&zfs_snapshot_lock);
 
 	mutex_enter(&se->se_mtx);
 
@@ -1153,7 +1147,6 @@ zfsctl_snapshot_unmount(const char *snapname)
 			 */
 			ASSERT3U(se->se_state, ==, SE_INACTIVE);
 			mutex_exit(&se->se_mtx);
-			zfsctl_snapshot_rele(se);
 			return (0);
 		}
 	}
@@ -1195,9 +1188,24 @@ zfsctl_snapshot_unmount(const char *snapname)
 	cv_broadcast(&se->se_cv);
 	mutex_exit(&se->se_mtx);
 
-	zfsctl_snapshot_rele(se);
-
 	return (error);
+}
+
+int
+zfsctl_snapshot_unmount(const char *snapname)
+{
+	zfs_snapentry_t *se;
+
+	rw_enter(&zfs_snapshot_lock, RW_READER);
+	if ((se = zfsctl_snapshot_find_by_name(snapname)) == NULL) {
+		rw_exit(&zfs_snapshot_lock);
+		return (SET_ERROR(ENOENT));
+	}
+	rw_exit(&zfs_snapshot_lock);
+
+	int err = zfsctl_snapshot_unmount_impl(se);
+	zfsctl_snapshot_rele(se);
+	return (err);
 }
 
 int
