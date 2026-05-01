@@ -169,7 +169,7 @@ zfsctl_snapshot_alloc(const char *full_name, const char *full_path)
 static void
 zfsctl_snapshot_free(zfs_snapentry_t *se)
 {
-	ASSERT(se->se_state == SE_ACTIVE || se->se_state == SE_INACTIVE);
+	ASSERT3U(se->se_state, ==, SE_INACTIVE);
 	zfs_refcount_destroy(&se->se_refcount);
 	kmem_strfree(se->se_name);
 	kmem_strfree(se->se_path);
@@ -622,14 +622,51 @@ zfsctl_destroy(zfsvfs_t *zfsvfs)
 		rw_exit(&zfs_snapshot_lock);
 
 		if (se != NULL) {
-			/*
-			 * Don't wait if snapentry_expire task is calling
-			 * umount, which may have resulted in this destroy
-			 * call. Waiting would deadlock: snapentry_expire
-			 * waits for umount while umount waits for task.
-			 */
 			mutex_enter(&se->se_mtx);
+
+			/*
+			 * If it's mounting, wait for it; unmount might have
+			 * been called after the mount completed but before
+			 * control was returned to zfsctl_snapshot_mount() to
+			 * finish it.
+			 */
+			while (se->se_state == SE_MOUNTING)
+				cv_wait(&se->se_cv, &se->se_mtx);
+
+			/*
+			 * We're going away; ensure the expiry task shuts
+			 * down and release its references.
+			 */
 			zfsctl_snapshot_unmount_cancel(se);
+
+			/*
+			 * If the state is SE_UNMOUNTING, then
+			 * snapentry_expire() has called
+			 * zfsctl_snapshot_unmount_impl(), which has called out
+			 * to userspace for umount(8). It is quite likely that
+			 * that umount syscall is how we have ended up here,
+			 * and so its on us to advance the state to SE_INACTIVE
+			 * for zfsctl_snapshot_unmount_impl() to see when
+			 * umount returns.
+			 *
+			 * However, its possible that the unmount is occuring
+			 * for some other reason, and _that_ umount syscall has
+			 * reached us first. We have no way of knowing this,
+			 * and we just have to accept that one of the callers
+			 * may recieve an EBUSY response, either because the
+			 * umount(8) call fails and they get an error back
+			 * through zfsctl_snapshot_unmount(), or because our
+			 * caller has come from (say) `zpool export`, and the
+			 * related datasets are not fully destroyed.
+			 *
+			 * Fortunately, this should be an extremely rare
+			 * situation, and just means the caller will have to
+			 * try it again.
+			 */
+
+			se->se_state = SE_INACTIVE;
+			cv_broadcast(&se->se_cv);
+
 			mutex_exit(&se->se_mtx);
 
 			zfsctl_snapshot_rele(se);
@@ -1187,17 +1224,23 @@ zfsctl_snapshot_unmount_impl(zfs_snapentry_t *se)
 	}
 
 	/*
-	 * The umount system utility will return 256 on error.  We must
-	 * assume this error is because the file system is busy so it is
-	 * converted to the more sensible EBUSY.
+	 * zfsctl_destroy() will take care of advancing the state to
+	 * SE_INACTIVE, so if its not there, the unmount has likely failed.
+	 * However, if it is at SE_INACTIVE, then something tried to unmount
+	 * just as we did, and we lost the race. In that case, we have what we
+	 * want, and can signal success to our caller.
 	 */
 	mutex_enter(&se->se_mtx);
-	if (error) {
+	if (se->se_state == SE_UNMOUNTING) {
+		/* Unmount failed; return to active state and return error. */
+		ASSERT3U(error, !=, 0);
 		error = SET_ERROR(EBUSY);
 		se->se_state = SE_ACTIVE;
-	} else
-		se->se_state = SE_INACTIVE;
-	cv_broadcast(&se->se_cv);
+		cv_broadcast(&se->se_cv);
+	} else {
+		ASSERT3U(se->se_state, ==, SE_INACTIVE);
+		error = 0;
+	}
 	mutex_exit(&se->se_mtx);
 
 	return (error);
