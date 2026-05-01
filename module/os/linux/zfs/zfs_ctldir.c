@@ -117,44 +117,23 @@ static int zfs_snapshot_no_setuid = 0;
 static void zfsctl_snapshot_unmount_delay_impl(zfs_snapentry_t *se);
 
 /*
- * Allocate a new zfs_snapentry_t being careful to make a copy of the
- * the snapshot name and provided mount point.  No reference is taken.
+ * Initialise a zfs_snapentry_t with a copy of the snapshot name and provided
+ * mount point.  No reference is taken.
  */
-static zfs_snapentry_t *
-zfsctl_snapshot_alloc(const char *full_name, const char *full_path)
+static void
+zfsctl_snapshot_init(zfs_snapentry_t *se,
+    const char *full_name, const char *full_path)
 {
-	zfs_snapentry_t *se;
-
-	se = kmem_zalloc(sizeof (zfs_snapentry_t), KM_SLEEP);
+	ASSERT3U(se->se_state, ==, SE_NEW);
+	ASSERT0P(se->se_name);
+	ASSERT0P(se->se_path);
 
 	se->se_name = kmem_strdup(full_name);
 	se->se_path = kmem_strdup(full_path);
-	se->se_taskqid = TASKQID_INVALID;
-	mutex_init(&se->se_mtx, NULL, MUTEX_DEFAULT, NULL);
-	cv_init(&se->se_cv, NULL, CV_DEFAULT, NULL);
+	se->se_spa = NULL;
+	se->se_objsetid = 0;
 	se->se_state = SE_MOUNTING;
-	se->se_mount_error = 0;
-
-	zfs_refcount_create(&se->se_refcount);
-
-	return (se);
-}
-
-/*
- * Free a zfs_snapentry_t the caller must ensure there are no active
- * references.
- */
-static void
-zfsctl_snapshot_free(zfs_snapentry_t *se)
-{
-	ASSERT3U(se->se_state, ==, SE_INACTIVE);
-	zfs_refcount_destroy(&se->se_refcount);
-	kmem_strfree(se->se_name);
-	kmem_strfree(se->se_path);
-	mutex_destroy(&se->se_mtx);
-	cv_destroy(&se->se_cv);
-
-	kmem_free(se, sizeof (zfs_snapentry_t));
+	dget(se->se_snapdir_dentry);
 }
 
 /*
@@ -173,8 +152,15 @@ zfsctl_snapshot_hold(zfs_snapentry_t *se)
 static void
 zfsctl_snapshot_rele(zfs_snapentry_t *se)
 {
-	if (zfs_refcount_remove(&se->se_refcount, NULL) == 0)
-		zfsctl_snapshot_free(se);
+	if (zfs_refcount_remove(&se->se_refcount, NULL) == 0) {
+		ASSERT3U(se->se_state, ==, SE_INACTIVE);
+		kmem_strfree(se->se_name);
+		kmem_strfree(se->se_path);
+		se->se_name = NULL;
+		se->se_path = NULL;
+		se->se_state = SE_DONE;
+		dput(se->se_snapdir_dentry);
+	}
 }
 
 /*
@@ -331,6 +317,9 @@ snapentry_expire(void *data)
 	zfs_snapentry_t *se = (zfs_snapentry_t *)data;
 
 	if (zfs_expire_snapshot <= 0) {
+		mutex_enter(&se->se_mtx);
+		se->se_taskqid = TASKQID_INVALID;
+		mutex_exit(&se->se_mtx);
 		zfsctl_snapshot_rele(se);
 		return;
 	}
@@ -641,6 +630,9 @@ zfsctl_destroy(zfsvfs_t *zfsvfs)
 			 * situation, and just means the caller will have to
 			 * try it again.
 			 */
+
+			/* Cancel outstanding expiry timer. */
+			zfsctl_snapshot_unmount_cancel(se);
 
 			se->se_state = SE_INACTIVE;
 			cv_broadcast(&se->se_cv);
@@ -1371,9 +1363,10 @@ zfsctl_snapshot_mount(struct path *path)
 	}
 
 	/*
-	 * Create pending entry and mark mount in progress.
+	 * Initialise pending entry and mark mount in progress.
 	 */
-	se = zfsctl_snapshot_alloc(full_name, full_path);
+	se = dentry->d_fsdata;
+	zfsctl_snapshot_init(se, full_name, full_path);
 	zfsctl_snapshot_add(se);
 	zfsctl_snapshot_hold(se);
 	rw_exit(&zfs_snapshot_lock);

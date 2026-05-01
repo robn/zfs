@@ -115,13 +115,16 @@ extern const struct file_operations zpl_fops_shares;
 extern const struct inode_operations zpl_ops_shares;
 
 typedef enum {
+	SE_NEW,		/* allocated on dentry, waiting for mount */
 	SE_MOUNTING,	/* mount operation in progress (userspace called) */
 	SE_ACTIVE,	/* mount complete */
 	SE_UNMOUNTING,	/* unmount operation in progress (userspace called) */
 	SE_INACTIVE,	/* mount failed or unmount complete */
+	SE_DONE,	/* all snapentry refs released, can be freed */
 } zfs_snapentry_state_t;
 
 typedef struct {
+	struct dentry	*se_snapdir_dentry;
 	char		*se_name;	/* full snapshot name */
 	char		*se_path;	/* full mount path */
 	spa_t		*se_spa;	/* pool spa (NULL if pending) */

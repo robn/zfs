@@ -165,6 +165,44 @@ const struct inode_operations zpl_ops_root = {
 	.getattr	= zpl_root_getattr,
 };
 
+/*
+ * Allocate a new empty zfs_snapentry_t to track a future mount. It will be
+ * filled in later when/if the mount actually happens.
+ */
+static zfs_snapentry_t *
+zpl_snapdir_alloc_snapentry(void)
+{
+	zfs_snapentry_t *se;
+
+	se = kmem_zalloc(sizeof (zfs_snapentry_t), KM_SLEEP);
+
+	se->se_taskqid = TASKQID_INVALID;
+	mutex_init(&se->se_mtx, NULL, MUTEX_DEFAULT, NULL);
+	cv_init(&se->se_cv, NULL, CV_DEFAULT, NULL);
+	se->se_state = SE_NEW;
+
+	zfs_refcount_create(&se->se_refcount);
+
+	return (se);
+}
+
+/*
+ * Free a zfs_snapentry_t the caller must ensure there are no active
+ * references.
+ */
+static void
+zpl_snapdir_free_snapentry(zfs_snapentry_t *se)
+{
+	ASSERT(se->se_state == SE_NEW || se->se_state == SE_DONE);
+	ASSERT0P(se->se_name);
+	ASSERT0P(se->se_path);
+	zfs_refcount_destroy(&se->se_refcount);
+	mutex_destroy(&se->se_mtx);
+	cv_destroy(&se->se_cv);
+
+	kmem_free(se, sizeof (zfs_snapentry_t));
+}
+
 static struct vfsmount *
 zpl_snapdir_automount(struct path *path)
 {
@@ -172,9 +210,14 @@ zpl_snapdir_automount(struct path *path)
 	if (!path->dentry->d_inode)
 		return (ERR_PTR(-SET_ERROR(EISDIR)));
 
-	int error;
+	zfs_snapentry_t *se = path->dentry->d_fsdata;
 
-	error = -zfsctl_snapshot_mount(path);
+	mutex_enter(&se->se_mtx);
+	if (se->se_state == SE_DONE)
+		se->se_state = SE_NEW;
+	mutex_exit(&se->se_mtx);
+
+	int error = -zfsctl_snapshot_mount(path);
 	if (error)
 		return (ERR_PTR(error));
 
@@ -186,6 +229,24 @@ zpl_snapdir_automount(struct path *path)
 	 * added again to the vfsmount list resulting in list corruption.
 	 */
 	return (NULL);
+}
+
+static void
+zpl_snapdir_release(struct dentry *dentry)
+{
+	spin_lock(&dentry->d_lock);
+	zfs_snapentry_t *se = dentry->d_fsdata;
+	dentry->d_fsdata = NULL;
+	spin_unlock(&dentry->d_lock);
+
+	/*
+	 * Release can be called more than once if part of the release was
+	 * deferred, so we might have already cleaned up. Do nothing if so.
+	 */
+	if (se == NULL)
+		return;
+
+	zpl_snapdir_free_snapentry(se);
 }
 
 /*
@@ -217,6 +278,7 @@ static const struct dentry_operations zpl_dops_snapdirs = {
  */
 	.d_automount	= zpl_snapdir_automount,
 	.d_revalidate	= zpl_snapdir_revalidate,
+	.d_release	= zpl_snapdir_release,
 };
 
 /*
@@ -285,7 +347,16 @@ zpl_snapdir_lookup(struct inode *dip, struct dentry *dentry,
 		return (ERR_PTR(error));
 
 	ASSERT(error == 0 || ip == NULL);
-	set_snapdir_dentry_ops(dentry, DCACHE_NEED_AUTOMOUNT);
+
+	zfs_snapentry_t *se = zpl_snapdir_alloc_snapentry();
+	spin_lock(&dentry->d_lock);
+	ASSERT0P(dentry->d_fsdata);
+	se->se_snapdir_dentry = dentry;
+	dentry->d_fsdata = se;
+	spin_unlock(&dentry->d_lock);
+
+	set_snapdir_dentry_ops(dentry,
+	    DCACHE_DONTCACHE | DCACHE_NEED_AUTOMOUNT);
 	return (d_splice_alias(ip, dentry));
 }
 
