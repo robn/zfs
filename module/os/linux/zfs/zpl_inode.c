@@ -484,6 +484,7 @@ zpl_getattr_impl(const struct path *path, struct kstat *stat, u32 request_mask,
 	fstrans_cookie_t cookie;
 	struct inode *ip = path->dentry->d_inode;
 	znode_t *zp __maybe_unused = ITOZ(ip);
+	uint_t seq;
 
 	cookie = spl_fstrans_mark();
 
@@ -492,11 +493,11 @@ zpl_getattr_impl(const struct path *path, struct kstat *stat, u32 request_mask,
 	 */
 
 #ifdef HAVE_GENERIC_FILLATTR_IDMAP_REQMASK
-	error = -zfs_getattr_fast(user_ns, request_mask, ip, stat);
+	error = -zfs_getattr_fast(user_ns, request_mask, ip, stat, &seq);
 #elif (defined(HAVE_USERNS_IOPS_GETATTR) || defined(HAVE_IDMAP_IOPS_GETATTR))
-	error = -zfs_getattr_fast(user_ns, ip, stat);
+	error = -zfs_getattr_fast(user_ns, ip, stat, &seq);
 #else
-	error = -zfs_getattr_fast(kcred->user_ns, ip, stat);
+	error = -zfs_getattr_fast(kcred->user_ns, ip, stat, &seq);
 #endif
 
 #ifdef STATX_BTIME
@@ -526,7 +527,7 @@ zpl_getattr_impl(const struct path *path, struct kstat *stat, u32 request_mask,
 		 * fs/nfsd/nfsfh.c.
 		 */
 		stat->change_cookie =
-		    ((u64)stat->ctime.tv_sec << 32) | zp->z_seq;
+		    ((u64)stat->ctime.tv_sec << 32) | seq;
 		stat->attributes |= STATX_ATTR_CHANGE_MONOTONIC;
 		stat->result_mask |= STATX_CHANGE_COOKIE;
 	}

@@ -1710,9 +1710,10 @@ out:
 int
 #ifdef HAVE_GENERIC_FILLATTR_IDMAP_REQMASK
 zfs_getattr_fast(zidmap_t *user_ns, u32 request_mask, struct inode *ip,
-    struct kstat *sp)
+    struct kstat *sp, uint_t *seqp)
 #else
-zfs_getattr_fast(zidmap_t *user_ns, struct inode *ip, struct kstat *sp)
+zfs_getattr_fast(zidmap_t *user_ns, struct inode *ip, struct kstat *sp,
+    uint_t *seqp)
 #endif
 {
 	znode_t *zp = ITOZ(ip);
@@ -1748,6 +1749,9 @@ zfs_getattr_fast(zidmap_t *user_ns, struct inode *ip, struct kstat *sp)
 		 */
 		sp->blksize = zfsvfs->z_max_blksz;
 	}
+
+	if (seqp != NULL)
+		*seqp = zp->z_seq;
 
 	mutex_exit(&zp->z_lock);
 

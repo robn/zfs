@@ -60,9 +60,10 @@ extern int zfs_rmdir(znode_t *dzp, char *name, znode_t *cwd,
 extern int zfs_readdir(struct inode *ip, struct dir_context *ctx, cred_t *cr);
 #ifdef HAVE_GENERIC_FILLATTR_IDMAP_REQMASK
 extern int zfs_getattr_fast(zidmap_t *, u32 request_mask, struct inode *ip,
-    struct kstat *sp);
+    struct kstat *sp, uint_t *seqp);
 #else
-extern int zfs_getattr_fast(zidmap_t *, struct inode *ip, struct kstat *sp);
+extern int zfs_getattr_fast(zidmap_t *, struct inode *ip, struct kstat *sp,
+    uint_t *seqp);
 #endif
 extern int zfs_setattr(znode_t *zp, vattr_t *vap, int flag, cred_t *cr,
     zidmap_t *mnt_ns);

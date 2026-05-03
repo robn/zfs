@@ -632,11 +632,12 @@ zpl_shares_getattr_impl(const struct path *path, struct kstat *stat,
 	if (error == 0) {
 #ifdef HAVE_GENERIC_FILLATTR_IDMAP_REQMASK
 		error = -zfs_getattr_fast(user_ns, request_mask, ZTOI(dzp),
-		    stat);
+		    stat, NULL);
 #elif (defined(HAVE_USERNS_IOPS_GETATTR) || defined(HAVE_IDMAP_IOPS_GETATTR))
-		error = -zfs_getattr_fast(user_ns, ZTOI(dzp), stat);
+		error = -zfs_getattr_fast(user_ns, ZTOI(dzp), stat, NULL);
 #else
-		error = -zfs_getattr_fast(kcred->user_ns, ZTOI(dzp), stat);
+		error = -zfs_getattr_fast(kcred->user_ns, ZTOI(dzp), stat,
+		    NULL);
 #endif
 		iput(ZTOI(dzp));
 	}
