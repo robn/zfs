@@ -1415,6 +1415,10 @@ zfs_tstamp_update_setup(znode_t *zp, uint_t flag, uint64_t mtime[2],
 
 	gethrestime(&now);
 
+	bool locked = MUTEX_HELD(&zp->z_lock);
+	if (!locked)
+		mutex_enter(&zp->z_lock);
+
 	zp->z_seq++;
 
 	if (flag & ATTR_MTIME) {
@@ -1434,6 +1438,9 @@ zfs_tstamp_update_setup(znode_t *zp, uint_t flag, uint64_t mtime[2],
 		if (ZTOZSB(zp)->z_use_fuids)
 			zp->z_pflags |= ZFS_ARCHIVE;
 	}
+
+	if (!locked)
+		mutex_exit(&zp->z_lock);
 }
 
 /*

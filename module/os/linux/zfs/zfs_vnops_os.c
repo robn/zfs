@@ -3912,6 +3912,7 @@ zfs_putpage(struct inode *ip, struct page *pp, struct writeback_control *wbc,
 	    DMU_READ_PREFETCH);
 	kunmap(pp);
 
+	mutex_enter(&zp->z_lock);
 	SA_ADD_BULK_ATTR(bulk, cnt, SA_ZPL_MTIME(zfsvfs), NULL, &mtime, 16);
 	SA_ADD_BULK_ATTR(bulk, cnt, SA_ZPL_CTIME(zfsvfs), NULL, &ctime, 16);
 	SA_ADD_BULK_ATTR(bulk, cnt, SA_ZPL_FLAGS(zfsvfs), NULL,
@@ -3926,6 +3927,7 @@ zfs_putpage(struct inode *ip, struct page *pp, struct writeback_control *wbc,
 	zp->z_seq++;
 
 	err = sa_bulk_update(zp->z_sa_hdl, bulk, cnt, tx);
+	mutex_exit(&zp->z_lock);
 
 	/*
 	 * A note about for_sync vs wbc->sync_mode.
