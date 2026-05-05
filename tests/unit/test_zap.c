@@ -1771,6 +1771,63 @@ test_zap_join_increment(const MunitParameter params[], void *data)
 
 /* ========== */
 
+/* Stats and other "internals" API tests. */
+
+/*
+ * zap_get_stats_by_dnode: verify the stats struct is populated correctly
+ * for both microzap (1 block, entries counted directly) and fatzap (block
+ * size and entry count from the fat ZAP header).
+ */
+static MunitResult
+test_microzap_stats(const MunitParameter params[], void *data)
+{
+	(void) params; (void) data;
+
+	dnode_t *dn = mock_zap_create_microzap();
+	dmu_tx_t *tx = (dmu_tx_t *) mock_tx_create();
+
+	zap_stats_t zs;
+	uint64_t v = 1;
+	unit_ok(zap_add_by_dnode(dn, "a", sizeof (uint64_t), 1, &v, tx));
+	unit_ok(zap_add_by_dnode(dn, "b", sizeof (uint64_t), 1, &v, tx));
+	unit_ok(zap_get_stats_by_dnode(dn, &zs));
+	unit_eq(zs.zs_num_entries, 2);
+	unit_eq(zs.zs_num_blocks, 1);
+	unit_eq(zs.zs_blocksize, 512);
+
+	mock_tx_destroy((mock_dmu_tx_t *) tx);
+	unit_true(mock_zap_is_microzap(dn));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
+static MunitResult
+test_fatzap_stats(const MunitParameter params[], void *data)
+{
+	(void) params; (void) data;
+
+	dnode_t *dn = mock_zap_create_fatzap();
+	dmu_tx_t *tx = (dmu_tx_t *) mock_tx_create();
+
+	zap_stats_t zs;
+	uint64_t v = 1;
+	unit_ok(zap_add_by_dnode(dn, "a", sizeof (uint64_t), 1, &v, tx));
+	unit_ok(zap_add_by_dnode(dn, "b", sizeof (uint64_t), 1, &v, tx));
+	unit_ok(zap_get_stats_by_dnode(dn, &zs));
+	unit_eq(zs.zs_num_entries, 2);
+	unit_eq(zs.zs_num_blocks, 2);
+	unit_eq(zs.zs_blocksize, 16384);
+
+	mock_tx_destroy((mock_dmu_tx_t *) tx);
+	unit_true(mock_zap_is_fatzap(dn));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
+/* ========== */
+
 /* Test suite definition and boilerplate. */
 
 #define	UNIT_PARAM_ZAP_TYPES(p)	\
@@ -1830,6 +1887,9 @@ static const MunitTest zap_tests[] = {
 	UNIT_TEST("zap_join_basic",	test_zap_join_basic, 	zap_srctype_dsttype_params),
 	UNIT_TEST("zap_join_duplicate",	test_zap_join_duplicate, 	zap_srctype_dsttype_params),
 	UNIT_TEST("zap_join_increment",	test_zap_join_increment, 	zap_srctype_dsttype_params),
+
+	UNIT_TEST("microzap_stats",		test_microzap_stats),
+	UNIT_TEST("fatzap_stats",		test_fatzap_stats),
 
 	{ 0 },
 };
