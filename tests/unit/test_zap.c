@@ -231,6 +231,43 @@ test_zap_basic(const MunitParameter params[], void *data)
 
 /* ========== */
 
+/*
+ * Basic KV API tests. Covers the most basic functionality upon which
+ * which everything else is built.
+ */
+
+static MunitResult
+test_zap_count(const MunitParameter params[], void *data)
+{
+	(void) data;
+
+	dnode_t *dn = mock_zap_create_params(params, "type");
+	dmu_tx_t *tx = (dmu_tx_t *) mock_tx_create();
+
+	uint64_t count = 0;
+	unit_ok(zap_count_by_dnode(dn, &count));
+	unit_eq(count, 0);
+
+	uint64_t v = 1;
+	unit_ok(zap_add_by_dnode(dn, "a", sizeof (uint64_t), 1, &v, tx));
+	unit_ok(zap_add_by_dnode(dn, "b", sizeof (uint64_t), 1, &v, tx));
+
+	unit_ok(zap_count_by_dnode(dn, &count));
+	unit_eq(count, 2);
+
+	unit_ok(zap_remove_by_dnode(dn, "a", tx));
+	unit_ok(zap_count_by_dnode(dn, &count));
+	unit_eq(count, 1);
+
+	mock_tx_destroy((mock_dmu_tx_t *) tx);
+	unit_true(mock_zap_is_params(dn, params, "type"));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
+/* ========== */
+
 /* Test suite definition and boilerplate. */
 
 #define	UNIT_PARAM_ZAP_TYPES(p)	\
@@ -246,6 +283,8 @@ static const MunitTest zap_tests[] = {
 	UNIT_TEST("mock_fatzap_sanity",		test_mock_fatzap_sanity),
 
 	UNIT_TEST("zap_basic",	test_zap_basic,	zap_type_params),
+
+	UNIT_TEST("zap_count",		test_zap_count, 	zap_type_params),
 
 	{ 0 },
 };
