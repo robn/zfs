@@ -87,6 +87,21 @@ mock_zap_create_fatzap(void)
 	return (dn);
 }
 
+/*
+ * Create a ZAP configured for uint64 keys. Only fatzap is supported;
+ * mzap_create_impl() immediately upgrades when non-zero flags are provided.
+ */
+static dnode_t *
+mock_zap_create_fatzap_uint64(void)
+{
+	mock_dnode_t *mdn = mock_dnode_create(512, DMU_OTN_ZAP_DATA);
+	dnode_t *dn = (dnode_t *) mdn;
+	dmu_tx_t *tx = (dmu_tx_t *) mock_tx_create();
+	mzap_create_impl(dn, 0, ZAP_FLAG_HASH64 | ZAP_FLAG_UINT64_KEY, tx);
+	mock_tx_destroy((mock_dmu_tx_t *) tx);
+	return (dn);
+}
+
 static bool
 mock_zap_is_microzap(dnode_t *dn)
 {
@@ -537,6 +552,117 @@ test_upgrade_value_size(const MunitParameter params[], void *data)
 
 /* ========== */
 
+/*
+ * zap_length_uint64_by_dnode: query integer_size/num_integers for a
+ * uint64-keyed entry without fetching the value.
+ *
+ * zap_lookup_length_uint64_by_dnode: fetch value AND actual_num_integers
+ * in one call; truncates to num_integers if the stored count is larger.
+ */
+static MunitResult
+test_fatzap_uint64_length(const MunitParameter params[], void *data)
+{
+	(void) params; (void) data;
+
+	dnode_t *dn = mock_zap_create_fatzap_uint64();
+	dmu_tx_t *tx = (dmu_tx_t *) mock_tx_create();
+
+	uint64_t key1 = 0xAA, key2 = 0xBB;
+	uint64_t vals[3] = { 10, 20, 30 };
+	unit_ok(zap_add_uint64_by_dnode(dn,
+	    &key1, 1, sizeof (uint64_t), 1, &vals[0], tx));
+	unit_ok(zap_add_uint64_by_dnode(dn,
+	    &key2, 1, sizeof (uint64_t), 3, vals, tx));
+
+	/* zap_length_uint64_by_dnode */
+	uint64_t isz = 0, nint = 0;
+	unit_ok(zap_length_uint64_by_dnode(dn, &key1, 1, &isz, &nint));
+	unit_eq(isz, 8);
+	unit_eq(nint, 1);
+
+	unit_ok(zap_length_uint64_by_dnode(dn, &key2, 1, &isz, &nint));
+	unit_eq(isz, 8);
+	unit_eq(nint, 3);
+
+	/*
+	 * zap_lookup_length_uint64_by_dnode: like zap_lookup_uint64_by_dnode
+	 * but also returns actual_num_integers.  num_integers must be >= the
+	 * stored count or the call returns EOVERFLOW without setting actual.
+	 */
+	uint64_t actual = 0, out = 0;
+	unit_ok(zap_lookup_length_uint64_by_dnode(dn,
+	    &key1, 1, sizeof (uint64_t), 1, &out, &actual));
+	unit_eq(out, 10);
+	unit_eq(actual, 1);
+
+	uint64_t outbuf[3] = { 0 };
+	unit_ok(zap_lookup_length_uint64_by_dnode(dn,
+	    &key2, 1, sizeof (uint64_t), 3, outbuf, &actual));
+	unit_eq(outbuf[0], 10);
+	unit_eq(outbuf[1], 20);
+	unit_eq(outbuf[2], 30);
+	unit_eq(actual, 3);
+
+	mock_tx_destroy((mock_dmu_tx_t *) tx);
+	unit_true(mock_zap_is_fatzap(dn));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
+static MunitResult
+test_fatzap_uint64_keys(const MunitParameter params[], void *data)
+{
+	(void) params, (void) data;
+
+	dnode_t *dn = mock_zap_create_fatzap_uint64();
+	dmu_tx_t *tx = (dmu_tx_t *) mock_tx_create();
+
+	uint64_t key1 = 0x0000000100000002ULL;
+	uint64_t key2 = 0xdeadbeefcafe0000ULL;
+	uint64_t val1 = 111, val2 = 222;
+
+	unit_ok(zap_add_uint64_by_dnode(dn, &key1, 1,
+	    sizeof (uint64_t), 1, &val1, tx));
+	unit_ok(zap_add_uint64_by_dnode(dn, &key2, 1,
+	    sizeof (uint64_t), 1, &val2, tx));
+
+	/* Lookup by the same keys. */
+	uint64_t result = 0;
+	unit_ok(zap_lookup_uint64_by_dnode(dn, &key1, 1,
+	    sizeof (uint64_t), 1, &result));
+	unit_eq(result, val1);
+
+	unit_ok(zap_lookup_uint64_by_dnode(dn, &key2, 1,
+	    sizeof (uint64_t), 1, &result));
+	unit_eq(result, val2);
+
+	/* Duplicate insert returns EEXIST. */
+	unit_err(zap_add_uint64_by_dnode(dn, &key1, 1,
+	    sizeof (uint64_t), 1, &val1, tx), EEXIST);
+
+	/* Update replaces the value without error. */
+	uint64_t newval = 999;
+	unit_ok(zap_update_uint64_by_dnode(dn, &key1, 1,
+	    sizeof (uint64_t), 1, &newval, tx));
+	unit_ok(zap_lookup_uint64_by_dnode(dn, &key1, 1,
+	    sizeof (uint64_t), 1, &result));
+	unit_eq(result, newval);
+
+	/* Remove and verify ENOENT on subsequent lookup. */
+	unit_ok(zap_remove_uint64_by_dnode(dn, &key1, 1, tx));
+	unit_err(zap_lookup_uint64_by_dnode(dn, &key1, 1,
+	    sizeof (uint64_t), 1, &result), ENOENT);
+
+	mock_tx_destroy((mock_dmu_tx_t *) tx);
+	unit_true(mock_zap_is_fatzap(dn));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
+/* ========== */
+
 /* Test suite definition and boilerplate. */
 
 #define	UNIT_PARAM_ZAP_TYPES(p)	\
@@ -562,6 +688,9 @@ static const MunitTest zap_tests[] = {
 	UNIT_TEST("upgrade_long_key",		test_upgrade_long_key),
 	UNIT_TEST("upgrade_value_type",		test_upgrade_value_type),
 	UNIT_TEST("upgrade_value_size",		test_upgrade_value_size),
+
+	UNIT_TEST("fatzap_uint64_length",	test_fatzap_uint64_length),
+	UNIT_TEST("fatzap_uint64_keys",		test_fatzap_uint64_keys),
 
 	{ 0 },
 };
