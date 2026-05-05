@@ -1646,6 +1646,131 @@ test_zap_value_search(const MunitParameter params[], void *data)
 
 /* ========== */
 
+/*
+ * zap_join_by_dnode: copy all entries from one ZAP into another.
+ * zap_join_increment_by_dnode: merge by addition (ENOENT in dest = start at 0).
+ *
+ * Three cases:
+ *   1. Basic join: entries are faithfully copied, source is unmodified.
+ *   2. Duplicate key: zap_join stops and returns EEXIST.
+ *   3. Increment join: overlapping and new keys both handled correctly.
+ */
+static MunitResult
+test_zap_join_basic(const MunitParameter params[], void *data)
+{
+	(void) data;
+
+	dnode_t *src = mock_zap_create_params(params, "srctype");
+	dnode_t *dst = mock_zap_create_params(params, "dsttype");
+
+	dmu_tx_t *tx = (dmu_tx_t *) mock_tx_create();
+
+	uint64_t v_alpha = 100, v_beta = 200;
+	unit_ok(zap_add_by_dnode(src,
+	    "alpha", sizeof (uint64_t), 1, &v_alpha, tx));
+	unit_ok(zap_add_by_dnode(src,
+	    "beta", sizeof (uint64_t), 1, &v_beta, tx));
+
+	unit_ok(zap_join_by_dnode(src, dst, tx));
+
+	uint64_t result = 0;
+	unit_ok(zap_lookup_by_dnode(dst,
+	    "alpha", sizeof (uint64_t), 1, &result));
+	unit_eq(result, 100);
+	unit_ok(zap_lookup_by_dnode(dst,
+	    "beta", sizeof (uint64_t), 1, &result));
+	unit_eq(result, 200);
+
+	/* source is unmodified */
+	unit_ok(zap_lookup_by_dnode(src,
+	    "alpha", sizeof (uint64_t), 1, &result));
+	unit_eq(result, 100);
+
+	mock_tx_destroy((mock_dmu_tx_t *) tx);
+	unit_true(mock_zap_is_params(src, params, "srctype"));
+	unit_true(mock_zap_is_params(dst, params, "dsttype"));
+	mock_zap_destroy(src);
+	mock_zap_destroy(dst);
+
+	return (MUNIT_OK);
+}
+
+static MunitResult
+test_zap_join_duplicate(const MunitParameter params[], void *data)
+{
+	(void) data;
+
+	dnode_t *src = mock_zap_create_params(params, "srctype");
+	dnode_t *dst = mock_zap_create_params(params, "dsttype");
+
+	dmu_tx_t *tx = (dmu_tx_t *) mock_tx_create();
+
+	/* -- Case 2: duplicate key → EEXIST -- */
+	uint64_t v_alpha = 100, v_beta = 200;
+	unit_ok(zap_add_by_dnode(src,
+	    "alpha", sizeof (uint64_t), 1, &v_alpha, tx));
+	unit_ok(zap_add_by_dnode(src,
+	    "beta", sizeof (uint64_t), 1, &v_beta, tx));
+
+	uint64_t conflict = 999;
+	unit_ok(zap_add_by_dnode(dst,
+	    "alpha", sizeof (uint64_t), 1, &conflict, tx));
+	unit_err(zap_join_by_dnode(src, dst, tx), EEXIST);
+
+	mock_tx_destroy((mock_dmu_tx_t *) tx);
+	unit_true(mock_zap_is_params(src, params, "srctype"));
+	unit_true(mock_zap_is_params(dst, params, "dsttype"));
+	mock_zap_destroy(src);
+	mock_zap_destroy(dst);
+
+	return (MUNIT_OK);
+}
+
+static MunitResult
+test_zap_join_increment(const MunitParameter params[], void *data)
+{
+	(void) data;
+
+	dnode_t *src = mock_zap_create_params(params, "srctype");
+	dnode_t *dst = mock_zap_create_params(params, "dsttype");
+
+	dmu_tx_t *tx = (dmu_tx_t *) mock_tx_create();
+
+	/* -- Case 3: increment join -- */
+	uint64_t v_alpha = 100, v_beta = 200;
+	unit_ok(zap_add_by_dnode(src,
+	    "alpha", sizeof (uint64_t), 1, &v_alpha, tx));
+	unit_ok(zap_add_by_dnode(src,
+	    "beta", sizeof (uint64_t), 1, &v_beta, tx));
+
+	uint64_t existing = 50;
+	/* "alpha" pre-seeded; "beta" absent */
+	unit_ok(zap_add_by_dnode(dst,
+	    "alpha", sizeof (uint64_t), 1, &existing, tx));
+
+	unit_ok(zap_join_increment_by_dnode(src, dst, tx));
+
+	/* alpha: 50 + 100 = 150 */
+	uint64_t result = 0;
+	unit_ok(zap_lookup_by_dnode(dst,
+	    "alpha", sizeof (uint64_t), 1, &result));
+	unit_eq(result, 150);
+	/* beta: 0 + 200 = 200 */
+	unit_ok(zap_lookup_by_dnode(dst,
+	    "beta", sizeof (uint64_t), 1, &result));
+	unit_eq(result, 200);
+
+	mock_tx_destroy((mock_dmu_tx_t *) tx);
+	unit_true(mock_zap_is_params(src, params, "srctype"));
+	unit_true(mock_zap_is_params(dst, params, "dsttype"));
+	mock_zap_destroy(src);
+	mock_zap_destroy(dst);
+
+	return (MUNIT_OK);
+}
+
+/* ========== */
+
 /* Test suite definition and boilerplate. */
 
 #define	UNIT_PARAM_ZAP_TYPES(p)	\
@@ -1653,6 +1778,12 @@ test_zap_value_search(const MunitParameter params[], void *data)
 
 static const MunitParameterEnum zap_type_params[] = {
 	UNIT_PARAM_ZAP_TYPES("type"),
+	{ 0 },
+};
+
+static const MunitParameterEnum zap_srctype_dsttype_params[] = {
+	UNIT_PARAM_ZAP_TYPES("srctype"),
+	UNIT_PARAM_ZAP_TYPES("dsttype"),
 	{ 0 },
 };
 
@@ -1695,6 +1826,10 @@ static const MunitTest zap_tests[] = {
 	UNIT_TEST("zap_cursor",		test_zap_cursor,	zap_type_params),
 	UNIT_TEST("zap_cursor_serialization",		test_zap_cursor_serialization,	zap_type_params),
 	UNIT_TEST("zap_value_search",	test_zap_value_search, 	zap_type_params),
+
+	UNIT_TEST("zap_join_basic",	test_zap_join_basic, 	zap_srctype_dsttype_params),
+	UNIT_TEST("zap_join_duplicate",	test_zap_join_duplicate, 	zap_srctype_dsttype_params),
+	UNIT_TEST("zap_join_increment",	test_zap_join_increment, 	zap_srctype_dsttype_params),
 
 	{ 0 },
 };
