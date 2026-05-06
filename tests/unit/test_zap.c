@@ -1203,6 +1203,198 @@ test_fatzap_ptrtbl_growth(const MunitParameter params[], void *data)
 
 /* ========== */
 
+/* FatZAPs can store more kinds of things, extra "basic" tests for those. */
+
+/*
+ * Test zap_length_by_dnode, which queries value metadata (integer_size and
+ * num_integers) without fetching the value itself.
+ *
+ * For microzap, all values are uint64_t so the answer is always 8/1.
+ * For fatzap, the stored size and count are returned directly from the
+ * leaf chunk.  We exercise both by starting in microzap and triggering an
+ * upgrade via a multi-integer insert.
+ */
+static MunitResult
+test_fatzap_length_array(const MunitParameter params[], void *data)
+{
+	(void) params, (void) data;
+
+	dnode_t *dn = mock_zap_create_fatzap();
+	dmu_tx_t *tx = (dmu_tx_t *) mock_tx_create();
+
+	/* Array of uint64: integer_size=8, num_integers=4 */
+	uint64_t a64[4] = { 1, 2, 3, 4 };
+	unit_ok(zap_add_by_dnode(dn, "a64", sizeof (uint64_t), 4, a64, tx));
+
+	uint64_t isz = 0, nint = 0;
+	unit_ok(zap_length_by_dnode(dn, "a64", &isz, &nint));
+	unit_eq(isz, 8);
+	unit_eq(nint, 4);
+
+	mock_tx_destroy((mock_dmu_tx_t *) tx);
+	unit_true(mock_zap_is_fatzap(dn));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
+static MunitResult
+test_fatzap_length_short(const MunitParameter params[], void *data)
+{
+	(void) params, (void) data;
+
+	dnode_t *dn = mock_zap_create_fatzap();
+	dmu_tx_t *tx = (dmu_tx_t *) mock_tx_create();
+
+	/* uint16: integer_size=2, num_integers=1. */
+	uint16_t v = 0x1234;
+	unit_ok(zap_add_by_dnode(dn, "u16", sizeof (uint16_t), 1, &v, tx));
+
+	uint64_t isz = 0, nint = 0;
+	unit_ok(zap_length_by_dnode(dn, "u16", &isz, &nint));
+	unit_eq(isz, 2);
+	unit_eq(nint, 1);
+
+	mock_tx_destroy((mock_dmu_tx_t *) tx);
+	unit_true(mock_zap_is_fatzap(dn));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
+static MunitResult
+test_fatzap_update_array(const MunitParameter params[], void *data)
+{
+	(void) params, (void) data;
+
+	dnode_t *dn = mock_zap_create_fatzap();
+	dmu_tx_t *tx = (dmu_tx_t *) mock_tx_create();
+
+	/* Update a non-existing key inserts it */
+	uint64_t a64[4] = { 1, 2, 3, 4 };
+	unit_ok(zap_update_by_dnode(dn, "a64", sizeof (uint64_t), 4, a64, tx));
+
+	uint64_t r64[4];
+	unit_ok(zap_lookup_by_dnode(dn, "a64", sizeof (uint64_t), 4, &r64));
+	unit_eq(r64[0], 1);
+	unit_eq(r64[1], 2);
+	unit_eq(r64[2], 3);
+	unit_eq(r64[3], 4);
+
+	/* Update on an existing key replaces it without error. */
+	uint64_t b64[4] = { 991, 992, 993, 994 };
+	unit_ok(zap_update_by_dnode(dn, "a64", sizeof (uint64_t), 4, &b64, tx));
+	unit_ok(zap_lookup_by_dnode(dn, "a64", sizeof (uint64_t), 4, &r64));
+	unit_eq(r64[0], 991);
+	unit_eq(r64[1], 992);
+	unit_eq(r64[2], 993);
+	unit_eq(r64[3], 994);
+
+	/* Count should still be 1 (no duplicate was created). */
+	uint64_t count = 0;
+	unit_ok(zap_count_by_dnode(dn, &count));
+	unit_eq(count, 1);
+
+	mock_tx_destroy((mock_dmu_tx_t *) tx);
+	unit_true(mock_zap_is_fatzap(dn));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
+static MunitResult
+test_fatzap_update_short(const MunitParameter params[], void *data)
+{
+	(void) params, (void) data;
+
+	dnode_t *dn = mock_zap_create_fatzap();
+	dmu_tx_t *tx = (dmu_tx_t *) mock_tx_create();
+
+	/* Update a non-existing key inserts it */
+	uint16_t v = 0x1234;
+	unit_ok(zap_update_by_dnode(dn, "u16", sizeof (uint16_t), 1, &v, tx));
+
+	uint16_t r;
+	unit_ok(zap_lookup_by_dnode(dn, "u16", sizeof (uint16_t), 1, &r));
+	unit_eq(r, 0x1234);
+
+	/* Update on an existing key replaces it without error. */
+	v = 0x4321;
+	unit_ok(zap_update_by_dnode(dn, "u16", sizeof (uint16_t), 1, &v, tx));
+	unit_ok(zap_lookup_by_dnode(dn, "u16", sizeof (uint16_t), 1, &r));
+	unit_eq(r, 0x4321);
+
+	/* Count should still be 1 (no duplicate was created). */
+	uint64_t count = 0;
+	unit_ok(zap_count_by_dnode(dn, &count));
+	unit_eq(count, 1);
+
+	mock_tx_destroy((mock_dmu_tx_t *) tx);
+	unit_true(mock_zap_is_fatzap(dn));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
+/* Test that update can replace values with ones of different size or shape. */
+static MunitResult
+test_fatzap_update_mixed(const MunitParameter params[], void *data)
+{
+	(void) params, (void) data;
+
+	dnode_t *dn = mock_zap_create_fatzap();
+	dmu_tx_t *tx = (dmu_tx_t *) mock_tx_create();
+
+	/* Add a uint64: integer_size=8, num_integers=1 */
+	uint64_t v64 = 42;
+	unit_ok(zap_add_by_dnode(dn, "aaa", sizeof (uint64_t), 1, &v64, tx));
+	uint64_t isz = 0, nint = 0;
+	unit_ok(zap_length_by_dnode(dn, "aaa", &isz, &nint));
+	unit_eq(isz, 8);
+	unit_eq(nint, 1);
+	uint64_t r64 = 0;
+	unit_ok(zap_lookup_by_dnode(dn, "aaa", isz, nint, &r64));
+	unit_eq(r64, 42);
+
+	/* Replace with array of uint64: integer_size=8, num_integers=4 */
+	uint64_t a64[4] = { 1, 2, 3, 4 };
+	unit_ok(zap_update_by_dnode(dn, "aaa", sizeof (uint64_t), 4, a64, tx));
+	isz = 0; nint = 0;
+	unit_ok(zap_length_by_dnode(dn, "aaa", &isz, &nint));
+	unit_eq(isz, 8);
+	unit_eq(nint, 4);
+	uint64_t ra64[4];
+	unit_ok(zap_lookup_by_dnode(dn, "aaa", isz, nint, &ra64));
+	unit_eq(ra64[0], 1);
+	unit_eq(ra64[1], 2);
+	unit_eq(ra64[2], 3);
+	unit_eq(ra64[3], 4);
+
+	/* Replace with uint16: integer_size=2, num_integers=1 */
+	uint16_t v16 = 0x1234;
+	unit_ok(zap_update_by_dnode(dn, "aaa", sizeof (uint16_t), 1, &v16, tx));
+	isz = 0; nint = 0;
+	unit_ok(zap_length_by_dnode(dn, "aaa", &isz, &nint));
+	unit_eq(isz, 2);
+	unit_eq(nint, 1);
+	uint16_t r16 = 0;
+	unit_ok(zap_lookup_by_dnode(dn, "aaa", isz, nint, &r16));
+	unit_eq(r16, 0x1234);
+
+	/* Count should still be 1 (no duplicate was created). */
+	uint64_t count = 0;
+	unit_ok(zap_count_by_dnode(dn, &count));
+	unit_eq(count, 1);
+
+	mock_tx_destroy((mock_dmu_tx_t *) tx);
+	unit_true(mock_zap_is_fatzap(dn));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
+/* ========== */
+
 /* Test suite definition and boilerplate. */
 
 #define	UNIT_PARAM_ZAP_TYPES(p)	\
@@ -1242,6 +1434,12 @@ static const MunitTest zap_tests[] = {
 	UNIT_TEST("fatzap_shrink",		test_fatzap_shrink),
 	UNIT_TEST("fatzap_collision",		test_fatzap_collision),
 	UNIT_TEST("fatzap_ptrtbl_growth",	test_fatzap_ptrtbl_growth),
+
+	UNIT_TEST("fatzap_length_array",	test_fatzap_length_array),
+	UNIT_TEST("fatzap_length_short",	test_fatzap_length_short),
+	UNIT_TEST("fatzap_update_array",	test_fatzap_update_array),
+	UNIT_TEST("fatzap_update_short",	test_fatzap_update_short),
+	UNIT_TEST("fatzap_update_mixed",	test_fatzap_update_mixed),
 
 	{ 0 },
 };
