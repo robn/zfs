@@ -1816,6 +1816,139 @@ test_norm_remove(const MunitParameter params[], void *data)
 
 /* ========== */
 
+/* Test the MicroZAP->FatZAP upgrade paths. */
+
+/* MicroZAP upgrades to FatZAP when it would grow into its second block. */
+static MunitResult
+test_upgrade_block_size(const MunitParameter params[], void *data)
+{
+	(void) params, (void) data;
+
+	dnode_t *dn = mock_zap_create_microzap();
+	dmu_tx_t *tx = (dmu_tx_t *)mock_tx_create();
+
+	/*
+	 * At default block sizes, microzap can hold 2047 entries. Add that
+	 * many entries (0-2046) and confirm it is still a microzap.
+	 */
+	for (int i = 0; i < 2047; i++) {
+		char key[16];
+		snprintf(key, sizeof (key), "key%04d", i);
+		uint64_t v = i * 7;
+		unit_ok(zap_add_by_dnode(dn, key,
+		    sizeof (uint64_t), 1, &v, tx));
+	}
+	unit_true(mock_zap_is_microzap(dn));
+
+	/* The 2048th insert triggers fatzap upgrade. */
+	uint64_t v = 2047 * 7;
+	unit_ok(zap_add_by_dnode(dn, "key2047", sizeof (uint64_t), 1, &v, tx));
+	unit_true(mock_zap_is_fatzap(dn));
+
+	/* Confirm that all the entries were copied over. */
+	uint64_t count = 0;
+	unit_ok(zap_count_by_dnode(dn, &count));
+	unit_eq(count, 2048);
+
+	/* And all have the correct keys and values. */
+	for (int i = 0; i < 2048; i++) {
+		char key[16];
+		snprintf(key, sizeof (key), "key%04d", i);
+		uint64_t r = 0;
+		unit_ok(zap_lookup_by_dnode(dn, key, sizeof (uint64_t), 1, &r));
+		unit_eq(r, i * 7);
+	}
+
+	mock_tx_destroy((mock_dmu_tx_t *)tx);
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
+/* MicroZAP upgrades to FatZAP when a too-long key is added. */
+static MunitResult
+test_upgrade_long_key(const MunitParameter params[], void *data)
+{
+	(void) params, (void) data;
+
+	dnode_t *dn = mock_zap_create_microzap();
+	dmu_tx_t *tx = (dmu_tx_t *)mock_tx_create();
+
+	char key[MZAP_NAME_LEN+1];
+
+	/* Keys shorter than MZAP_NAME_LEN do not trigger upgrade. */
+	uint64_t v = 1;
+	for (int i = 1; i < MZAP_NAME_LEN; i++) {
+		unit_ok(zap_add_by_dnode(dn, unit_rand_str(key, i+1),
+		    sizeof (uint64_t), 1, &v, tx));
+		unit_true(mock_zap_is_microzap(dn));
+	}
+
+	/* Inserting a key of length MZAP_NAME_LEN will trigger an upgrade. */
+	unit_ok(zap_add_by_dnode(dn, unit_rand_str(key, sizeof (key)),
+	    sizeof (uint64_t), 1, &v, tx));
+	unit_true(mock_zap_is_fatzap(dn));
+
+	mock_tx_destroy((mock_dmu_tx_t *)tx);
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
+/*
+ * MicroZAP upgrade to FatZAP for values that aren't exactly one uint64_t. We
+ * test both type and count separately.
+ */
+static MunitResult
+test_upgrade_value_type(const MunitParameter params[], void *data)
+{
+	(void) params, (void) data;
+
+	dnode_t *dn = mock_zap_create_microzap();
+	dmu_tx_t *tx = (dmu_tx_t *)mock_tx_create();
+
+	/* Adding a uint64_t does not trigger upgrade. */
+	uint64_t v64 = 0xfedcba9876543210ull;
+	unit_ok(zap_add_by_dnode(dn, "u64", sizeof (uint64_t), 1, &v64, tx));
+	unit_true(mock_zap_is_microzap(dn));
+
+	/* Adding a uint32_t triggers upgrade. */
+	uint32_t v32 = 0xdeadbeef;
+	unit_ok(zap_add_by_dnode(dn, "u32", sizeof (uint32_t), 1, &v32, tx));
+	unit_true(mock_zap_is_fatzap(dn));
+
+	mock_tx_destroy((mock_dmu_tx_t *)tx);
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
+static MunitResult
+test_upgrade_value_size(const MunitParameter params[], void *data)
+{
+	(void) params, (void) data;
+
+	dnode_t *dn = mock_zap_create_microzap();
+	dmu_tx_t *tx = (dmu_tx_t *)mock_tx_create();
+
+	uint64_t a64[4] = { 10, 20, 30, 40 };
+
+	/* Adding one uint64_t does not trigger upgrade. */
+	unit_ok(zap_add_by_dnode(dn, "a1", sizeof (uint64_t), 1, a64, tx));
+	unit_true(mock_zap_is_microzap(dn));
+
+	/* Adding four uint64_ts triggers upgrade. */
+	unit_ok(zap_add_by_dnode(dn, "a4", sizeof (uint64_t), 4, a64, tx));
+	unit_true(mock_zap_is_fatzap(dn));
+
+	mock_tx_destroy((mock_dmu_tx_t *)tx);
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
+/* ========== */
+
 /* Test suite definition and boilerplate. */
 
 #define	UNIT_PARAM_ZAP_TYPES(p)	\
@@ -1883,6 +2016,11 @@ static const MunitTest zap_tests[] = {
 	UNIT_TEST("norm_conflict",	test_norm_conflict, zap_type_params),
 	UNIT_TEST("norm_realname",	test_norm_realname, zap_type_params),
 	UNIT_TEST("norm_remove",	test_norm_remove, zap_type_params),
+
+	UNIT_TEST("upgrade_block_size",		test_upgrade_block_size),
+	UNIT_TEST("upgrade_long_key",		test_upgrade_long_key),
+	UNIT_TEST("upgrade_value_type",		test_upgrade_value_type),
+	UNIT_TEST("upgrade_value_size",		test_upgrade_value_size),
 
 	{ 0 },
 };
