@@ -1644,6 +1644,67 @@ test_zap_value_search(const MunitParameter params[], void *data)
 	return (MUNIT_OK);
 }
 
+static MunitResult
+test_fatzap_cursor_serialization_leaf(const MunitParameter params[],
+    void *data)
+{
+	(void) params, (void) data;
+
+	dnode_t *dn = mock_zap_create_fatzap_uint64();
+	dmu_tx_t *tx = (dmu_tx_t *) mock_tx_create();
+
+	/*
+	 * Keep adding records until the ZAP spans eight blocks (one header +
+	 * multiple data blocks) */
+	uint64_t nrecords = 0;
+	while (mock_dnode_block_count((mock_dnode_t *) dn) < 8) {
+		uint64_t v = nrecords * 11;
+		unit_ok(zap_add_uint64_by_dnode(dn, &nrecords, 1,
+		    sizeof (uint64_t), 1, &v, tx));
+		nrecords++;
+	}
+
+	/*
+	 * We "slice" the ZAP into ~4 equal sets of records, and cursor over
+	 * them. At the end of each slice, we save and reload the cursor,
+	 * making sure it holds its position over multiple leaf blocks.
+	 */
+	uint64_t nrps = nrecords / 4;
+
+	zap_cursor_t zc;
+	zap_attribute_t *za = zap_attribute_alloc();
+
+	zap_cursor_init_by_dnode(&zc, dn);
+
+	while (nrecords > 0) {
+		for (uint64_t i = 0; i < nrps && nrecords > 0; i++) {
+			unit_ok(zap_cursor_retrieve(&zc, za));
+			zap_cursor_advance(&zc);
+			nrecords--;
+		}
+
+		if (nrecords > 0) {
+			/* End of slice; reload the cursor. */
+			uint64_t cookie = zap_cursor_serialize(&zc);
+			zap_cursor_fini(&zc);
+
+			zap_cursor_init_serialized_by_dnode(&zc, dn, cookie);
+		}
+	}
+
+	/* There should be no more keys in the ZAP. */
+	unit_err(zap_cursor_retrieve(&zc, za), ENOENT);
+
+	zap_cursor_fini(&zc);
+	zap_attribute_free(za);
+
+	mock_tx_destroy((mock_dmu_tx_t *) tx);
+	unit_true(mock_zap_is_fatzap(dn));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
 /* ========== */
 
 /*
@@ -1883,6 +1944,8 @@ static const MunitTest zap_tests[] = {
 	UNIT_TEST("zap_cursor",		test_zap_cursor,	zap_type_params),
 	UNIT_TEST("zap_cursor_serialization",		test_zap_cursor_serialization,	zap_type_params),
 	UNIT_TEST("zap_value_search",	test_zap_value_search, 	zap_type_params),
+
+	UNIT_TEST("fatzap_cursor_serialization_leaf",	test_fatzap_cursor_serialization_leaf),
 
 	UNIT_TEST("zap_join_basic",	test_zap_join_basic, 	zap_srctype_dsttype_params),
 	UNIT_TEST("zap_join_duplicate",	test_zap_join_duplicate, 	zap_srctype_dsttype_params),
