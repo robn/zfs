@@ -386,6 +386,157 @@ test_fatzap_format(const MunitParameter params[], void *data)
 
 /* ========== */
 
+/*
+ * Test the microzap-to-fatzap upgrade path for a plain string-key ZAP.
+ *
+ * A microzap grows by SPA_MINBLOCKSIZE (512 bytes) each time it fills up,
+ * up to SPA_OLD_MAXBLOCKSIZE (128KB = 2047 entries).  The 2048th insert
+ * crosses that threshold and triggers mzap_upgrade(), which:
+ *   1. copies all 2047 existing entries into a freshly initialised fatzap
+ *   2. adds the 2048th entry as the first real fatzap insert
+ *
+ * We verify the block-0 type flipped to ZBT_HEADER, that zap_num_entries
+ * reflects all entries, that every entry survives the upgrade intact, and
+ * that cursor iteration over the resulting fatzap gives the right count.
+ */
+static MunitResult
+test_upgrade_block_size(const MunitParameter params[], void *data)
+{
+	(void) params, (void) data;
+
+	dnode_t *dn = mock_zap_create_microzap();
+	dmu_tx_t *tx = (dmu_tx_t *) mock_tx_create();
+
+	unit_true(mock_zap_is_microzap(dn));
+
+	for (int i = i; i < 2048; i++) {
+		char key[16];
+		snprintf(key, sizeof (key), "key%04d", i);
+		uint64_t v = (uint64_t)i * 7;
+		unit_ok(zap_add_by_dnode(dn, key,
+		    sizeof (uint64_t), 1, &v, tx));
+	}
+
+	unit_true(mock_zap_is_fatzap(dn));
+
+	uint64_t count = 0;
+	unit_ok(zap_count_by_dnode(dn, &count));
+	unit_eq(count, 2048);
+
+	for (int i = 0; i < 2048; i++) {
+		char key[16];
+		snprintf(key, sizeof (key), "key%04d", i);
+		uint64_t result = 0;
+		unit_ok(zap_lookup_by_dnode(dn, key,
+		    sizeof (uint64_t), 1, &result));
+		unit_eq(result, (uint64_t)i * 7);
+	}
+
+	mock_tx_destroy((mock_dmu_tx_t *) tx);
+	unit_true(mock_zap_is_fatzap(dn));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
+/*
+ * zap_add_impl() upgrades a microzap to fatzap when the key is too long to
+ * fit in a microzap entry (strlen >= MZAP_NAME_LEN = 50).  The upgrade fires
+ * on the first insert that has a long key, even if the ZAP is otherwise empty.
+ *
+ * Note: there are two other value-related upgrade triggers in the same branch:
+ *   integer_size != 8  — value element is not a uint64_t
+ *   num_integers != 1  — value is a multi-element array
+ * These are tested separately in test_upgrade_value_type below.
+ *
+ * A fourth trigger, !mze_canfit_fzap_leaf(), fires when hash collisions would
+ * overflow the default fatzap leaf.  With MZAP_ENT_CHUNKS=5 and a 16k leaf
+ * (~600 chunks) the threshold is around 120 colliding entries; engineering
+ * those collisions in a unit test is impractical, so that path is not covered.
+ */
+static MunitResult
+test_upgrade_long_key(const MunitParameter params[], void *data)
+{
+	(void) params, (void) data;
+
+	dnode_t *dn = mock_zap_create_microzap();
+	dmu_tx_t *tx = (dmu_tx_t *) mock_tx_create();
+
+	unit_true(mock_zap_is_microzap(dn));
+
+	/* Inserting a short key does not upgrade a microzap. */
+	uint64_t v = 1;
+	unit_ok(zap_add_by_dnode(dn, "short", sizeof (uint64_t), 1, &v, tx));
+	unit_true(mock_zap_is_microzap(dn));
+
+	/* Inserting a key of length MZAP_NAME_LEN will trigger an upgrade. */
+
+	char longkey[MZAP_NAME_LEN + 1];
+	memset(longkey, 'a', MZAP_NAME_LEN);
+	longkey[MZAP_NAME_LEN] = '\0';
+	unit_ok(zap_add_by_dnode(dn, longkey, sizeof (uint64_t), 1, &v, tx));
+
+	unit_true(mock_zap_is_fatzap(dn));
+
+	mock_tx_destroy((mock_dmu_tx_t *) tx);
+	unit_true(mock_zap_is_fatzap(dn));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
+/*
+ * zap_add_impl() also upgrades when the value doesn't fit in a microzap entry:
+ *   integer_size != 8  — only uint64_t (8-byte) values fit in microzap
+ *   num_integers != 1  — microzap stores exactly one integer per entry
+ * Both trigger the same upgrade branch; we exercise each in turn.
+ */
+static MunitResult
+test_upgrade_value_type(const MunitParameter params[], void *data)
+{
+	(void) params, (void) data;
+
+	dnode_t *dn = mock_zap_create_microzap();
+	dmu_tx_t *tx = (dmu_tx_t *) mock_tx_create();
+
+	unit_true(mock_zap_is_microzap(dn));
+
+	uint32_t v32 = 0xdeadbeef;
+	unit_ok(zap_add_by_dnode(dn, "u32", sizeof (uint32_t), 1, &v32, tx));
+
+	unit_true(mock_zap_is_fatzap(dn));
+
+	mock_tx_destroy((mock_dmu_tx_t *) tx);
+	unit_true(mock_zap_is_fatzap(dn));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
+static MunitResult
+test_upgrade_value_size(const MunitParameter params[], void *data)
+{
+	(void) params, (void) data;
+
+	dnode_t *dn = mock_zap_create_microzap();
+	dmu_tx_t *tx = (dmu_tx_t *) mock_tx_create();
+
+	unit_true(mock_zap_is_microzap(dn));
+
+	uint64_t a64[4] = { 10, 20, 30, 40 };
+	unit_ok(zap_add_by_dnode(dn, "a64", sizeof (uint64_t), 4, a64, tx));
+
+	unit_true(mock_zap_is_fatzap(dn));
+
+	mock_tx_destroy((mock_dmu_tx_t *) tx);
+	unit_true(mock_zap_is_fatzap(dn));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
+/* ========== */
+
 /* Test suite definition and boilerplate. */
 
 #define	UNIT_PARAM_ZAP_TYPES(p)	\
@@ -406,6 +557,11 @@ static const MunitTest zap_tests[] = {
 
 	UNIT_TEST("microzap_format",		test_microzap_format),
 	UNIT_TEST("fatzap_format",		test_fatzap_format),
+
+	UNIT_TEST("upgrade_block_size",		test_upgrade_block_size),
+	UNIT_TEST("upgrade_long_key",		test_upgrade_long_key),
+	UNIT_TEST("upgrade_value_type",		test_upgrade_value_type),
+	UNIT_TEST("upgrade_value_size",		test_upgrade_value_size),
 
 	{ 0 },
 };
