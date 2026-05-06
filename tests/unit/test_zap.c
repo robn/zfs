@@ -20,6 +20,7 @@
 #include <sys/btree.h>
 typedef struct spa spa_t;	/* forward decl for zap_impl.h */
 #include <sys/zap_impl.h>
+#include <sys/zap_leaf.h>
 
 #include "mock_dmu.h"
 #include "unit.h"
@@ -46,6 +47,8 @@ mock_crc64_init(void)
 /* Misc utility functions. */
 
 #define	rd64(ptr, off)	(*(uint64_t *)((const char *)(ptr) + (off)))
+#define	rd32(ptr, off)	(*(uint32_t *)((const char *)(ptr) + (off)))
+#define	rd16(ptr, off)	(*(uint16_t *)((const char *)(ptr) + (off)))
 
 /* ========== */
 
@@ -268,6 +271,121 @@ test_zap_count(const MunitParameter params[], void *data)
 
 /* ========== */
 
+/*
+ * On-disk format sanity checks. These are not supposed to be a comprehensive
+ * validity check, but rather, a defense against an accidental change to the
+ * ZAP on-disk structs (eg zap_phys_t).
+ */
+
+/*
+ * Verify the microzap on-disk layout for a single-entry ZAP.
+ *
+ * Microzap block 0 layout (offsets in bytes):
+ *   0   uint64_t  mz_block_type   (ZBT_MICRO)
+ *   8   uint64_t  mz_salt         (non-zero)
+ *   16  uint64_t  mz_normflags
+ *   24  uint64_t  mz_pad[5]       (40 bytes)
+ *   64  entry 0:
+ *         64  uint64_t  mze_value
+ *         72  uint32_t  mze_cd
+ *         76  uint16_t  mze_pad
+ *         78  char[50]  mze_name   (MZAP_NAME_LEN = 50)
+ */
+static MunitResult
+test_microzap_format(const MunitParameter params[], void *data)
+{
+	(void) params, (void) data;
+
+	dnode_t *dn = mock_zap_create_microzap();
+	dmu_tx_t *tx = (dmu_tx_t *) mock_tx_create();
+
+	uint64_t val = 42;
+	unit_ok(zap_add_by_dnode(dn, "hello",
+	    sizeof (uint64_t), 1, &val, tx));
+
+	const void *blk = mock_dnode_block_data((mock_dnode_t *) dn, 0);
+
+	/* block type must be ZBT_MICRO */
+	unit_eq(rd64(blk, 0), ZBT_MICRO);
+
+	/* salt must be non-zero (derived from pointer/tx xor) */
+	unit_ne(rd64(blk, 8), 0);
+
+	/* normflags must be zero (we passed 0 to mzap_create_impl) */
+	unit_eq(rd64(blk, 16), 0);
+
+	/* first entry: value=42, cd=0, name="hello" */
+	unit_eq(rd64(blk, 64), 42);
+	unit_eq(rd32(blk, 72), 0);
+	unit_str_eq((const char *)blk + 78, "hello");
+
+	/* second slot must be empty (value=0, name="") */
+	unit_eq(rd64(blk, 128), 0);
+	unit_eq(*(const char *)((const char *)blk + 142), 0);
+
+	mock_tx_destroy((mock_dmu_tx_t *) tx);
+	unit_true(mock_zap_is_microzap(dn));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
+/*
+ * Verify the fatzap header (block 0) and first leaf (block 1) layout.
+ *
+ * We use a uint64-key ZAP because mzap_create_impl() with ZAP_FLAG_UINT64_KEY
+ * calls fzap_upgrade() immediately, giving us a fatzap with just a few inserts.
+ * A plain string-key ZAP only upgrades after ~2047 entries (128KB microzap max).
+ *
+ * Fatzap block 0 (zap_phys_t) layout (offsets in bytes):
+ *   0   uint64_t  zap_block_type   (ZBT_HEADER)
+ *   8   uint64_t  zap_magic        (ZAP_MAGIC = 0x2F52AB2ABULL)
+ *   16  struct zap_table_phys (5 × uint64_t = 40 bytes)
+ *   56  uint64_t  zap_freeblk
+ *   64  uint64_t  zap_num_leafs
+ *   72  uint64_t  zap_num_entries
+ *   80  uint64_t  zap_salt
+ *   88  uint64_t  zap_normflags
+ *   96  uint64_t  zap_flags
+ *
+ * Fatzap leaf (block 1) header (zap_leaf_phys_t.l_hdr) layout:
+ *   0   uint64_t  lh_block_type   (ZBT_LEAF)
+ *   8   uint64_t  lh_pad1
+ *   16  uint64_t  lh_prefix
+ *   24  uint32_t  lh_magic        (ZAP_LEAF_MAGIC = 0x2AB1EAF)
+ */
+static MunitResult
+test_fatzap_format(const MunitParameter params[], void *data)
+{
+	(void) params, (void) data;
+
+	dnode_t *dn = mock_zap_create_fatzap();
+	dmu_tx_t *tx = (dmu_tx_t *) mock_tx_create();
+
+	uint64_t val = 42;
+	unit_ok(zap_add_by_dnode(dn, "hello",
+	    sizeof (uint64_t), 1, &val, tx));
+
+	/* block 0: fatzap header */
+	const void *hdr = mock_dnode_block_data((mock_dnode_t *) dn, 0);
+	unit_eq(rd64(hdr, 0), ZBT_HEADER);
+	unit_eq(rd64(hdr, 8), ZAP_MAGIC);
+	unit_eq(rd64(hdr, 72), 1);	/* zap_num_entries */
+
+	/* block 1: first leaf */
+	const void *leaf = mock_dnode_block_data((mock_dnode_t *) dn, 1);
+	unit_eq(rd64(leaf, 0), ZBT_LEAF);
+	unit_eq(rd32(leaf, 24), ZAP_LEAF_MAGIC);
+
+	mock_tx_destroy((mock_dmu_tx_t *) tx);
+	unit_true(mock_zap_is_fatzap(dn));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
+/* ========== */
+
 /* Test suite definition and boilerplate. */
 
 #define	UNIT_PARAM_ZAP_TYPES(p)	\
@@ -285,6 +403,9 @@ static const MunitTest zap_tests[] = {
 	UNIT_TEST("zap_basic",	test_zap_basic,	zap_type_params),
 
 	UNIT_TEST("zap_count",		test_zap_count, 	zap_type_params),
+
+	UNIT_TEST("microzap_format",		test_microzap_format),
+	UNIT_TEST("fatzap_format",		test_fatzap_format),
 
 	{ 0 },
 };
