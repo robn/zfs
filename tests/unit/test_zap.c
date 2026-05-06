@@ -2140,6 +2140,86 @@ test_fatzap_update_mixed(const MunitParameter params[], void *data)
 
 /* ========== */
 
+/*
+ * FatZAP structural tests. These test that ZAP operations on FatZAPs work
+ * yield correct results when the ZAP spans multiple disk blocks, and/or when
+ * certain internal housekeeping tasks are triggered. These are not intended
+ * to be comprehensive tests of those features, but rather to make sure that
+ * they do appear to work and more importantly, that the actual results of
+ * each API call are correct.
+ */
+
+/*
+ * Test remove from a multi-leaf FatZAP. Removing entries will relink reclaimed
+ * leaf chunks to the free list. The chunks for the surviving entries must
+ * still be reachable.
+ */
+static MunitResult
+test_fatzap_remove(const MunitParameter params[], void *data)
+{
+	(void) params, (void) data;
+
+	dnode_t *dn = mock_zap_create_fatzap_uint64();
+	dmu_tx_t *tx = (dmu_tx_t *)mock_tx_create();
+
+	/*
+	 * We use uint64 keys & values, as they give more predictable on-disk
+	 * layout. At our 512-byte test blocks, we fit ~6 entries per leaf.
+	 */
+
+	/* Insert many entries to generate multiple leaf blocks. */
+	for (uint64_t k = 0; k < 128; k++) {
+		uint64_t v = k * 5;
+		unit_ok(zap_add_uint64_by_dnode(dn, &k, 1,
+		    sizeof (uint64_t), 1, &v, tx));
+	}
+
+	/* Confirm we have multiple leaf blocks (1 header, >1 leaf) */
+	unit_gt(mock_dnode_block_count((mock_dnode_t *)dn), 2);
+
+	/* Remove every other entry, to force a very fragmented chunk table. */
+	for (uint64_t k = 0; k < 128; k += 2)
+		unit_ok(zap_remove_uint64_by_dnode(dn, &k, 1, tx));
+
+	/*
+	 * Confirm still multiple leafs. This is mostly future-proofing, as
+	 * some sort of compaction or defragmentation process might be able
+	 * to reclaim them, which would render the test invalid.
+	 */
+	unit_gt(mock_dnode_block_count((mock_dnode_t *)dn), 2);
+
+	/*
+	 * Ensure removed keys return ENOENT, ie they have been unlinked from
+	 * the live chunk lists.
+	 */
+	for (uint64_t k = 0; k < 128; k += 2) {
+		uint64_t r = 0;
+		unit_err(zap_lookup_uint64_by_dnode(dn, &k, 1,
+		    sizeof (uint64_t), 1, &r), ENOENT);
+	}
+
+	/* Surviving keys must return correct values. */
+	for (uint64_t k = 1; k < 128; k += 2) {
+		uint64_t r = 0;
+		unit_ok(zap_lookup_uint64_by_dnode(dn, &k, 1,
+		    sizeof (uint64_t), 1, &r));
+		unit_eq(r, k * 5);
+	}
+
+	/* Count must reflect the removals. */
+	uint64_t count = 0;
+	unit_ok(zap_count_by_dnode(dn, &count));
+	unit_eq(count, 64);
+
+	mock_tx_destroy((mock_dmu_tx_t *) tx);
+	unit_true(mock_zap_is_fatzap(dn));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
+/* ========== */
+
 /* Test suite definition and boilerplate. */
 
 #define	UNIT_PARAM_ZAP_TYPES(p)	\
@@ -2218,6 +2298,8 @@ static const MunitTest zap_tests[] = {
 	UNIT_TEST("fatzap_update_array",	test_fatzap_update_array),
 	UNIT_TEST("fatzap_update_short",	test_fatzap_update_short),
 	UNIT_TEST("fatzap_update_mixed",	test_fatzap_update_mixed),
+
+	UNIT_TEST("fatzap_remove",		test_fatzap_remove),
 
 	{ 0 },
 };
