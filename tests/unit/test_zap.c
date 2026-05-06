@@ -1597,6 +1597,53 @@ test_zap_cursor_serialization(const MunitParameter params[], void *data)
 	return (MUNIT_OK);
 }
 
+/*
+ * zap_value_search_by_dnode: reverse lookup — find the key whose value
+ * (optionally masked) matches.
+ *
+ * Cases: found, ENOENT, masked match, ENAMETOOLONG.
+ */
+static MunitResult
+test_zap_value_search(const MunitParameter params[], void *data)
+{
+	(void) data;
+
+	dnode_t *dn = mock_zap_create_params(params, "type");
+	dmu_tx_t *tx = (dmu_tx_t *) mock_tx_create();
+
+	uint64_t v1 = 0x00000001, v2 = 0x00000002, v3 = 0xFF000001;
+	unit_ok(zap_add_by_dnode(dn, "one", sizeof (uint64_t), 1, &v1, tx));
+	unit_ok(zap_add_by_dnode(dn, "two", sizeof (uint64_t), 1, &v2, tx));
+	unit_ok(zap_add_by_dnode(dn,
+	    "high_one", sizeof (uint64_t), 1, &v3, tx));
+
+	char name[256];
+
+	/* Basic found */
+	unit_ok(zap_value_search_by_dnode(dn,
+	    0x00000002, 0, name, sizeof (name)));
+	unit_str_eq(name, "two");
+
+	/* ENOENT */
+	unit_err(zap_value_search_by_dnode(dn,
+	    0xDEAD, 0, name, sizeof (name)), ENOENT);
+
+	/* Masked: low 32 bits == 1 matches both "one" and "high_one" */
+	unit_ok(zap_value_search_by_dnode(dn,
+	    0x1, 0x00000000FFFFFFFFULL, name, sizeof (name)));
+	unit_true(strcmp(name, "one") == 0 || strcmp(name, "high_one") == 0);
+
+	/* ENAMETOOLONG: buffer too small for the key */
+	unit_err(zap_value_search_by_dnode(dn,
+	    0x00000001, 0, name, 2), ENAMETOOLONG);
+
+	mock_tx_destroy((mock_dmu_tx_t *) tx);
+	unit_true(mock_zap_is_params(dn, params, "type"));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
 /* ========== */
 
 /* Test suite definition and boilerplate. */
@@ -1647,6 +1694,7 @@ static const MunitTest zap_tests[] = {
 
 	UNIT_TEST("zap_cursor",		test_zap_cursor,	zap_type_params),
 	UNIT_TEST("zap_cursor_serialization",		test_zap_cursor_serialization,	zap_type_params),
+	UNIT_TEST("zap_value_search",	test_zap_value_search, 	zap_type_params),
 
 	{ 0 },
 };
