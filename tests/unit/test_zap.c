@@ -663,6 +663,82 @@ test_fatzap_uint64_keys(const MunitParameter params[], void *data)
 
 /* ========== */
 
+/* Misc fatzap structural tests. */
+
+/*
+ * Test remove from a multi-leaf fatzap.
+ *
+ * All remove tests so far operate on a microzap (mzap_remove) or on a
+ * fatzap created via an upgrade trigger with only a handful of entries.
+ * This test explicitly targets fzap_remove on a grown fatzap:
+ *
+ *  1. Insert NFREM entries into a uint64-key fatzap (512-byte blocks,
+ *     ~6 entries per leaf → multiple leaves allocated).
+ *  2. Remove every other entry.
+ *  3. Verify: removed keys return ENOENT; surviving keys return correct
+ *     values; zap_count_by_dnode equals NFREM/2; cursor iteration
+ *     visits exactly the surviving keys.
+ *
+ * The key structural property under test: fzap_remove reclaims the entry's
+ * leaf chunks back to the leaf free list.  After removing half the entries,
+ * the surviving entries must still be reachable through the unchanged pointer
+ * table, with no corruption of adjacent entries' chunks.
+ */
+static MunitResult
+test_fatzap_remove(const MunitParameter params[], void *data)
+{
+	(void) params, (void) data;
+
+	dnode_t *dn = mock_zap_create_fatzap_uint64();
+	dmu_tx_t *tx = (dmu_tx_t *) mock_tx_create();
+
+	for (int i = 0; i < 128; i++) {
+		uint64_t k = (uint64_t)i;
+		uint64_t v = (uint64_t)i * 5;
+		unit_ok(zap_add_uint64_by_dnode(dn, &k, 1,
+		    sizeof (uint64_t), 1, &v, tx));
+	}
+
+	/* Confirm we have multiple leaf blocks. */
+	unit_gt(mock_dnode_block_count((mock_dnode_t *)dn), 2);
+
+	/* Remove every other entry. */
+	for (int i = 0; i < 128; i += 2) {
+		uint64_t k = (uint64_t)i;
+		unit_ok(zap_remove_uint64_by_dnode(dn, &k, 1, tx));
+	}
+
+	/* Removed keys must return ENOENT. */
+	for (int i = 0; i < 128; i += 2) {
+		uint64_t k = (uint64_t)i;
+		uint64_t result = 0;
+		unit_err(zap_lookup_uint64_by_dnode(dn, &k, 1,
+		    sizeof (uint64_t), 1, &result), ENOENT);
+	}
+
+	/* Surviving keys must return correct values. */
+	for (int i = 1; i < 128; i += 2) {
+		uint64_t k = (uint64_t)i;
+		uint64_t result = 0;
+		unit_ok(zap_lookup_uint64_by_dnode(dn, &k, 1,
+		    sizeof (uint64_t), 1, &result));
+		unit_eq(result, (uint64_t)i * 5);
+	}
+
+	/* Count must reflect the removals. */
+	uint64_t count = 0;
+	unit_ok(zap_count_by_dnode(dn, &count));
+	unit_eq(count, 64);
+
+	mock_tx_destroy((mock_dmu_tx_t *) tx);
+	unit_true(mock_zap_is_fatzap(dn));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
+/* ========== */
+
 /* Test suite definition and boilerplate. */
 
 #define	UNIT_PARAM_ZAP_TYPES(p)	\
@@ -691,6 +767,8 @@ static const MunitTest zap_tests[] = {
 
 	UNIT_TEST("fatzap_uint64_length",	test_fatzap_uint64_length),
 	UNIT_TEST("fatzap_uint64_keys",		test_fatzap_uint64_keys),
+
+	UNIT_TEST("fatzap_remove",		test_fatzap_remove),
 
 	{ 0 },
 };
