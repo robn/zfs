@@ -867,6 +867,67 @@ test_fatzap_shrink(const MunitParameter params[], void *data)
 	return (MUNIT_OK);
 }
 
+/*
+ * With ZAP_FLAG_PRE_HASHED_KEY (no HASH64), hashbits=28.  The hash is
+ * the raw uint64 key value masked to its top 28 bits.  Keys whose values
+ * are < 2^36 all map to hash=0, forcing every entry into the same bucket
+ * and exercising the collision-differentiator (cd) mechanism.
+ */
+static MunitResult
+test_fatzap_collision(const MunitParameter params[], void *data)
+{
+	(void) params, (void) data;
+
+/*
+ * With 512-byte leaf blocks (18 chunks, 3 per entry), we can store at
+ * most 6 entries before triggering leaf expansion.  Use 4 to stay well
+ * within capacity while still exercising the cd (collision differentiator).
+ */
+#define	NCOLLIDE 4
+	dnode_t *dn = mock_zap_create_fatzap_uint64_prehashed();
+	dmu_tx_t *tx = (dmu_tx_t *) mock_tx_create();
+
+	uint64_t keys[NCOLLIDE];
+	uint64_t vals[NCOLLIDE];
+	for (int i = 0; i < NCOLLIDE; i++) {
+		keys[i] = (uint64_t)i;	/* all < 2^36, so hash=0 */
+		vals[i] = (uint64_t)i * 100;
+		unit_ok(zap_add_uint64_by_dnode(dn, &keys[i], 1,
+		    sizeof (uint64_t), 1, &vals[i], tx));
+	}
+
+	/* All entries must be individually retrievable. */
+	for (int i = 0; i < NCOLLIDE; i++) {
+		uint64_t result = 0;
+		unit_ok(zap_lookup_uint64_by_dnode(dn, &keys[i], 1,
+		    sizeof (uint64_t), 1, &result));
+		unit_eq(result, vals[i]);
+	}
+
+	/* Iteration must visit all entries. */
+	uint64_t count = 0;
+	unit_ok(zap_count_by_dnode(dn, &count));
+	unit_eq(count, NCOLLIDE);
+
+	/* Remove one and verify the rest are still readable. */
+	unit_ok(zap_remove_uint64_by_dnode(dn, &keys[0], 1, tx));
+	int err = zap_lookup_uint64_by_dnode(dn, &keys[0], 1,
+	    sizeof (uint64_t), 1, &(uint64_t){0});
+	unit_eq(err, ENOENT);
+	for (int i = 1; i < NCOLLIDE; i++) {
+		uint64_t result = 0;
+		unit_ok(zap_lookup_uint64_by_dnode(dn,
+		    &keys[i], 1, sizeof (uint64_t), 1, &result));
+		unit_eq(result, vals[i]);
+	}
+
+	mock_tx_destroy((mock_dmu_tx_t *) tx);
+	unit_true(mock_zap_is_fatzap(dn));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
 /* ========== */
 
 /* Test suite definition and boilerplate. */
@@ -900,6 +961,7 @@ static const MunitTest zap_tests[] = {
 
 	UNIT_TEST("fatzap_remove",		test_fatzap_remove),
 	UNIT_TEST("fatzap_shrink",		test_fatzap_shrink),
+	UNIT_TEST("fatzap_collision",		test_fatzap_collision),
 
 	{ 0 },
 };
