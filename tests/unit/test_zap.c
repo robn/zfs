@@ -46,6 +46,7 @@ mock_crc64_init(void)
 /* Misc utility functions. */
 
 #define	rd64(ptr, off)	(*(uint64_t *)((const char *)(ptr) + (off)))
+#define	rd16(ptr, off)	(*(uint16_t *)((const char *)(ptr) + (off)))
 
 /* ========== */
 
@@ -100,6 +101,22 @@ mock_zap_create_fatzap_uint64(void) {
 	dmu_tx_t *tx = (dmu_tx_t *)mock_tx_create();
 	mzap_create_impl(dn, 0, ZAP_FLAG_HASH64 | ZAP_FLAG_UINT64_KEY, tx);
 	mock_tx_destroy((mock_dmu_tx_t *)tx);
+	return (dn);
+}
+
+/*
+ * Create a ZAP configured for prehashed uint64 keys. Only fatzap is supported;
+ * mzap_create_impl() immediately upgrades when non-zero flags are provided.
+ */
+static dnode_t *
+mock_zap_create_fatzap_uint64_prehashed(void)
+{
+	mock_dnode_t *mdn = mock_dnode_create(512, DMU_OTN_ZAP_DATA);
+	dnode_t *dn = (dnode_t *) mdn;
+	dmu_tx_t *tx = (dmu_tx_t *) mock_tx_create();
+	mzap_create_impl(dn, 0,
+	    ZAP_FLAG_PRE_HASHED_KEY | ZAP_FLAG_UINT64_KEY, tx);
+	mock_tx_destroy((mock_dmu_tx_t *) tx);
 	return (dn);
 }
 
@@ -2218,6 +2235,137 @@ test_fatzap_remove(const MunitParameter params[], void *data)
 	return (MUNIT_OK);
 }
 
+/*
+ * Test the "ZAP shrink" empty-leaf reclamation function. When the last entry
+ * is removed from a leaf, if either of the sibling leaves are empty, one of
+ * those leaf blocks is freed and the ptrtbl references to it are pointed to
+ * the remaining block instead.
+ */
+
+/* XXX at least, this should probably go after we introduce the ptrtbl
+ *     as a concept? also, should prehashed keys have their own test?
+ *
+ *     but also, this is extremely heavy on the on-disk format
+ *     checks. it might be better to just remove the entries that should
+ *     trigger it and check the number of blocks, rather than checking all
+ *     the ptrtbl hookups as well?
+ *       -- robn, 2026-06-10
+ */
+
+/*
+ * Test the zap_shrink() path — empty-leaf reclamation in a fatzap.
+ *
+ * zap_shrink() is called by fzap_remove() when the last entry is removed
+ * from a leaf (lh_nentries drops to 0).  It walks up the prefix tree looking
+ * for sibling leaves that are ALSO empty.  When it finds a pair, it:
+ *   1. rewrites the ptrtbl so the sibling-1 range points at sibling-0's block
+ *   2. frees sibling-1's block (dmu_free_range, no-op in mock)
+ *   3. decrements zap_num_leafs
+ *   4. halves lh_prefix / decrements lh_prefix_len on the surviving leaf
+ *   5. calls zap_trunc() to lower zap_freeblk if the freed block was last
+ *
+ * Setup: use ZAP_FLAG_PRE_HASHED_KEY so the hash IS the key value.
+ * Keys with bit 63 = 0 hash to prefix=0 (sibling 0, leaf block 1).
+ * Keys with bit 63 = 1 hash to prefix=1 (sibling 1, leaf block 2).
+ * 6 entries per 512-byte leaf fills each leaf exactly.
+ *
+ * Sequence:
+ *   a. Remove all sibling-0 entries → zap_shrink fires but sibling-1 is
+ *      not empty yet → no collapse; zap_num_leafs stays 2.
+ *   b. Remove all sibling-1 entries → zap_shrink fires, finds sibling-0
+ *      also empty → collapses the pair.
+ *
+ * After collapse: zap_num_leafs=1, zap_num_entries=0, zap_freeblk drops
+ * from 3 to 2 (zap_trunc), and the surviving leaf has lh_prefix_len=0.
+ * The ZAP must still be functional for subsequent inserts.
+ */
+static MunitResult
+test_fatzap_shrink(const MunitParameter params[], void *data)
+{
+	(void) params, (void) data;
+
+	dnode_t *dn = mock_zap_create_fatzap_uint64_prehashed();
+	dmu_tx_t *tx = (dmu_tx_t *) mock_tx_create();
+
+	/*
+	 * Keys 0..5: bit 63 = 0 → hash prefix 0 → sibling-0 leaf.
+	 * Keys (1<<63)..(1<<63)+5: bit 63 = 1 → hash prefix 1 → sibling-1 leaf.
+	 */
+#define	NSIB 6
+	uint64_t sib0[NSIB], sib1[NSIB];
+	for (int i = 0; i < NSIB; i++) {
+		sib0[i] = (uint64_t)i;
+		sib1[i] = (1ULL << 63) | (uint64_t)i;
+	}
+	for (int i = 0; i < NSIB; i++) {
+		uint64_t v = (uint64_t)i;
+		unit_ok(zap_add_uint64_by_dnode(dn, &sib0[i], 1,
+		    sizeof (uint64_t), 1, &v, tx));
+		unit_ok(zap_add_uint64_by_dnode(dn, &sib1[i], 1,
+		    sizeof (uint64_t), 1, &v, tx));
+	}
+
+	mock_dnode_t *mdn = (mock_dnode_t *)dn;
+	const void *hdr = mock_dnode_block_data(mdn, 0);
+
+	/* Confirm two leaves allocated: blocks 0 (hdr), 1, 2. */
+	unit_eq(mock_dnode_block_count(mdn), 3);
+	unit_eq(rd64(hdr, 56), 3);	/* zap_freeblk */
+	unit_eq(rd64(hdr, 64), 2);	/* zap_num_leafs */
+	unit_eq(rd64(hdr, 72), 2 * NSIB); /* zap_num_entries */
+
+	/*
+	 * Step (a): drain sibling-0.  zap_shrink fires on the last removal but
+	 * sibling-1 is still full, so no collapse occurs.
+	 */
+	for (int i = 0; i < NSIB; i++)
+		unit_ok(zap_remove_uint64_by_dnode(dn, &sib0[i], 1, tx));
+
+	unit_eq(rd64(hdr, 64), 2);	/* still 2 leaves */
+	unit_eq(rd64(hdr, 72), NSIB);	/* 6 entries left */
+
+	/* Sibling-1 entries still reachable. */
+	for (int i = 0; i < NSIB; i++) {
+		uint64_t result = 0;
+		unit_ok(zap_lookup_uint64_by_dnode(dn, &sib1[i], 1,
+		    sizeof (uint64_t), 1, &result));
+		unit_eq(result, (uint64_t)i);
+	}
+
+	/*
+	 * Step (b): drain sibling-1.  The last removal triggers zap_shrink,
+	 * which finds sibling-0 is also empty and collapses the pair.
+	 */
+	for (int i = 0; i < NSIB; i++)
+		unit_ok(zap_remove_uint64_by_dnode(dn, &sib1[i], 1, tx));
+
+	/* zap_num_leafs dropped, freeblk reclaimed by zap_trunc. */
+	unit_eq(rd64(hdr, 56), 2);	/* zap_freeblk */
+	unit_eq(rd64(hdr, 64), 1);	/* zap_num_leafs */
+	unit_eq(rd64(hdr, 72), 0);	/* zap_num_entries */
+
+	/* Surviving leaf (block 1): lh_prefix=0, lh_prefix_len=0. */
+	const void *leaf = mock_dnode_block_data(mdn, 1);
+	unit_eq(rd64(leaf, 16), 0);	/* lh_prefix */
+	unit_eq(rd16(leaf, 32), 0);	/* lh_prefix_len */
+
+	/* ZAP must still be usable after shrink. */
+	uint64_t k = 42, v = 999;
+	unit_ok(zap_add_uint64_by_dnode(dn, &k, 1,
+	    sizeof (uint64_t), 1, &v, tx));
+	uint64_t result = 0;
+	unit_ok(zap_lookup_uint64_by_dnode(dn, &k, 1,
+	    sizeof (uint64_t), 1, &result));
+	unit_eq(result, 999);
+	unit_eq(rd64(hdr, 72), 1);	/* zap_num_entries */
+
+	mock_tx_destroy((mock_dmu_tx_t *) tx);
+	unit_true(mock_zap_is_fatzap(dn));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
 /* ========== */
 
 /* Test suite definition and boilerplate. */
@@ -2300,6 +2448,7 @@ static const MunitTest zap_tests[] = {
 	UNIT_TEST("fatzap_update_mixed",	test_fatzap_update_mixed),
 
 	UNIT_TEST("fatzap_remove",		test_fatzap_remove),
+	UNIT_TEST("fatzap_shrink",		test_fatzap_shrink),
 
 	{ 0 },
 };
