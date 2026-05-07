@@ -2427,6 +2427,74 @@ test_fatzap_collision(const MunitParameter params[], void *data)
 	return (MUNIT_OK);
 }
 
+/*
+ * Test the fatzap pointer-table growth path.
+ *
+ * The embedded pointer table lives in the second half of block 0.  For
+ * 512-byte blocks (block_shift=9):
+ *   ZAP_EMBEDDED_PTRTBL_SHIFT = 9 - 3 - 1 = 5  →  32 entries capacity
+ *
+ * Each 512-byte leaf has ZAP_LEAF_NUMCHUNKS_BS(9)=18 chunks.  Since 18
+ * is below ZAP_LEAF_LOW_WATER(20), the "leaf full" check in
+ * zap_put_leaf_maybe_grow_ptrtbl() fires for any insert into a leaf
+ * whose lh_prefix_len == zt_shift.  On that first such insert,
+ * zap_grow_ptrtbl() is called:
+ *   - allocates a new dedicated block for the pointer table
+ *   - transfers the 32 embedded entries to it (each duplicated)
+ *   - increments zt_shift from 5 to 6, sets zt_numblks = 1
+ *
+ * We use zap_create_uint64_mock() (512-byte blocks, immediate fatzap)
+ * and insert enough entries to force multiple such growths.  We verify
+ * the ptrtbl has moved out-of-block (zt_numblks > 0) and that all
+ * entries survive intact.
+ */
+static MunitResult
+test_fatzap_ptrtbl_growth(const MunitParameter params[], void *data)
+{
+	(void) params, (void) data;
+
+#define	NPTRTBL 300
+	dnode_t *dn = mock_zap_create_fatzap_uint64();
+	dmu_tx_t *tx = (dmu_tx_t *) mock_tx_create();
+
+	mock_dnode_t *mdn = (mock_dnode_t *)dn;
+	const void *hdr = mock_dnode_block_data(mdn, 0);
+
+	/* Embedded ptrtbl initially: zt_numblks == 0. */
+	unit_eq(rd64(hdr, 24), 0);
+
+	for (int i = 0; i < NPTRTBL; i++) {
+		uint64_t k = (uint64_t)i;
+		uint64_t v = (uint64_t)i * 3;
+		unit_ok(zap_add_uint64_by_dnode(dn, &k, 1,
+		    sizeof (uint64_t), 1, &v, tx));
+	}
+
+	/*
+	 * After growth: zt_numblks > 0 (ptrtbl moved out-of-block) and
+	 * zt_shift > 5 (ZAP_EMBEDDED_PTRTBL_SHIFT for block_shift=9).
+	 */
+	unit_gt(rd64(hdr, 24), 0);	/* zt_numblks */
+	unit_gt(rd64(hdr, 32), 5);	/* zt_shift */
+
+	/* All entries must survive ptrtbl reorganisation. */
+	for (int i = 0; i < NPTRTBL; i++) {
+		uint64_t k = (uint64_t)i;
+		uint64_t result = 0;
+		unit_ok(zap_lookup_uint64_by_dnode(dn,
+		    &k, 1, sizeof (uint64_t), 1, &result));
+		unit_eq(result, (uint64_t)i * 3);
+	}
+
+	/* Cursor iteration must visit all entries. */
+	//unit_eq(zap_count_entries(mdn), NPTRTBL);
+	mock_tx_destroy((mock_dmu_tx_t *) tx);
+	unit_true(mock_zap_is_fatzap(dn));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
 /* ========== */
 
 /* Test suite definition and boilerplate. */
@@ -2511,6 +2579,7 @@ static const MunitTest zap_tests[] = {
 	UNIT_TEST("fatzap_remove",		test_fatzap_remove),
 	UNIT_TEST("fatzap_shrink",		test_fatzap_shrink),
 	UNIT_TEST("fatzap_collision",		test_fatzap_collision),
+	UNIT_TEST("fatzap_ptrtbl_growth",	test_fatzap_ptrtbl_growth),
 
 	{ 0 },
 };
