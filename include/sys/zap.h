@@ -423,6 +423,13 @@ int zap_update_int_key(objset_t *os, uint64_t obj,
 int zap_lookup_int_key(objset_t *os, uint64_t obj,
     uint64_t key, uint64_t *valuep);
 
+int zap_add_int_key_by_dnode(dnode_t *dn,
+    uint64_t key, uint64_t value, dmu_tx_t *tx);
+int zap_update_int_key_by_dnode(dnode_t *dn,
+    uint64_t key, uint64_t value, dmu_tx_t *tx);
+int zap_lookup_int_key_by_dnode(dnode_t *dn,
+    uint64_t key, uint64_t *valuep);
+
 /*
  * The interface for listing all the attributes of a zapobj can be
  * thought of as cursor moving down a list of the attributes one by
