@@ -281,6 +281,7 @@ uint64_t zap_getflags(zap_t *zap);
 
 /* Microzap implementation. */
 void mzap_byteswap(mzap_phys_t *buf, size_t size);
+int mzap_count(zap_t *zap, uint64_t *count);
 int mzap_lookup(zap_name_t *zn,
     uint64_t integer_size, uint64_t num_integers, void *buf,
     char *realname, int rn_len, boolean_t *normalization_conflictp,

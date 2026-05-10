@@ -812,7 +812,7 @@ zap_count_by_dnode(dnode_t *dn, uint64_t *count)
 	if (!zap->zap_ismicro) {
 		err = fzap_count(zap, count);
 	} else {
-		*count = zap->zap_m.zap_num_entries;
+		err = mzap_count(zap, count);
 	}
 	zap_unlock(zap, FTAG);
 	return (err);

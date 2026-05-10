@@ -560,6 +560,13 @@ mzap_remove(zap_name_t *zn, dmu_tx_t *tx)
 	return (0);
 }
 
+int
+mzap_count(zap_t *zap, uint64_t *count)
+{
+	*count = zap->zap_m.zap_num_entries;
+	return (0);
+}
+
 ZFS_MODULE_PARAM(zfs, , zap_micro_max_size, INT, ZMOD_RW,
 	"Maximum micro ZAP size before converting to a fat ZAP, "
 	    "in bytes (max 1M)");
