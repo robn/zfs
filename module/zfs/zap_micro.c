@@ -532,6 +532,20 @@ mzap_lookup(zap_name_t *zn, uint64_t integer_size, uint64_t num_integers,
 	return (0);
 }
 
+int
+mzap_length(zap_name_t *zn, uint64_t *integer_size, uint64_t *num_integers)
+{
+	zfs_btree_index_t idx;
+	mzap_ent_t *mze = mze_find(zn, &idx);
+	if (mze == NULL)
+		return (SET_ERROR(ENOENT));
+	if (integer_size)
+		*integer_size = 8;
+	if (num_integers)
+		*num_integers = 1;
+	return (0);
+}
+
 ZFS_MODULE_PARAM(zfs, , zap_micro_max_size, INT, ZMOD_RW,
 	"Maximum micro ZAP size before converting to a fat ZAP, "
 	    "in bytes (max 1M)");

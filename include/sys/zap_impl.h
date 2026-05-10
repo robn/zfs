@@ -285,6 +285,8 @@ int mzap_lookup(zap_name_t *zn,
     uint64_t integer_size, uint64_t num_integers, void *buf,
     char *realname, int rn_len, boolean_t *normalization_conflictp,
     uint64_t *actual_num_integers);
+int mzap_length(zap_name_t *zn,
+    uint64_t *integer_size, uint64_t *num_integers);
 zap_t *mzap_open(dmu_buf_t *db);
 int mzap_upgrade(zap_t **zapp, dmu_tx_t *tx, zap_flags_t flags);
 mzap_ent_t *mze_find(zap_name_t *zn, zfs_btree_index_t *idx);

@@ -655,16 +655,7 @@ zap_length_by_dnode(dnode_t *dn, const char *name, uint64_t *integer_size,
 	if (!zap->zap_ismicro) {
 		err = fzap_length(zn, integer_size, num_integers);
 	} else {
-		zfs_btree_index_t idx;
-		mzap_ent_t *mze = mze_find(zn, &idx);
-		if (mze == NULL) {
-			err = SET_ERROR(ENOENT);
-		} else {
-			if (integer_size)
-				*integer_size = 8;
-			if (num_integers)
-				*num_integers = 1;
-		}
+		err = mzap_length(zn, integer_size, num_integers);
 	}
 	zap_name_free(zn);
 	zap_unlock(zap, FTAG);
