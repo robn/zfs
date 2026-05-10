@@ -329,6 +329,8 @@ int zap_update_uint64_by_dnode(dnode_t *dn, const uint64_t *key,
  */
 int zap_length(objset_t *os, uint64_t zapobj, const char *name,
     uint64_t *integer_size, uint64_t *num_integers);
+int zap_length_by_dnode(dnode_t *dn, const char *name,
+    uint64_t *integer_size, uint64_t *num_integers);
 
 /* Attribute length by uint64_t[] key. */
 int zap_length_uint64(objset_t *os, uint64_t zapobj, const uint64_t *key,

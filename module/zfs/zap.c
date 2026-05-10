@@ -647,7 +647,7 @@ zap_update_uint64(objset_t *os, uint64_t zapobj, const uint64_t *key,
 
 /* zap_length */
 
-static int
+int
 zap_length_by_dnode(dnode_t *dn, const char *name, uint64_t *integer_size,
     uint64_t *num_integers)
 {
