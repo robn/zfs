@@ -289,13 +289,12 @@ int mzap_lookup(zap_name_t *zn,
 int mzap_length(zap_name_t *zn,
     uint64_t *integer_size, uint64_t *num_integers);
 int mzap_remove(zap_name_t *zn, dmu_tx_t *tx);
+int mzap_cursor_retrieve(zap_t *zap, zap_cursor_t *zc, zap_attribute_t *za);
 zap_t *mzap_open(dmu_buf_t *db);
 int mzap_upgrade(zap_t **zapp, dmu_tx_t *tx, zap_flags_t flags);
 mzap_ent_t *mze_find(zap_name_t *zn, zfs_btree_index_t *idx);
 boolean_t mze_canfit_fzap_leaf(zap_name_t *zn, uint64_t hash);
 void mze_destroy(zap_t *zap);
-boolean_t mzap_normalization_conflict(zap_t *zap, zap_name_t *zn,
-    mzap_ent_t *mze, zfs_btree_index_t *idx);
 void mzap_addent(zap_name_t *zn, uint64_t value);
 uint64_t zap_get_micro_max_size(spa_t *spa);
 

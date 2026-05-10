@@ -1312,36 +1312,7 @@ zap_cursor_retrieve(zap_cursor_t *zc, zap_attribute_t *za)
 	if (!zc->zc_zap->zap_ismicro) {
 		err = fzap_cursor_retrieve(zc->zc_zap, zc, za);
 	} else {
-		zfs_btree_index_t idx;
-		mzap_ent_t mze_tofind;
-
-		mze_tofind.mze_hash = zc->zc_hash >> 32;
-		mze_tofind.mze_cd = zc->zc_cd;
-
-		mzap_ent_t *mze = zfs_btree_find(&zc->zc_zap->zap_m.zap_tree,
-		    &mze_tofind, &idx);
-		if (mze == NULL) {
-			mze = zfs_btree_next(&zc->zc_zap->zap_m.zap_tree,
-			    &idx, &idx);
-		}
-		if (mze) {
-			mzap_ent_phys_t *mzep = MZE_PHYS(zc->zc_zap, mze);
-			ASSERT3U(mze->mze_cd, ==, mzep->mze_cd);
-			za->za_normalization_conflict =
-			    mzap_normalization_conflict(zc->zc_zap, NULL,
-			    mze, &idx);
-			za->za_integer_length = 8;
-			za->za_num_integers = 1;
-			za->za_first_integer = mzep->mze_value;
-			(void) strlcpy(za->za_name, mzep->mze_name,
-			    za->za_name_len);
-			zc->zc_hash = (uint64_t)mze->mze_hash << 32;
-			zc->zc_cd = mze->mze_cd;
-			err = 0;
-		} else {
-			zc->zc_hash = -1ULL;
-			err = SET_ERROR(ENOENT);
-		}
+		err = mzap_cursor_retrieve(zc->zc_zap, zc, za);
 	}
 	rw_exit(&zc->zc_zap->zap_rwlock);
 	return (err);
