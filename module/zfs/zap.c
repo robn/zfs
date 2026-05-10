@@ -859,6 +859,22 @@ zap_count(objset_t *os, uint64_t zapobj, uint64_t *count)
 
 /* zap_increment */
 
+/*
+ * XXX these two need revisiting. its a simple aggregate operation, but
+ *     maintains no locks across the two operations. implementing
+ *     zap_increment() as a hold wrapper around zap_increment_by_dnode()
+ *     means a hold across both ops, which is probably more correct but
+ *     is a (slight) behaviour change. a separate _impl() would mean
+ *     zap_lockdir_by_dnode() over both ops; one is lookup (readlock), and
+ *     the other might be adding=true, depending on which op. but also,
+ *     it would mean calling lookup_impl/remove_impl/update_impl for the
+ *     real work, and they do their own locking.
+ *
+ *     on the _seventh_ hand, nothing actually uses this, so maybe it
+ *     doesn't even matter.
+ *       -- robn, 2026-05-10
+ */
+
 int
 zap_increment(objset_t *os, uint64_t obj, const char *name, int64_t delta,
     dmu_tx_t *tx)
@@ -876,6 +892,26 @@ zap_increment(objset_t *os, uint64_t obj, const char *name, int64_t delta,
 		err = zap_remove(os, obj, name, tx);
 	else
 		err = zap_update(os, obj, name, 8, 1, &value, tx);
+	return (err);
+}
+
+int
+zap_increment_by_dnode(dnode_t *dn, const char *name, int64_t delta,
+    dmu_tx_t *tx)
+{
+	uint64_t value = 0;
+
+	if (delta == 0)
+		return (0);
+
+	int err = zap_lookup_by_dnode(dn, name, 8, 1, &value);
+	if (err != 0 && err != ENOENT)
+		return (err);
+	value += delta;
+	if (value == 0)
+		err = zap_remove_by_dnode(dn, name, tx);
+	else
+		err = zap_update_by_dnode(dn, name, 8, 1, &value, tx);
 	return (err);
 }
 
