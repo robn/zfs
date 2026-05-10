@@ -546,6 +546,20 @@ mzap_length(zap_name_t *zn, uint64_t *integer_size, uint64_t *num_integers)
 	return (0);
 }
 
+int
+mzap_remove(zap_name_t *zn, dmu_tx_t *tx)
+{
+	(void) tx;
+	zfs_btree_index_t idx;
+	mzap_ent_t *mze = mze_find(zn, &idx);
+	if (mze == NULL)
+		return (SET_ERROR(ENOENT));
+	zn->zn_zap->zap_m.zap_num_entries--;
+	memset(MZE_PHYS(zn->zn_zap, mze), 0, sizeof (mzap_ent_phys_t));
+	zfs_btree_remove_idx(&zn->zn_zap->zap_m.zap_tree, &idx);
+	return (0);
+}
+
 ZFS_MODULE_PARAM(zfs, , zap_micro_max_size, INT, ZMOD_RW,
 	"Maximum micro ZAP size before converting to a fat ZAP, "
 	    "in bytes (max 1M)");

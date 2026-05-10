@@ -731,15 +731,7 @@ zap_remove_norm_by_dnode(dnode_t *dn, const char *name, matchtype_t mt,
 	if (!zap->zap_ismicro) {
 		err = fzap_remove(zn, tx);
 	} else {
-		zfs_btree_index_t idx;
-		mzap_ent_t *mze = mze_find(zn, &idx);
-		if (mze == NULL) {
-			err = SET_ERROR(ENOENT);
-		} else {
-			zap->zap_m.zap_num_entries--;
-			memset(MZE_PHYS(zap, mze), 0, sizeof (mzap_ent_phys_t));
-			zfs_btree_remove_idx(&zap->zap_m.zap_tree, &idx);
-		}
+		err = mzap_remove(zn, tx);
 	}
 	zap_name_free(zn);
 	zap_unlock(zap, FTAG);
