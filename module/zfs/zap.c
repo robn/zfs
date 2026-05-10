@@ -1362,9 +1362,7 @@ zap_get_stats_by_dnode(dnode_t *dn, zap_stats_t *zs)
 	memset(zs, 0, sizeof (zap_stats_t));
 
 	if (zap->zap_ismicro) {
-		zs->zs_blocksize = zap->zap_dbuf->db_size;
-		zs->zs_num_entries = zap->zap_m.zap_num_entries;
-		zs->zs_num_blocks = 1;
+		mzap_get_stats(zap, zs);
 	} else {
 		fzap_get_stats(zap, zs);
 	}

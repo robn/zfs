@@ -605,6 +605,14 @@ mzap_cursor_retrieve(zap_t *zap, zap_cursor_t *zc, zap_attribute_t *za)
 	return (0);
 }
 
+void
+mzap_get_stats(zap_t *zap, zap_stats_t *zs)
+{
+	zs->zs_blocksize = zap->zap_dbuf->db_size;
+	zs->zs_num_entries = zap->zap_m.zap_num_entries;
+	zs->zs_num_blocks = 1;
+}
+
 ZFS_MODULE_PARAM(zfs, , zap_micro_max_size, INT, ZMOD_RW,
 	"Maximum micro ZAP size before converting to a fat ZAP, "
 	    "in bytes (max 1M)");
