@@ -1005,6 +1005,13 @@ zap_join(objset_t *os, uint64_t fromobj, uint64_t intoobj, dmu_tx_t *tx)
 	dnode_rele(dn, FTAG);
 	return (err);
 }
+int
+zap_join_by_dnode(dnode_t *fromdn, dnode_t *intodn, dmu_tx_t *tx)
+{
+	zap_cursor_t zc;
+	zap_cursor_init_by_dnode(&zc, fromdn);
+	return (zap_join_impl(&zc, intodn, tx));
+}
 
 static int
 zap_join_key_impl(zap_cursor_t *zc, dnode_t *intodn,
@@ -1041,6 +1048,14 @@ zap_join_key(objset_t *os, uint64_t fromobj, uint64_t intoobj,
 	err = zap_join_key_impl(&zc, dn, value, tx);
 	dnode_rele(dn, FTAG);
 	return (err);
+}
+int
+zap_join_key_by_dnode(dnode_t *fromdn, dnode_t *intodn,
+    uint64_t value, dmu_tx_t *tx)
+{
+	zap_cursor_t zc;
+	zap_cursor_init_by_dnode(&zc, fromdn);
+	return (zap_join_key_impl(&zc, intodn, value, tx));
 }
 
 static int
@@ -1084,6 +1099,13 @@ zap_join_increment(objset_t *os, uint64_t fromobj, uint64_t intoobj,
 	err = zap_join_increment_impl(&zc, dn, tx);
 	dnode_rele(dn, FTAG);
 	return (err);
+}
+int
+zap_join_increment_by_dnode(dnode_t *fromdn, dnode_t *intodn, dmu_tx_t *tx)
+{
+	zap_cursor_t zc;
+	zap_cursor_init_by_dnode(&zc, fromdn);
+	return (zap_join_increment_impl(&zc, intodn, tx));
 }
 
 /* zap_*_int */
