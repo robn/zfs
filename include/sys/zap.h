@@ -259,6 +259,7 @@ int zap_lookup_length_uint64_by_dnode(dnode_t *dn, const uint64_t *key,
  * exist, 0 if it does. This is like zap_lookup(), but may be more efficient.
  */
 int zap_contains(objset_t *os, uint64_t zapobj, const char *name);
+int zap_contains_by_dnode(dnode_t *dn, const char *name);
 
 /*
  * Prefetch the blocks within the ZAP where the given key is stored. The

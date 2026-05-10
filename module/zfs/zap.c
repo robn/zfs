@@ -363,6 +363,16 @@ zap_contains(objset_t *os, uint64_t zapobj, const char *name)
 	return (err);
 }
 
+int
+zap_contains_by_dnode(dnode_t *dn, const char *name)
+{
+	int err = zap_lookup_norm_by_dnode(dn, name, 0,
+	    0, NULL, 0, NULL, 0, NULL);
+	if (err == EOVERFLOW || err == EINVAL)
+		err = 0; /* found, but skipped reading the value */
+	return (err);
+}
+
 /* zap_prefetch */
 
 static int
