@@ -1061,36 +1061,56 @@ zap_lookup_int_key(objset_t *os, uint64_t obj, uint64_t key, uint64_t *valuep)
 /* zap_cursor */
 
 static void
-zap_cursor_init_impl(zap_cursor_t *zc, objset_t *os, uint64_t zapobj,
-    uint64_t serialized, boolean_t prefetch)
+zap_cursor_init_impl(zap_cursor_t *zc, uint64_t serialized, uint32_t flags)
 {
-	zc->zc_objset = os;
 	zc->zc_zap = NULL;
 	zc->zc_leaf = NULL;
-	zc->zc_zapobj = zapobj;
 	zc->zc_serialized = serialized;
 	zc->zc_hash = 0;
 	zc->zc_cd = 0;
-	zc->zc_prefetch = prefetch;
+	zc->zc_flags = flags;
 }
 
 void
 zap_cursor_init(zap_cursor_t *zc, objset_t *os, uint64_t zapobj)
 {
-	zap_cursor_init_impl(zc, os, zapobj, 0, B_TRUE);
+	zap_cursor_init_impl(zc, 0, ZC_PREFETCH);
+	zc->zc_objset = os;
+	zc->zc_zapobj = zapobj;
+}
+
+void
+zap_cursor_init_by_dnode(zap_cursor_t *zc, dnode_t *dn)
+{
+	zap_cursor_init_impl(zc, 0, ZC_PREFETCH|ZC_DNODE);
+	zc->zc_dnode = dn;
+	VERIFY(dnode_add_ref(dn, zc));
 }
 
 void
 zap_cursor_init_noprefetch(zap_cursor_t *zc, objset_t *os, uint64_t zapobj)
 {
-	zap_cursor_init_impl(zc, os, zapobj, 0, B_FALSE);
+	zap_cursor_init_impl(zc, 0, 0);
+	zc->zc_objset = os;
+	zc->zc_zapobj = zapobj;
 }
 
 void
 zap_cursor_init_serialized(zap_cursor_t *zc, objset_t *os, uint64_t zapobj,
     uint64_t serialized)
 {
-	zap_cursor_init_impl(zc, os, zapobj, serialized, B_TRUE);
+	zap_cursor_init_impl(zc, serialized, ZC_PREFETCH);
+	zc->zc_objset = os;
+	zc->zc_zapobj = zapobj;
+}
+
+void
+zap_cursor_init_serialized_by_dnode(zap_cursor_t *zc, dnode_t *dn,
+    uint64_t serialized)
+{
+	zap_cursor_init_impl(zc, serialized, ZC_PREFETCH|ZC_DNODE);
+	zc->zc_dnode = dn;
+	VERIFY(dnode_add_ref(dn, zc));
 }
 
 void
@@ -1106,7 +1126,12 @@ zap_cursor_fini(zap_cursor_t *zc)
 		zap_put_leaf(zc->zc_leaf);
 		zc->zc_leaf = NULL;
 	}
-	zc->zc_objset = NULL;
+	if (zc->zc_flags & ZC_DNODE) {
+		dnode_rele(zc->zc_dnode, zc);
+		zc->zc_dnode = NULL;
+	} else {
+		zc->zc_objset = NULL;
+	}
 }
 
 int
@@ -1119,8 +1144,12 @@ zap_cursor_retrieve(zap_cursor_t *zc, zap_attribute_t *za)
 
 	if (zc->zc_zap == NULL) {
 		int hb;
-		err = zap_lock(zc->zc_objset, zc->zc_zapobj, NULL,
-		    RW_READER, TRUE, FALSE, NULL, &zc->zc_zap);
+		if (zc->zc_flags & ZC_DNODE)
+			err = zap_lock_by_dnode(zc->zc_dnode, NULL,
+			    RW_READER, TRUE, FALSE, NULL, &zc->zc_zap);
+		else
+			err = zap_lock(zc->zc_objset, zc->zc_zapobj, NULL,
+			    RW_READER, TRUE, FALSE, NULL, &zc->zc_zap);
 		if (err != 0)
 			return (err);
 

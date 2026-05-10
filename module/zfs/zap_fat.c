@@ -1072,7 +1072,7 @@ fzap_cursor_retrieve(zap_t *zap, zap_cursor_t *zc, zap_attribute_t *za)
 	 * zap_cursor_init_noprefetch()).
 	 */
 	if (zc->zc_hash == 0 && zap_iterate_prefetch &&
-	    zc->zc_prefetch && zap_f_phys(zap)->zap_freeblk > 2) {
+	    (zc->zc_flags & ZC_PREFETCH) && zap_f_phys(zap)->zap_freeblk > 2) {
 		dmu_prefetch_by_dnode(zap->zap_dnode, 0, 0,
 		    zap_f_phys(zap)->zap_freeblk << FZAP_BLOCK_SHIFT(zap),
 		    ZIO_PRIORITY_ASYNC_READ);

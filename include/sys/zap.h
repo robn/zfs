@@ -438,16 +438,26 @@ void zap_attribute_free(zap_attribute_t *attrp);
 
 struct zap;
 struct zap_leaf;
+
+/* Flags for zc_flags. */
+enum {
+	ZC_PREFETCH	= (1 << 0),	/* Issue prefetches for next leafs */
+	ZC_DNODE	= (1 << 1),	/* Cursor was initialised by dnode. */
+};
+
 typedef struct zap_cursor {
 	/* This structure is opaque! */
-	objset_t *zc_objset;
+	union {
+		objset_t *zc_objset;
+		dnode_t *zc_dnode;
+	};
 	struct zap *zc_zap;
 	struct zap_leaf *zc_leaf;
 	uint64_t zc_zapobj;
 	uint64_t zc_serialized;
 	uint64_t zc_hash;
 	uint32_t zc_cd;
-	boolean_t zc_prefetch;
+	uint32_t zc_flags;
 } zap_cursor_t;
 
 /*
@@ -456,6 +466,7 @@ typedef struct zap_cursor {
  * cursor when you are done with it.
  */
 void zap_cursor_init(zap_cursor_t *zc, objset_t *os, uint64_t zapobj);
+void zap_cursor_init_by_dnode(zap_cursor_t *zc, dnode_t *dn);
 void zap_cursor_fini(zap_cursor_t *zc);
 
 /*
@@ -474,6 +485,8 @@ void zap_cursor_init_noprefetch(zap_cursor_t *zc, objset_t *os,
  */
 void zap_cursor_init_serialized(zap_cursor_t *zc, objset_t *os,
     uint64_t zapobj, uint64_t serialized);
+void zap_cursor_init_serialized_by_dnode(zap_cursor_t *zc, dnode_t *dn,
+    uint64_t serialized);
 
 /*
  * Get the attribute currently pointed to by the cursor.  Returns
