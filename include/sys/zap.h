@@ -602,6 +602,7 @@ typedef struct zap_stats {
  * know what you're doing.
  */
 int zap_get_stats(objset_t *os, uint64_t zapobj, zap_stats_t *zs);
+int zap_get_stats_by_dnode(dnode_t *dn, zap_stats_t *zs);
 
 /* ZAP subsystem setup/teardown */
 void zap_init(void);

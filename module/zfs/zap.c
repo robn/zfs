@@ -1237,7 +1237,7 @@ zap_cursor_serialize(zap_cursor_t *zc)
 
 /* zap_get_stats */
 
-static int
+int
 zap_get_stats_by_dnode(dnode_t *dn, zap_stats_t *zs)
 {
 	zap_t *zap;
