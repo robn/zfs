@@ -508,6 +508,30 @@ again:
 	cmn_err(CE_PANIC, "out of entries!");
 }
 
+int
+mzap_lookup(zap_name_t *zn, uint64_t integer_size, uint64_t num_integers,
+    void *buf, char *realname, int rn_len, boolean_t *ncp,
+    uint64_t *actual_num_integers)
+{
+	(void) actual_num_integers;
+
+	zfs_btree_index_t idx;
+	mzap_ent_t *mze = mze_find(zn, &idx);
+	if (mze == NULL)
+		return (SET_ERROR(ENOENT));
+	if (num_integers < 1)
+		return (SET_ERROR(EOVERFLOW));
+	if (integer_size != 8)
+		return (SET_ERROR(EINVAL));
+	*(uint64_t *)buf = MZE_PHYS(zn->zn_zap, mze)->mze_value;
+	if (realname != NULL)
+		(void) strlcpy(realname,
+		    MZE_PHYS(zn->zn_zap, mze)->mze_name, rn_len);
+	if (ncp)
+		*ncp = mzap_normalization_conflict(zn->zn_zap, zn, mze, &idx);
+	return (0);
+}
+
 ZFS_MODULE_PARAM(zfs, , zap_micro_max_size, INT, ZMOD_RW,
 	"Maximum micro ZAP size before converting to a fat ZAP, "
 	    "in bytes (max 1M)");

@@ -243,28 +243,8 @@ zap_lookup_norm_by_dnode(dnode_t *dn, const char *name,
 		err = fzap_lookup(zn, integer_size, num_integers, buf,
 		    realname, rn_len, ncp, NULL);
 	} else {
-		zfs_btree_index_t idx;
-		mzap_ent_t *mze = mze_find(zn, &idx);
-		if (mze == NULL) {
-			err = SET_ERROR(ENOENT);
-		} else {
-			if (num_integers < 1) {
-				err = SET_ERROR(EOVERFLOW);
-			} else if (integer_size != 8) {
-				err = SET_ERROR(EINVAL);
-			} else {
-				*(uint64_t *)buf =
-				    MZE_PHYS(zap, mze)->mze_value;
-				if (realname != NULL)
-					(void) strlcpy(realname,
-					    MZE_PHYS(zap, mze)->mze_name,
-					    rn_len);
-				if (ncp) {
-					*ncp = mzap_normalization_conflict(zap,
-					    zn, mze, &idx);
-				}
-			}
-		}
+		err = mzap_lookup(zn, integer_size, num_integers, buf,
+		    realname, rn_len, ncp, NULL);
 	}
 	zap_name_free(zn);
 	zap_unlock(zap, FTAG);

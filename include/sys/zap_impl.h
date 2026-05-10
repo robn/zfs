@@ -280,6 +280,11 @@ uint32_t zap_maxcd(zap_t *zap);
 uint64_t zap_getflags(zap_t *zap);
 
 /* Microzap implementation. */
+void mzap_byteswap(mzap_phys_t *buf, size_t size);
+int mzap_lookup(zap_name_t *zn,
+    uint64_t integer_size, uint64_t num_integers, void *buf,
+    char *realname, int rn_len, boolean_t *normalization_conflictp,
+    uint64_t *actual_num_integers);
 zap_t *mzap_open(dmu_buf_t *db);
 int mzap_upgrade(zap_t **zapp, dmu_tx_t *tx, zap_flags_t flags);
 mzap_ent_t *mze_find(zap_name_t *zn, zfs_btree_index_t *idx);
@@ -288,7 +293,6 @@ void mze_destroy(zap_t *zap);
 boolean_t mzap_normalization_conflict(zap_t *zap, zap_name_t *zn,
     mzap_ent_t *mze, zfs_btree_index_t *idx);
 void mzap_addent(zap_name_t *zn, uint64_t value);
-void mzap_byteswap(mzap_phys_t *buf, size_t size);
 uint64_t zap_get_micro_max_size(spa_t *spa);
 
 /* Fatzap implementation. */
