@@ -243,6 +243,7 @@ mzap_open(dmu_buf_t *db)
 	zap->zap_dbuf = db;
 
 	if (zap_block_type != ZBT_MICRO) {
+		zap->zap_ops = &zap_fat_ops;
 		mutex_init(&zap->zap_f.zap_num_entries_mtx, 0, MUTEX_DEFAULT,
 		    0);
 		zap->zap_f.zap_block_shift = highbit64(db->db_size) - 1;
@@ -251,6 +252,7 @@ mzap_open(dmu_buf_t *db)
 			goto handle_winner;
 		}
 	} else {
+		zap->zap_ops = &zap_micro_ops;
 		zap->zap_ismicro = TRUE;
 	}
 
@@ -612,6 +614,15 @@ mzap_get_stats(zap_t *zap, zap_stats_t *zs)
 	zs->zs_num_entries = zap->zap_m.zap_num_entries;
 	zs->zs_num_blocks = 1;
 }
+
+const zap_ops_t zap_micro_ops = {
+	.zap_op_count = mzap_count,
+	.zap_op_lookup = mzap_lookup,
+	.zap_op_length = mzap_length,
+	.zap_op_remove = mzap_remove,
+	.zap_op_cursor_retrieve = mzap_cursor_retrieve,
+	.zap_op_get_stats = mzap_get_stats,
+};
 
 ZFS_MODULE_PARAM(zfs, , zap_micro_max_size, INT, ZMOD_RW,
 	"Maximum micro ZAP size before converting to a fat ZAP, "

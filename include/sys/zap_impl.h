@@ -169,6 +169,7 @@ typedef struct zap {
 			zfs_btree_t zap_tree;
 		} zap_micro;
 	} zap_u;
+	const struct zap_ops *zap_ops;
 } zap_t;
 
 #define	zap_f	zap_u.zap_fat
@@ -320,6 +321,23 @@ void zap_put_leaf(struct zap_leaf *l);
 int fzap_add_cd(zap_name_t *zn, uint64_t integer_size, uint64_t num_integers,
     const void *val, uint32_t cd, dmu_tx_t *tx);
 void fzap_upgrade(zap_t *zap, dmu_tx_t *tx, zap_flags_t flags);
+
+typedef struct zap_ops {
+	int (*zap_op_count)(zap_t *zap, uint64_t *count);
+	int (*zap_op_lookup)(zap_name_t *zn, uint64_t integer_size,
+	    uint64_t num_integers, void *buf, char *realname, int rn_len,
+	    boolean_t *normalization_conflictp, uint64_t *actual_num_integers);
+	int (*zap_op_length)(zap_name_t *zn, uint64_t *integer_size,
+	    uint64_t *num_integers);
+	int (*zap_op_remove)(zap_name_t *zn, dmu_tx_t *tx);
+	int (*zap_op_cursor_retrieve)(zap_t *zap, zap_cursor_t *zc,
+	    zap_attribute_t *za);
+	void (*zap_op_get_stats)(zap_t *zap, zap_stats_t *zs);
+	uint64_t (*zap_op_get_flags)(zap_t *zap);
+} zap_ops_t;
+
+extern const zap_ops_t zap_micro_ops;
+extern const zap_ops_t zap_fat_ops;
 
 #ifdef	__cplusplus
 }

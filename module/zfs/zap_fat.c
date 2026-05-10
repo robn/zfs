@@ -112,6 +112,7 @@ fzap_upgrade(zap_t *zap, dmu_tx_t *tx, zap_flags_t flags)
 {
 	ASSERT(RW_WRITE_HELD(&zap->zap_rwlock));
 	zap->zap_ismicro = FALSE;
+	zap->zap_ops = &zap_fat_ops;
 
 	zap->zap_dbu.dbu_evict_func_sync = zap_evict_sync;
 	zap->zap_dbu.dbu_evict_func_async = NULL;
@@ -1450,6 +1451,15 @@ zap_shrink(zap_name_t *zn, zap_leaf_t *l, dmu_tx_t *tx)
 
 	return (err);
 }
+
+const zap_ops_t zap_fat_ops = {
+	.zap_op_count = fzap_count,
+	.zap_op_lookup = fzap_lookup,
+	.zap_op_length = fzap_length,
+	.zap_op_remove = fzap_remove,
+	.zap_op_cursor_retrieve = fzap_cursor_retrieve,
+	.zap_op_get_stats = fzap_get_stats,
+};
 
 ZFS_MODULE_PARAM(zfs, , zap_iterate_prefetch, INT, ZMOD_RW,
 	"When iterating ZAP object, prefetch it");
