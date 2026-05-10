@@ -1044,6 +1044,14 @@ zap_add_int(objset_t *os, uint64_t obj, uint64_t value, dmu_tx_t *tx)
 	(void) snprintf(name, sizeof (name), "%llx", (longlong_t)value);
 	return (zap_add(os, obj, name, 8, 1, &value, tx));
 }
+int
+zap_add_int_by_dnode(dnode_t *dn, uint64_t value, dmu_tx_t *tx)
+{
+	char name[20];
+
+	(void) snprintf(name, sizeof (name), "%llx", (longlong_t)value);
+	return (zap_add_by_dnode(dn, name, 8, 1, &value, tx));
+}
 
 int
 zap_remove_int(objset_t *os, uint64_t obj, uint64_t value, dmu_tx_t *tx)
@@ -1052,6 +1060,14 @@ zap_remove_int(objset_t *os, uint64_t obj, uint64_t value, dmu_tx_t *tx)
 
 	(void) snprintf(name, sizeof (name), "%llx", (longlong_t)value);
 	return (zap_remove(os, obj, name, tx));
+}
+int
+zap_remove_int_by_dnode(dnode_t *dn, uint64_t value, dmu_tx_t *tx)
+{
+	char name[20];
+
+	(void) snprintf(name, sizeof (name), "%llx", (longlong_t)value);
+	return (zap_remove_by_dnode(dn, name, tx));
 }
 
 int
@@ -1062,6 +1078,14 @@ zap_lookup_int(objset_t *os, uint64_t obj, uint64_t value)
 	(void) snprintf(name, sizeof (name), "%llx", (longlong_t)value);
 	return (zap_lookup(os, obj, name, 8, 1, &value));
 }
+int
+zap_lookup_int_by_dnode(dnode_t *dn, uint64_t value)
+{
+	char name[20];
+
+	(void) snprintf(name, sizeof (name), "%llx", (longlong_t)value);
+	return (zap_lookup_by_dnode(dn, name, 8, 1, &value));
+}
 
 int
 zap_increment_int(objset_t *os, uint64_t obj, uint64_t key, int64_t delta,
@@ -1071,6 +1095,15 @@ zap_increment_int(objset_t *os, uint64_t obj, uint64_t key, int64_t delta,
 
 	(void) snprintf(name, sizeof (name), "%llx", (longlong_t)key);
 	return (zap_increment(os, obj, name, delta, tx));
+}
+int
+zap_increment_int_by_dnode(dnode_t *dn, uint64_t key, int64_t delta,
+    dmu_tx_t *tx)
+{
+	char name[20];
+
+	(void) snprintf(name, sizeof (name), "%llx", (longlong_t)key);
+	return (zap_increment_by_dnode(dn, name, delta, tx));
 }
 
 /* zap_*_int_key */
