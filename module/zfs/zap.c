@@ -971,66 +971,86 @@ zap_value_search_by_dnode(dnode_t *dn, uint64_t value, uint64_t mask,
 
 /* zap_join */
 
-int
-zap_join(objset_t *os, uint64_t fromobj, uint64_t intoobj, dmu_tx_t *tx)
+static int
+zap_join_impl(zap_cursor_t *zc, dnode_t *intodn, dmu_tx_t *tx)
 {
-	zap_cursor_t zc;
 	int err = 0;
 
 	zap_attribute_t *za = zap_attribute_long_alloc();
-	for (zap_cursor_init(&zc, os, fromobj);
-	    zap_cursor_retrieve(&zc, za) == 0;
-	    (void) zap_cursor_advance(&zc)) {
+	for (; zap_cursor_retrieve(zc, za) == 0;
+	    (void) zap_cursor_advance(zc)) {
 		if (za->za_integer_length != 8 || za->za_num_integers != 1) {
 			err = SET_ERROR(EINVAL);
 			break;
 		}
-		err = zap_add(os, intoobj, za->za_name,
+		err = zap_add_by_dnode(intodn, za->za_name,
 		    8, 1, &za->za_first_integer, tx);
 		if (err != 0)
 			break;
 	}
-	zap_cursor_fini(&zc);
+	zap_cursor_fini(zc);
 	zap_attribute_free(za);
 	return (err);
 }
-
 int
-zap_join_key(objset_t *os, uint64_t fromobj, uint64_t intoobj,
+zap_join(objset_t *os, uint64_t fromobj, uint64_t intoobj, dmu_tx_t *tx)
+{
+	dnode_t *dn;
+	int err = dnode_hold(os, intoobj, FTAG, &dn);
+	if (err != 0)
+		return (err);
+	zap_cursor_t zc;
+	zap_cursor_init(&zc, os, fromobj);
+	err = zap_join_impl(&zc, dn, tx);
+	dnode_rele(dn, FTAG);
+	return (err);
+}
+
+static int
+zap_join_key_impl(zap_cursor_t *zc, dnode_t *intodn,
     uint64_t value, dmu_tx_t *tx)
 {
-	zap_cursor_t zc;
 	int err = 0;
 
 	zap_attribute_t *za = zap_attribute_long_alloc();
-	for (zap_cursor_init(&zc, os, fromobj);
-	    zap_cursor_retrieve(&zc, za) == 0;
-	    (void) zap_cursor_advance(&zc)) {
+	for (; zap_cursor_retrieve(zc, za) == 0;
+	    (void) zap_cursor_advance(zc)) {
 		if (za->za_integer_length != 8 || za->za_num_integers != 1) {
 			err = SET_ERROR(EINVAL);
 			break;
 		}
-		err = zap_add(os, intoobj, za->za_name,
+		err = zap_add_by_dnode(intodn, za->za_name,
 		    8, 1, &value, tx);
 		if (err != 0)
 			break;
 	}
-	zap_cursor_fini(&zc);
+	zap_cursor_fini(zc);
 	zap_attribute_free(za);
 	return (err);
 }
-
 int
-zap_join_increment(objset_t *os, uint64_t fromobj, uint64_t intoobj,
-    dmu_tx_t *tx)
+zap_join_key(objset_t *os, uint64_t fromobj, uint64_t intoobj,
+    uint64_t value, dmu_tx_t *tx)
 {
+	dnode_t *dn;
+	int err = dnode_hold(os, intoobj, FTAG, &dn);
+	if (err != 0)
+		return (err);
 	zap_cursor_t zc;
+	zap_cursor_init(&zc, os, fromobj);
+	err = zap_join_key_impl(&zc, dn, value, tx);
+	dnode_rele(dn, FTAG);
+	return (err);
+}
+
+static int
+zap_join_increment_impl(zap_cursor_t *zc, dnode_t *intodn, dmu_tx_t *tx)
+{
 	int err = 0;
 
 	zap_attribute_t *za = zap_attribute_long_alloc();
-	for (zap_cursor_init(&zc, os, fromobj);
-	    zap_cursor_retrieve(&zc, za) == 0;
-	    (void) zap_cursor_advance(&zc)) {
+	for (; zap_cursor_retrieve(zc, za) == 0;
+	    (void) zap_cursor_advance(zc)) {
 		uint64_t delta = 0;
 
 		if (za->za_integer_length != 8 || za->za_num_integers != 1) {
@@ -1038,16 +1058,31 @@ zap_join_increment(objset_t *os, uint64_t fromobj, uint64_t intoobj,
 			break;
 		}
 
-		err = zap_lookup(os, intoobj, za->za_name, 8, 1, &delta);
+		err = zap_lookup_by_dnode(intodn, za->za_name, 8, 1, &delta);
 		if (err != 0 && err != ENOENT)
 			break;
 		delta += za->za_first_integer;
-		err = zap_update(os, intoobj, za->za_name, 8, 1, &delta, tx);
+		err = zap_update_by_dnode(intodn, za->za_name,
+		    8, 1, &delta, tx);
 		if (err != 0)
 			break;
 	}
-	zap_cursor_fini(&zc);
+	zap_cursor_fini(zc);
 	zap_attribute_free(za);
+	return (err);
+}
+int
+zap_join_increment(objset_t *os, uint64_t fromobj, uint64_t intoobj,
+    dmu_tx_t *tx)
+{
+	dnode_t *dn;
+	int err = dnode_hold(os, intoobj, FTAG, &dn);
+	if (err != 0)
+		return (err);
+	zap_cursor_t zc;
+	zap_cursor_init(&zc, os, fromobj);
+	err = zap_join_increment_impl(&zc, dn, tx);
+	dnode_rele(dn, FTAG);
 	return (err);
 }
 
