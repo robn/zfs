@@ -846,7 +846,7 @@ fzap_check(zap_name_t *zn, uint64_t integer_size, uint64_t num_integers)
 /*
  * Routines for manipulating attributes.
  */
-int
+static int
 fzap_lookup(zap_name_t *zn,
     uint64_t integer_size, uint64_t num_integers, void *buf,
     char *realname, int rn_len, boolean_t *ncp,
@@ -988,7 +988,7 @@ retry:
 	return (err);
 }
 
-int
+static int
 fzap_length(zap_name_t *zn,
     uint64_t *integer_size, uint64_t *num_integers)
 {
@@ -1012,7 +1012,7 @@ out:
 	return (err);
 }
 
-int
+static int
 fzap_remove(zap_name_t *zn, dmu_tx_t *tx)
 {
 	zap_leaf_t *l;

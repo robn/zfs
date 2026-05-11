@@ -298,7 +298,7 @@ zap_lookup_length_uint64_by_dnode(dnode_t *dn, const uint64_t *key,
 		return (SET_ERROR(ENOTSUP));
 	}
 
-	err = fzap_lookup(zn, integer_size, num_integers, buf,
+	err = zap->zap_ops->zap_op_lookup(zn, integer_size, num_integers, buf,
 	    NULL, 0, NULL, actual_num_integers);
 	zap_name_free(zn);
 	zap_unlock(zap, FTAG);
@@ -685,7 +685,7 @@ zap_length_uint64_by_dnode(dnode_t *dn, const uint64_t *key,
 		zap_unlock(zap, FTAG);
 		return (SET_ERROR(ENOTSUP));
 	}
-	err = fzap_length(zn, integer_size, num_integers);
+	err = zap->zap_ops->zap_op_length(zn, integer_size, num_integers);
 	zap_name_free(zn);
 	zap_unlock(zap, FTAG);
 	return (err);
@@ -772,7 +772,7 @@ zap_remove_uint64_by_dnode(dnode_t *dn, const uint64_t *key, int key_numints,
 		zap_unlock(zap, FTAG);
 		return (SET_ERROR(ENOTSUP));
 	}
-	err = fzap_remove(zn, tx);
+	err = zap->zap_ops->zap_op_remove(zn, tx);
 	zap_name_free(zn);
 	zap_unlock(zap, FTAG);
 	return (err);
