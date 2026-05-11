@@ -292,6 +292,11 @@ zap_lookup_length_uint64_by_dnode(dnode_t *dn, const uint64_t *key,
 	if (err != 0)
 		return (err);
 
+	if (!(zap_getflags(zap) & ZAP_FLAG_UINT64_KEY)) {
+		zap_unlock(zap, FTAG);
+		return (SET_ERROR(ENOTSUP));
+	}
+
 	zap_name_t *zn = zap_name_alloc_uint64(zap, key, key_numints);
 	if (zn == NULL) {
 		zap_unlock(zap, FTAG);
@@ -394,6 +399,11 @@ zap_prefetch_uint64_by_dnode(dnode_t *dn, const uint64_t *key, int key_numints)
 	    zap_lock_by_dnode(dn, NULL, RW_READER, TRUE, FALSE, FTAG, &zap);
 	if (err != 0)
 		return (err);
+
+	if (!(zap_getflags(zap) & ZAP_FLAG_UINT64_KEY)) {
+		zap_unlock(zap, FTAG);
+		return (SET_ERROR(ENOTSUP));
+	}
 
 	zap_name_t *zn = zap_name_alloc_uint64(zap, key, key_numints);
 	if (zn == NULL) {
@@ -506,6 +516,11 @@ zap_add_uint64_by_dnode(dnode_t *dn, const uint64_t *key,
 	if (err != 0)
 		return (err);
 
+	if (!(zap_getflags(zap) & ZAP_FLAG_UINT64_KEY)) {
+		zap_unlock(zap, FTAG);
+		return (SET_ERROR(ENOTSUP));
+	}
+
 	zap_name_t *zn = zap_name_alloc_uint64(zap, key, key_numints);
 	if (zn == NULL) {
 		zap_unlock(zap, FTAG);
@@ -605,6 +620,11 @@ zap_update_uint64_by_dnode(dnode_t *dn, const uint64_t *key, int key_numints,
 	if (err != 0)
 		return (err);
 
+	if (!(zap_getflags(zap) & ZAP_FLAG_UINT64_KEY)) {
+		zap_unlock(zap, FTAG);
+		return (SET_ERROR(ENOTSUP));
+	}
+
 	zap_name_t *zn = zap_name_alloc_uint64(zap, key, key_numints);
 	if (zn == NULL) {
 		zap_unlock(zap, FTAG);
@@ -680,6 +700,12 @@ zap_length_uint64_by_dnode(dnode_t *dn, const uint64_t *key,
 	    zap_lock_by_dnode(dn, NULL, RW_READER, TRUE, FALSE, FTAG, &zap);
 	if (err != 0)
 		return (err);
+
+	if (!(zap_getflags(zap) & ZAP_FLAG_UINT64_KEY)) {
+		zap_unlock(zap, FTAG);
+		return (SET_ERROR(ENOTSUP));
+	}
+
 	zap_name_t *zn = zap_name_alloc_uint64(zap, key, key_numints);
 	if (zn == NULL) {
 		zap_unlock(zap, FTAG);
@@ -766,6 +792,11 @@ zap_remove_uint64_by_dnode(dnode_t *dn, const uint64_t *key, int key_numints,
 	    zap_lock_by_dnode(dn, tx, RW_WRITER, TRUE, FALSE, FTAG, &zap);
 	if (err != 0)
 		return (err);
+
+	if (!(zap_getflags(zap) & ZAP_FLAG_UINT64_KEY)) {
+		zap_unlock(zap, FTAG);
+		return (SET_ERROR(ENOTSUP));
+	}
 
 	zap_name_t *zn = zap_name_alloc_uint64(zap, key, key_numints);
 	if (zn == NULL) {
