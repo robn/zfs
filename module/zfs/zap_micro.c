@@ -81,19 +81,26 @@ zap_get_micro_max_size(spa_t *spa)
 	return (SPA_OLD_MAXBLOCKSIZE);
 }
 
-void
-mzap_byteswap(mzap_phys_t *buf, size_t size)
+static int
+mzap_byteswap(void *buf, size_t size)
 {
-	buf->mz_block_type = BSWAP_64(buf->mz_block_type);
-	buf->mz_salt = BSWAP_64(buf->mz_salt);
-	buf->mz_normflags = BSWAP_64(buf->mz_normflags);
+	uint64_t block_type = *(uint64_t *)buf;
+	if (block_type != ZBT_MICRO && block_type != BSWAP_64(ZBT_MICRO))
+		return (SET_ERROR(ENOSYS));
+
+	mzap_phys_t *mbuf = buf;
+	mbuf->mz_block_type = BSWAP_64(mbuf->mz_block_type);
+	mbuf->mz_salt = BSWAP_64(mbuf->mz_salt);
+	mbuf->mz_normflags = BSWAP_64(mbuf->mz_normflags);
 	int max = (size / MZAP_ENT_LEN) - 1;
 	for (int i = 0; i < max; i++) {
-		buf->mz_chunk[i].mze_value =
-		    BSWAP_64(buf->mz_chunk[i].mze_value);
-		buf->mz_chunk[i].mze_cd =
-		    BSWAP_32(buf->mz_chunk[i].mze_cd);
+		mbuf->mz_chunk[i].mze_value =
+		    BSWAP_64(mbuf->mz_chunk[i].mze_value);
+		mbuf->mz_chunk[i].mze_cd =
+		    BSWAP_32(mbuf->mz_chunk[i].mze_cd);
 	}
+
+	return (0);
 }
 
 __attribute__((always_inline)) inline
@@ -685,6 +692,7 @@ const zap_ops_t zap_micro_ops = {
 	.zap_op_cursor_retrieve = mzap_cursor_retrieve,
 	.zap_op_get_stats = mzap_get_stats,
 	.zap_op_get_flags = mzap_get_flags,
+	.zap_op_byteswap = mzap_byteswap,
 };
 
 ZFS_MODULE_PARAM(zfs, , zap_micro_max_size, INT, ZMOD_RW,

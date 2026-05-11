@@ -94,17 +94,20 @@ int fzap_default_block_shift = 14; /* 16k blocksize */
 static uint64_t zap_allocate_blocks(zap_t *zap, int nblocks);
 static int zap_shrink(zap_name_t *zn, zap_leaf_t *l, dmu_tx_t *tx);
 
-void
+static int
 fzap_byteswap(void *vbuf, size_t size)
 {
 	uint64_t block_type = *(uint64_t *)vbuf;
 
 	if (block_type == ZBT_LEAF || block_type == BSWAP_64(ZBT_LEAF))
 		zap_leaf_byteswap(vbuf, size);
+	else if (block_type == ZBT_MICRO || block_type == BSWAP_64(ZBT_MICRO))
+		return (SET_ERROR(ENOSYS));
 	else {
 		/* it's a ptrtbl block */
 		byteswap_uint64_array(vbuf, size);
 	}
+	return (0);
 }
 
 void
@@ -1469,6 +1472,7 @@ const zap_ops_t zap_fat_ops = {
 	.zap_op_cursor_retrieve = fzap_cursor_retrieve,
 	.zap_op_get_stats = fzap_get_stats,
 	.zap_op_get_flags = fzap_get_flags,
+	.zap_op_byteswap = fzap_byteswap,
 };
 
 ZFS_MODULE_PARAM(zfs, , zap_iterate_prefetch, INT, ZMOD_RW,

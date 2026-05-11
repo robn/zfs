@@ -507,14 +507,8 @@ zap_maxcd(zap_t *zap)
 void
 zap_byteswap(void *buf, size_t size)
 {
-	uint64_t block_type = *(uint64_t *)buf;
-
-	if (block_type == ZBT_MICRO || block_type == BSWAP_64(ZBT_MICRO)) {
-		/* ASSERT(magic == ZAP_LEAF_MAGIC); */
-		mzap_byteswap(buf, size);
-	} else {
-		fzap_byteswap(buf, size);
-	}
+	if (zap_micro_ops.zap_op_byteswap(buf, size) == ENOSYS)
+		zap_fat_ops.zap_op_byteswap(buf, size);
 }
 
 /*
