@@ -482,9 +482,7 @@ zap_evict_sync(void *dbu)
 uint64_t
 zap_getflags(zap_t *zap)
 {
-	if (zap->zap_ismicro)
-		return (0);
-	return (zap_f_phys(zap)->zap_flags);
+	return (zap->zap_ops->zap_op_get_flags(zap));
 }
 
 int

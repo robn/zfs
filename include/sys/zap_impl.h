@@ -282,16 +282,6 @@ uint64_t zap_getflags(zap_t *zap);
 
 /* Microzap implementation. */
 void mzap_byteswap(mzap_phys_t *buf, size_t size);
-int mzap_count(zap_t *zap, uint64_t *count);
-int mzap_lookup(zap_name_t *zn,
-    uint64_t integer_size, uint64_t num_integers, void *buf,
-    char *realname, int rn_len, boolean_t *normalization_conflictp,
-    uint64_t *actual_num_integers);
-int mzap_length(zap_name_t *zn,
-    uint64_t *integer_size, uint64_t *num_integers);
-int mzap_remove(zap_name_t *zn, dmu_tx_t *tx);
-int mzap_cursor_retrieve(zap_t *zap, zap_cursor_t *zc, zap_attribute_t *za);
-void mzap_get_stats(zap_t *zap, zap_stats_t *zs);
 zap_t *mzap_open(dmu_buf_t *db);
 int mzap_upgrade(zap_t **zapp, dmu_tx_t *tx, zap_flags_t flags);
 mzap_ent_t *mze_find(zap_name_t *zn, zfs_btree_index_t *idx);
@@ -302,7 +292,6 @@ uint64_t zap_get_micro_max_size(spa_t *spa);
 
 /* Fatzap implementation. */
 void fzap_byteswap(void *buf, size_t size);
-int fzap_count(zap_t *zap, uint64_t *count);
 int fzap_lookup(zap_name_t *zn,
     uint64_t integer_size, uint64_t num_integers, void *buf,
     char *realname, int rn_len, boolean_t *normalization_conflictp,
@@ -315,8 +304,6 @@ int fzap_update(zap_name_t *zn, int integer_size, uint64_t num_integers,
 int fzap_length(zap_name_t *zn,
     uint64_t *integer_size, uint64_t *num_integers);
 int fzap_remove(zap_name_t *zn, dmu_tx_t *tx);
-int fzap_cursor_retrieve(zap_t *zap, zap_cursor_t *zc, zap_attribute_t *za);
-void fzap_get_stats(zap_t *zap, zap_stats_t *zs);
 void zap_put_leaf(struct zap_leaf *l);
 int fzap_add_cd(zap_name_t *zn, uint64_t integer_size, uint64_t num_integers,
     const void *val, uint32_t cd, dmu_tx_t *tx);

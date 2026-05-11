@@ -239,13 +239,9 @@ zap_lookup_norm_by_dnode(dnode_t *dn, const char *name,
 		return (SET_ERROR(ENOTSUP));
 	}
 
-	if (!zap->zap_ismicro) {
-		err = fzap_lookup(zn, integer_size, num_integers, buf,
-		    realname, rn_len, ncp, NULL);
-	} else {
-		err = mzap_lookup(zn, integer_size, num_integers, buf,
-		    realname, rn_len, ncp, NULL);
-	}
+	err = zap->zap_ops->zap_op_lookup(zn, integer_size, num_integers, buf,
+	    realname, rn_len, ncp, NULL);
+
 	zap_name_free(zn);
 	zap_unlock(zap, FTAG);
 	return (err);
@@ -652,11 +648,9 @@ zap_length_by_dnode(dnode_t *dn, const char *name, uint64_t *integer_size,
 		zap_unlock(zap, FTAG);
 		return (SET_ERROR(ENOTSUP));
 	}
-	if (!zap->zap_ismicro) {
-		err = fzap_length(zn, integer_size, num_integers);
-	} else {
-		err = mzap_length(zn, integer_size, num_integers);
-	}
+
+	err = zap->zap_ops->zap_op_length(zn, integer_size, num_integers);
+
 	zap_name_free(zn);
 	zap_unlock(zap, FTAG);
 	return (err);
@@ -728,11 +722,9 @@ zap_remove_norm_by_dnode(dnode_t *dn, const char *name, matchtype_t mt,
 		zap_unlock(zap, FTAG);
 		return (SET_ERROR(ENOTSUP));
 	}
-	if (!zap->zap_ismicro) {
-		err = fzap_remove(zn, tx);
-	} else {
-		err = mzap_remove(zn, tx);
-	}
+
+	err = zap->zap_ops->zap_op_remove(zn, tx);
+
 	zap_name_free(zn);
 	zap_unlock(zap, FTAG);
 	return (err);
@@ -809,11 +801,9 @@ zap_count_by_dnode(dnode_t *dn, uint64_t *count)
 	    zap_lock_by_dnode(dn, NULL, RW_READER, TRUE, FALSE, FTAG, &zap);
 	if (err != 0)
 		return (err);
-	if (!zap->zap_ismicro) {
-		err = fzap_count(zap, count);
-	} else {
-		err = mzap_count(zap, count);
-	}
+
+	err = zap->zap_ops->zap_op_count(zap, count);
+
 	zap_unlock(zap, FTAG);
 	return (err);
 }
@@ -1309,11 +1299,9 @@ zap_cursor_retrieve(zap_cursor_t *zc, zap_attribute_t *za)
 	} else {
 		rw_enter(&zc->zc_zap->zap_rwlock, RW_READER);
 	}
-	if (!zc->zc_zap->zap_ismicro) {
-		err = fzap_cursor_retrieve(zc->zc_zap, zc, za);
-	} else {
-		err = mzap_cursor_retrieve(zc->zc_zap, zc, za);
-	}
+
+	err = zc->zc_zap->zap_ops->zap_op_cursor_retrieve(zc->zc_zap, zc, za);
+
 	rw_exit(&zc->zc_zap->zap_rwlock);
 	return (err);
 }
@@ -1361,11 +1349,8 @@ zap_get_stats_by_dnode(dnode_t *dn, zap_stats_t *zs)
 
 	memset(zs, 0, sizeof (zap_stats_t));
 
-	if (zap->zap_ismicro) {
-		mzap_get_stats(zap, zs);
-	} else {
-		fzap_get_stats(zap, zs);
-	}
+	zap->zap_ops->zap_op_get_stats(zap, zs);
+
 	zap_unlock(zap, FTAG);
 	return (0);
 }

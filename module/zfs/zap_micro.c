@@ -510,7 +510,7 @@ again:
 	cmn_err(CE_PANIC, "out of entries!");
 }
 
-int
+static int
 mzap_lookup(zap_name_t *zn, uint64_t integer_size, uint64_t num_integers,
     void *buf, char *realname, int rn_len, boolean_t *ncp,
     uint64_t *actual_num_integers)
@@ -534,7 +534,7 @@ mzap_lookup(zap_name_t *zn, uint64_t integer_size, uint64_t num_integers,
 	return (0);
 }
 
-int
+static int
 mzap_length(zap_name_t *zn, uint64_t *integer_size, uint64_t *num_integers)
 {
 	zfs_btree_index_t idx;
@@ -548,7 +548,7 @@ mzap_length(zap_name_t *zn, uint64_t *integer_size, uint64_t *num_integers)
 	return (0);
 }
 
-int
+static int
 mzap_remove(zap_name_t *zn, dmu_tx_t *tx)
 {
 	(void) tx;
@@ -562,14 +562,14 @@ mzap_remove(zap_name_t *zn, dmu_tx_t *tx)
 	return (0);
 }
 
-int
+static int
 mzap_count(zap_t *zap, uint64_t *count)
 {
 	*count = zap->zap_m.zap_num_entries;
 	return (0);
 }
 
-int
+static int
 mzap_cursor_retrieve(zap_t *zap, zap_cursor_t *zc, zap_attribute_t *za)
 {
 	(void) zap;
@@ -607,12 +607,19 @@ mzap_cursor_retrieve(zap_t *zap, zap_cursor_t *zc, zap_attribute_t *za)
 	return (0);
 }
 
-void
+static void
 mzap_get_stats(zap_t *zap, zap_stats_t *zs)
 {
 	zs->zs_blocksize = zap->zap_dbuf->db_size;
 	zs->zs_num_entries = zap->zap_m.zap_num_entries;
 	zs->zs_num_blocks = 1;
+}
+
+static uint64_t
+mzap_get_flags(zap_t *zap)
+{
+	(void) zap;
+	return (0);
 }
 
 const zap_ops_t zap_micro_ops = {
@@ -622,6 +629,7 @@ const zap_ops_t zap_micro_ops = {
 	.zap_op_remove = mzap_remove,
 	.zap_op_cursor_retrieve = mzap_cursor_retrieve,
 	.zap_op_get_stats = mzap_get_stats,
+	.zap_op_get_flags = mzap_get_flags,
 };
 
 ZFS_MODULE_PARAM(zfs, , zap_micro_max_size, INT, ZMOD_RW,

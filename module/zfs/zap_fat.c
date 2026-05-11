@@ -455,7 +455,7 @@ zap_create_leaf(zap_t *zap, dmu_tx_t *tx)
 	return (l);
 }
 
-int
+static int
 fzap_count(zap_t *zap, uint64_t *count)
 {
 	ASSERT(!zap->zap_ismicro);
@@ -1054,7 +1054,7 @@ fzap_prefetch(zap_name_t *zn)
  * Routines for iterating over the attributes.
  */
 
-int
+static int
 fzap_cursor_retrieve(zap_t *zap, zap_cursor_t *zc, zap_attribute_t *za)
 {
 	int err;
@@ -1174,7 +1174,7 @@ zap_stats_ptrtbl(zap_t *zap, uint64_t *tbl, int len, zap_stats_t *zs)
 	}
 }
 
-void
+static void
 fzap_get_stats(zap_t *zap, zap_stats_t *zs)
 {
 	int bs = FZAP_BLOCK_SHIFT(zap);
@@ -1452,6 +1452,12 @@ zap_shrink(zap_name_t *zn, zap_leaf_t *l, dmu_tx_t *tx)
 	return (err);
 }
 
+static uint64_t
+fzap_get_flags(zap_t *zap)
+{
+	return (zap_f_phys(zap)->zap_flags);
+}
+
 const zap_ops_t zap_fat_ops = {
 	.zap_op_count = fzap_count,
 	.zap_op_lookup = fzap_lookup,
@@ -1459,6 +1465,7 @@ const zap_ops_t zap_fat_ops = {
 	.zap_op_remove = fzap_remove,
 	.zap_op_cursor_retrieve = fzap_cursor_retrieve,
 	.zap_op_get_stats = fzap_get_stats,
+	.zap_op_get_flags = fzap_get_flags,
 };
 
 ZFS_MODULE_PARAM(zfs, , zap_iterate_prefetch, INT, ZMOD_RW,
