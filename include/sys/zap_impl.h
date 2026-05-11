@@ -292,7 +292,6 @@ uint64_t zap_get_micro_max_size(spa_t *spa);
 
 /* Fatzap implementation. */
 void fzap_byteswap(void *buf, size_t size);
-void fzap_prefetch(zap_name_t *zn);
 int fzap_add(zap_name_t *zn, uint64_t integer_size, uint64_t num_integers,
     const void *val, dmu_tx_t *tx);
 int fzap_update(zap_name_t *zn, int integer_size, uint64_t num_integers,
@@ -309,6 +308,7 @@ typedef struct zap_ops {
 	    boolean_t *normalization_conflictp, uint64_t *actual_num_integers);
 	int (*zap_op_length)(zap_name_t *zn, uint64_t *integer_size,
 	    uint64_t *num_integers);
+	void (*zap_op_prefetch)(zap_name_t *zn);
 	int (*zap_op_remove)(zap_name_t *zn, dmu_tx_t *tx);
 	int (*zap_op_cursor_retrieve)(zap_t *zap, zap_cursor_t *zc,
 	    zap_attribute_t *za);

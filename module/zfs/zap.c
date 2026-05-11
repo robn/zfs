@@ -365,13 +365,18 @@ zap_prefetch_by_dnode(dnode_t *dn, const char *name)
 	if (err)
 		return (err);
 
+	if (zap->zap_ops->zap_op_prefetch == NULL) {
+		zap_unlock(zap, FTAG);
+		return (SET_ERROR(ENOTSUP));
+	}
+
 	zap_name_t *zn = zap_name_alloc_str(zap, name, 0);
 	if (zn == NULL) {
 		zap_unlock(zap, FTAG);
 		return (SET_ERROR(ENOTSUP));
 	}
 
-	fzap_prefetch(zn);
+	zap->zap_ops->zap_op_prefetch(zn);
 	zap_name_free(zn);
 	zap_unlock(zap, FTAG);
 	return (err);
@@ -400,6 +405,11 @@ zap_prefetch_uint64_by_dnode(dnode_t *dn, const uint64_t *key, int key_numints)
 	if (err != 0)
 		return (err);
 
+	if (zap->zap_ops->zap_op_prefetch == NULL) {
+		zap_unlock(zap, FTAG);
+		return (SET_ERROR(ENOTSUP));
+	}
+
 	if (!(zap_getflags(zap) & ZAP_FLAG_UINT64_KEY)) {
 		zap_unlock(zap, FTAG);
 		return (SET_ERROR(ENOTSUP));
@@ -411,7 +421,7 @@ zap_prefetch_uint64_by_dnode(dnode_t *dn, const uint64_t *key, int key_numints)
 		return (SET_ERROR(ENOTSUP));
 	}
 
-	fzap_prefetch(zn);
+	zap->zap_ops->zap_op_prefetch(zn);
 	zap_name_free(zn);
 	zap_unlock(zap, FTAG);
 	return (0);

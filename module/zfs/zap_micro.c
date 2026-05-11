@@ -626,6 +626,7 @@ const zap_ops_t zap_micro_ops = {
 	.zap_op_count = mzap_count,
 	.zap_op_lookup = mzap_lookup,
 	.zap_op_length = mzap_length,
+	.zap_op_prefetch = NULL,
 	.zap_op_remove = mzap_remove,
 	.zap_op_cursor_retrieve = mzap_cursor_retrieve,
 	.zap_op_get_stats = mzap_get_stats,

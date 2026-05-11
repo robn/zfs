@@ -1035,7 +1035,7 @@ fzap_remove(zap_name_t *zn, dmu_tx_t *tx)
 	return (err);
 }
 
-void
+static void
 fzap_prefetch(zap_name_t *zn)
 {
 	uint64_t blk;
@@ -1462,6 +1462,7 @@ const zap_ops_t zap_fat_ops = {
 	.zap_op_count = fzap_count,
 	.zap_op_lookup = fzap_lookup,
 	.zap_op_length = fzap_length,
+	.zap_op_prefetch = fzap_prefetch,
 	.zap_op_remove = fzap_remove,
 	.zap_op_cursor_retrieve = fzap_cursor_retrieve,
 	.zap_op_get_stats = fzap_get_stats,
