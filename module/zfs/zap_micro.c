@@ -225,111 +225,11 @@ mze_canfit_fzap_leaf(zap_name_t *zn, uint64_t hash)
 	return (ZAP_LEAF_NUMCHUNKS_DEF > (mzap_ents * MZAP_ENT_CHUNKS));
 }
 
-void
+static void
 mze_destroy(zap_t *zap)
 {
 	zfs_btree_clear(&zap->zap_m.zap_tree);
 	zfs_btree_destroy(&zap->zap_m.zap_tree);
-}
-
-zap_t *
-mzap_open(dmu_buf_t *db)
-{
-	zap_t *winner;
-	uint64_t *zap_hdr = (uint64_t *)db->db_data;
-	uint64_t zap_block_type = zap_hdr[0];
-	uint64_t zap_magic = zap_hdr[1];
-
-	ASSERT3U(MZAP_ENT_LEN, ==, sizeof (mzap_ent_phys_t));
-
-	zap_t *zap = kmem_zalloc(sizeof (zap_t), KM_SLEEP);
-	rw_init(&zap->zap_rwlock, NULL, RW_DEFAULT, NULL);
-	rw_enter(&zap->zap_rwlock, RW_WRITER);
-	zap->zap_objset = dmu_buf_get_objset(db);
-	zap->zap_object = db->db_object;
-	zap->zap_dbuf = db;
-
-	if (zap_block_type != ZBT_MICRO) {
-		zap->zap_ops = &zap_fat_ops;
-		mutex_init(&zap->zap_f.zap_num_entries_mtx, 0, MUTEX_DEFAULT,
-		    0);
-		zap->zap_f.zap_block_shift = highbit64(db->db_size) - 1;
-		if (zap_block_type != ZBT_HEADER || zap_magic != ZAP_MAGIC) {
-			winner = NULL;	/* No actual winner here... */
-			goto handle_winner;
-		}
-	} else {
-		zap->zap_ops = &zap_micro_ops;
-		zap->zap_ismicro = TRUE;
-	}
-
-	/*
-	 * Make sure that zap_ismicro is set before we let others see it,
-	 * because zap_lock() checks zap_ismicro without the lock held.
-	 */
-	dmu_buf_init_user(&zap->zap_dbu, zap_evict_sync, NULL, &zap->zap_dbuf);
-	winner = dmu_buf_set_user(db, &zap->zap_dbu);
-
-	if (winner != NULL)
-		goto handle_winner;
-
-	if (zap->zap_ismicro) {
-		zap->zap_salt = zap_m_phys(zap)->mz_salt;
-		zap->zap_normflags = zap_m_phys(zap)->mz_normflags;
-		zap->zap_m.zap_num_chunks = db->db_size / MZAP_ENT_LEN - 1;
-
-		/*
-		 * Reduce B-tree leaf from 4KB to 512 bytes to reduce memmove()
-		 * overhead on massive inserts below.  It still allows to store
-		 * 62 entries before we have to add 2KB B-tree core node.
-		 */
-		zfs_btree_create_custom(&zap->zap_m.zap_tree, mze_compare,
-		    mze_find_in_buf, sizeof (mzap_ent_t), 512);
-
-		zap_name_t *zn = zap_name_alloc(zap, B_FALSE);
-		for (uint16_t i = 0; i < zap->zap_m.zap_num_chunks; i++) {
-			mzap_ent_phys_t *mze =
-			    &zap_m_phys(zap)->mz_chunk[i];
-			if (mze->mze_name[0]) {
-				zap->zap_m.zap_num_entries++;
-				zap_name_init_str(zn, mze->mze_name, 0);
-				mze_insert(zap, i, zn->zn_hash);
-			}
-		}
-		zap_name_free(zn);
-	} else {
-		zap->zap_salt = zap_f_phys(zap)->zap_salt;
-		zap->zap_normflags = zap_f_phys(zap)->zap_normflags;
-
-		ASSERT3U(sizeof (struct zap_leaf_header), ==,
-		    2*ZAP_LEAF_CHUNKSIZE);
-
-		/*
-		 * The embedded pointer table should not overlap the
-		 * other members.
-		 */
-		ASSERT3P(&ZAP_EMBEDDED_PTRTBL_ENT(zap, 0), >,
-		    &zap_f_phys(zap)->zap_salt);
-
-		/*
-		 * The embedded pointer table should end at the end of
-		 * the block
-		 */
-		ASSERT3U((uintptr_t)&ZAP_EMBEDDED_PTRTBL_ENT(zap,
-		    1<<ZAP_EMBEDDED_PTRTBL_SHIFT(zap)) -
-		    (uintptr_t)zap_f_phys(zap), ==,
-		    zap->zap_dbuf->db_size);
-	}
-	rw_exit(&zap->zap_rwlock);
-	return (zap);
-
-handle_winner:
-	rw_exit(&zap->zap_rwlock);
-	rw_destroy(&zap->zap_rwlock);
-	if (!zap->zap_ismicro)
-		mutex_destroy(&zap->zap_f.zap_num_entries_mtx);
-	kmem_free(zap, sizeof (zap_t));
-	return (winner);
 }
 
 int
@@ -681,6 +581,45 @@ mzap_get_flags(zap_t *zap)
 	return (0);
 }
 
+static boolean_t
+mzap_can_open(zap_t *zap)
+{
+	return (zap_m_phys(zap)->mz_block_type == ZBT_MICRO);
+}
+
+static void
+mzap_open(zap_t *zap)
+{
+	zap->zap_salt = zap_m_phys(zap)->mz_salt;
+	zap->zap_normflags = zap_m_phys(zap)->mz_normflags;
+	zap->zap_m.zap_num_chunks = zap->zap_dbuf->db_size / MZAP_ENT_LEN - 1;
+
+	/*
+	 * Reduce B-tree leaf from 4KB to 512 bytes to reduce memmove()
+	 * overhead on massive inserts below.  It still allows to store 62
+	 * entries before we have to add 2KB B-tree core node.
+	*/
+	zfs_btree_create_custom(&zap->zap_m.zap_tree, mze_compare,
+	    mze_find_in_buf, sizeof (mzap_ent_t), 512);
+
+	zap_name_t *zn = zap_name_alloc(zap, B_FALSE);
+	for (uint16_t i = 0; i < zap->zap_m.zap_num_chunks; i++) {
+		mzap_ent_phys_t *mze = &zap_m_phys(zap)->mz_chunk[i];
+		if (mze->mze_name[0]) {
+			zap->zap_m.zap_num_entries++;
+			zap_name_init_str(zn, mze->mze_name, 0);
+			mze_insert(zap, i, zn->zn_hash);
+		}
+	}
+	zap_name_free(zn);
+}
+
+static void
+mzap_close(zap_t *zap)
+{
+	mze_destroy(zap);
+}
+
 const zap_ops_t zap_micro_ops = {
 	.zap_op_count = mzap_count,
 	.zap_op_lookup = mzap_lookup,
@@ -693,6 +632,9 @@ const zap_ops_t zap_micro_ops = {
 	.zap_op_get_stats = mzap_get_stats,
 	.zap_op_get_flags = mzap_get_flags,
 	.zap_op_byteswap = mzap_byteswap,
+	.zap_op_can_open = mzap_can_open,
+	.zap_op_open = mzap_open,
+	.zap_op_close = mzap_close,
 };
 
 ZFS_MODULE_PARAM(zfs, , zap_micro_max_size, INT, ZMOD_RW,

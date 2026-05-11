@@ -285,6 +285,54 @@ zap_hash(zap_name_t *zn)
 	return (h);
 }
 
+static zap_t *
+zap_open(dmu_buf_t *db)
+{
+	zap_t *winner;
+
+	/* XXX static assert */
+	ASSERT3U(MZAP_ENT_LEN, ==, sizeof (mzap_ent_phys_t));
+
+	zap_t *zap = kmem_zalloc(sizeof (zap_t), KM_SLEEP);
+	rw_init(&zap->zap_rwlock, NULL, RW_DEFAULT, NULL);
+	rw_enter(&zap->zap_rwlock, RW_WRITER);
+	zap->zap_objset = dmu_buf_get_objset(db);
+	zap->zap_object = db->db_object;
+	zap->zap_dbuf = db;
+
+	if (zap_micro_ops.zap_op_can_open(zap)) {
+		zap->zap_ops = &zap_micro_ops;
+		zap->zap_ismicro = TRUE;
+	} else if (zap_fat_ops.zap_op_can_open(zap)) {
+		zap->zap_ops = &zap_fat_ops;
+		zap->zap_ismicro = FALSE;
+	} else {
+		winner = NULL;	/* No actual winner here... */
+		goto handle_winner;
+	}
+
+	/*
+	 * Make sure that zap_ismicro is set before we let others see
+	 * it, because zap_lockdir() checks zap_ismicro without the lock
+	 * held.
+	 */
+	dmu_buf_init_user(&zap->zap_dbu, zap_evict_sync, NULL, &zap->zap_dbuf);
+	winner = dmu_buf_set_user(db, &zap->zap_dbu);
+
+	if (winner != NULL)
+		goto handle_winner;
+
+	zap->zap_ops->zap_op_open(zap);
+	rw_exit(&zap->zap_rwlock);
+	return (zap);
+
+handle_winner:
+	rw_exit(&zap->zap_rwlock);
+	rw_destroy(&zap->zap_rwlock);
+	kmem_free(zap, sizeof (zap_t));
+	return (winner);
+}
+
 static int
 zap_lock_impl(dnode_t *dn, dmu_buf_t *db, dmu_tx_t *tx,
     krw_t lti, boolean_t fatreader, boolean_t adding, zap_t **zapp)
@@ -300,10 +348,10 @@ zap_lock_impl(dnode_t *dn, dmu_buf_t *db, dmu_tx_t *tx,
 
 	zap_t *zap = dmu_buf_get_user(db);
 	if (zap == NULL) {
-		zap = mzap_open(db);
+		zap = zap_open(db);
 		if (zap == NULL) {
 			/*
-			 * mzap_open() didn't like what it saw on-disk.
+			 * zap_open() didn't like what it saw on-disk.
 			 * Check for corruption!
 			 */
 			return (SET_ERROR(EIO));
@@ -470,12 +518,7 @@ zap_evict_sync(void *dbu)
 	zap_t *zap = dbu;
 
 	rw_destroy(&zap->zap_rwlock);
-
-	if (zap->zap_ismicro)
-		mze_destroy(zap);
-	else
-		mutex_destroy(&zap->zap_f.zap_num_entries_mtx);
-
+	zap->zap_ops->zap_op_close(zap);
 	kmem_free(zap, sizeof (zap_t));
 }
 

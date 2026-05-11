@@ -281,9 +281,7 @@ uint32_t zap_maxcd(zap_t *zap);
 uint64_t zap_getflags(zap_t *zap);
 
 /* Microzap implementation. */
-zap_t *mzap_open(dmu_buf_t *db);
 int mzap_upgrade(zap_t **zapp, dmu_tx_t *tx, zap_flags_t flags);
-void mze_destroy(zap_t *zap);
 uint64_t zap_get_micro_max_size(spa_t *spa);
 
 /* Fatzap implementation. */
@@ -310,6 +308,9 @@ typedef struct zap_ops {
 	void (*zap_op_get_stats)(zap_t *zap, zap_stats_t *zs);
 	uint64_t (*zap_op_get_flags)(zap_t *zap);
 	int (*zap_op_byteswap)(void *buf, size_t size);
+	boolean_t (*zap_op_can_open)(zap_t *zap);
+	void (*zap_op_open)(zap_t *zap);
+	void (*zap_op_close)(zap_t *zap);
 } zap_ops_t;
 
 extern const zap_ops_t zap_micro_ops;

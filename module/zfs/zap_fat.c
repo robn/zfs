@@ -1461,6 +1461,41 @@ fzap_get_flags(zap_t *zap)
 	return (zap_f_phys(zap)->zap_flags);
 }
 
+static boolean_t
+fzap_can_open(zap_t *zap)
+{
+	return (zap_f_phys(zap)->zap_block_type == ZBT_HEADER &&
+	    zap_f_phys(zap)->zap_magic == ZAP_MAGIC);
+}
+
+static void
+fzap_open(zap_t *zap)
+{
+	mutex_init(&zap->zap_f.zap_num_entries_mtx, 0, MUTEX_DEFAULT, 0);
+	zap->zap_f.zap_block_shift = highbit64(zap->zap_dbuf->db_size) - 1;
+	zap->zap_salt = zap_f_phys(zap)->zap_salt;
+	zap->zap_normflags = zap_f_phys(zap)->zap_normflags;
+
+	/* XXX static assert */
+	ASSERT3U(sizeof (struct zap_leaf_header), ==, 2*ZAP_LEAF_CHUNKSIZE);
+
+	/* The embedded pointer table should not overlap the other members. */
+	ASSERT3P(&ZAP_EMBEDDED_PTRTBL_ENT(zap, 0), >,
+	    &zap_f_phys(zap)->zap_salt);
+
+	/* The embedded pointer table should end at the end of the block. */
+	ASSERT3U((uintptr_t)&ZAP_EMBEDDED_PTRTBL_ENT(zap,
+	    1<<ZAP_EMBEDDED_PTRTBL_SHIFT(zap)) -
+	    (uintptr_t)zap_f_phys(zap), ==,
+	    zap->zap_dbuf->db_size);
+}
+
+static void
+fzap_close(zap_t *zap)
+{
+	mutex_destroy(&zap->zap_f.zap_num_entries_mtx);
+}
+
 const zap_ops_t zap_fat_ops = {
 	.zap_op_count = fzap_count,
 	.zap_op_lookup = fzap_lookup,
@@ -1473,6 +1508,9 @@ const zap_ops_t zap_fat_ops = {
 	.zap_op_get_stats = fzap_get_stats,
 	.zap_op_get_flags = fzap_get_flags,
 	.zap_op_byteswap = fzap_byteswap,
+	.zap_op_can_open = fzap_can_open,
+	.zap_op_open = fzap_open,
+	.zap_op_close = fzap_close,
 };
 
 ZFS_MODULE_PARAM(zfs, , zap_iterate_prefetch, INT, ZMOD_RW,
