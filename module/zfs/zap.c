@@ -470,30 +470,22 @@ zap_add_by_dnode(dnode_t *dn, const char *key,
 	if (err != 0)
 		return (err);
 
-	const uint64_t *intval = val;
 	zap_name_t *zn = zap_name_alloc_str(zap, key, 0);
 	if (zn == NULL) {
 		zap_unlock(zap, FTAG);
 		return (SET_ERROR(ENOTSUP));
 	}
-	if (!zap->zap_ismicro) {
-		err = fzap_add(zn, integer_size, num_integers, val, tx);
-	} else if (integer_size != 8 || num_integers != 1 ||
-	    strlen(key) >= MZAP_NAME_LEN ||
-	    !mze_canfit_fzap_leaf(zn, zn->zn_hash)) {
+
+	err = zap->zap_ops->zap_op_add(zn,
+	    integer_size, num_integers, val, tx);
+	if (err == ENOSYS) {
+		ASSERT3P(zap->zap_ops, ==, &zap_micro_ops);
 		err = mzap_upgrade(&zn->zn_zap, tx, 0);
-		if (err == 0) {
-			err = fzap_add(zn, integer_size, num_integers, val, tx);
-		}
-	} else {
-		zfs_btree_index_t idx;
-		if (mze_find(zn, &idx) != NULL) {
-			err = SET_ERROR(EEXIST);
-		} else {
-			mzap_addent(zn, *intval);
-		}
+		if (err == 0)
+			err = zap->zap_ops->zap_op_add(zn,
+			    integer_size, num_integers, val, tx);
 	}
-	ASSERT(zap == zn->zn_zap);
+
 	zap_name_free(zn);
 	zap_unlock(zap, FTAG);
 	return (err);
@@ -536,11 +528,11 @@ zap_add_uint64_by_dnode(dnode_t *dn, const uint64_t *key,
 		zap_unlock(zap, FTAG);
 		return (SET_ERROR(ENOTSUP));
 	}
-	err = fzap_add(zn, integer_size, num_integers, val, tx);
-	zap = zn->zn_zap;	/* fzap_add() may change zap */
+
+	err = zap->zap_ops->zap_op_add(zn,
+	    integer_size, num_integers, val, tx);
 	zap_name_free(zn);
-	if (zap != NULL)	/* may be NULL if fzap_add() failed */
-		zap_unlock(zap, FTAG);
+	zap_unlock(zap, FTAG);
 	return (err);
 }
 
@@ -571,34 +563,25 @@ zap_update_by_dnode(dnode_t *dn, const char *name, int integer_size,
 	if (err != 0)
 		return (err);
 
-	const uint64_t *intval = val;
 	zap_name_t *zn = zap_name_alloc_str(zap, name, 0);
 	if (zn == NULL) {
 		zap_unlock(zap, FTAG);
 		return (SET_ERROR(ENOTSUP));
 	}
-	if (!zap->zap_ismicro) {
-		err = fzap_update(zn, integer_size, num_integers, val, tx);
-	} else if (integer_size != 8 || num_integers != 1 ||
-	    strlen(name) >= MZAP_NAME_LEN) {
+
+	err = zap->zap_ops->zap_op_update(zn,
+	    integer_size, num_integers, val, tx);
+	if (err == ENOSYS) {
+		ASSERT3P(zap->zap_ops, ==, &zap_micro_ops);
 		dprintf("upgrading obj %llu: intsz=%u numint=%llu name=%s\n",
 		    (u_longlong_t)dn->dn_object, integer_size,
 		    (u_longlong_t)num_integers, name);
 		err = mzap_upgrade(&zn->zn_zap, tx, 0);
-		if (err == 0) {
-			err = fzap_update(zn, integer_size, num_integers,
-			    val, tx);
-		}
-	} else {
-		zfs_btree_index_t idx;
-		mzap_ent_t *mze = mze_find(zn, &idx);
-		if (mze != NULL) {
-			MZE_PHYS(zap, mze)->mze_value = *intval;
-		} else {
-			mzap_addent(zn, *intval);
-		}
+		if (err == 0)
+			err = zap->zap_ops->zap_op_update(zn,
+			    integer_size, num_integers, val, tx);
 	}
-	ASSERT(zap == zn->zn_zap);
+
 	zap_name_free(zn);
 	zap_unlock(zap, FTAG);
 	return (err);
@@ -640,7 +623,8 @@ zap_update_uint64_by_dnode(dnode_t *dn, const uint64_t *key, int key_numints,
 		zap_unlock(zap, FTAG);
 		return (SET_ERROR(ENOTSUP));
 	}
-	err = fzap_update(zn, integer_size, num_integers, val, tx);
+	err = zap->zap_ops->zap_op_update(zn,
+	    integer_size, num_integers, val, tx);
 	zap_name_free(zn);
 	zap_unlock(zap, FTAG);
 	return (err);

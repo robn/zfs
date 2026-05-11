@@ -127,7 +127,7 @@ mze_insert(zap_t *zap, uint16_t chunkid, uint64_t hash)
 	zfs_btree_add(&zap->zap_m.zap_tree, &mze);
 }
 
-mzap_ent_t *
+static mzap_ent_t *
 mze_find(zap_name_t *zn, zfs_btree_index_t *idx)
 {
 	mzap_ent_t mze_tofind;
@@ -192,7 +192,7 @@ mze_find_unused_cd(zap_t *zap, uint64_t hash)
  * Check if the current entry keeps the colliding entries under the fatzap leaf
  * size.
  */
-boolean_t
+static boolean_t
 mze_canfit_fzap_leaf(zap_name_t *zn, uint64_t hash)
 {
 	zap_t *zap = zn->zn_zap;
@@ -467,7 +467,7 @@ mzap_normalization_conflict(zap_t *zap, zap_name_t *zn, mzap_ent_t *mze,
 	return (B_FALSE);
 }
 
-void
+static void
 mzap_addent(zap_name_t *zn, uint64_t value)
 {
 	zap_t *zap = zn->zn_zap;
@@ -563,6 +563,58 @@ mzap_remove(zap_name_t *zn, dmu_tx_t *tx)
 }
 
 static int
+mzap_add(zap_name_t *zn, uint64_t integer_size, uint64_t num_integers,
+    const void *val, dmu_tx_t *tx)
+{
+	(void) tx;
+
+	/*
+	 * XXX the length check could be changed to
+	 *         zn->zn_key_orig_numints > MZAP_NAME_LEN
+	 *     (note the change from >= to >, zn_key_orig_numints is strlen+1,
+	 *      see zap_name_alloc_str())
+	 *     not doing that yet, trying to keep this change tight.
+	 *       -- robn, 2026-05-11
+	 */
+	if (integer_size != 8 || num_integers != 1 ||
+	    strlen(zn->zn_key_orig) >= MZAP_NAME_LEN ||
+	    !mze_canfit_fzap_leaf(zn, zn->zn_hash))
+		return (SET_ERROR(ENOSYS));
+
+	zfs_btree_index_t idx;
+	if (mze_find(zn, &idx) != NULL)
+		return (SET_ERROR(EEXIST));
+
+	const uint64_t *intval = val;
+	mzap_addent(zn, *intval);
+
+	return (0);
+}
+
+static int
+mzap_update(zap_name_t *zn, int integer_size, uint64_t num_integers,
+    const void *val, dmu_tx_t *tx)
+{
+	(void) tx;
+
+	/* XXX see comment in mzap_add(). -- robn, 2026-05-11 */
+	if (integer_size != 8 || num_integers != 1 ||
+	    strlen(zn->zn_key_orig) >= MZAP_NAME_LEN)
+		return (SET_ERROR(ENOSYS));
+
+	const uint64_t *intval = val;
+
+	zfs_btree_index_t idx;
+	mzap_ent_t *mze = mze_find(zn, &idx);
+	if (mze != NULL)
+		MZE_PHYS(zn->zn_zap, mze)->mze_value = *intval;
+	else
+		mzap_addent(zn, *intval);
+
+	return (0);
+}
+
+static int
 mzap_count(zap_t *zap, uint64_t *count)
 {
 	*count = zap->zap_m.zap_num_entries;
@@ -628,6 +680,8 @@ const zap_ops_t zap_micro_ops = {
 	.zap_op_length = mzap_length,
 	.zap_op_prefetch = NULL,
 	.zap_op_remove = mzap_remove,
+	.zap_op_add = mzap_add,
+	.zap_op_update = mzap_update,
 	.zap_op_cursor_retrieve = mzap_cursor_retrieve,
 	.zap_op_get_stats = mzap_get_stats,
 	.zap_op_get_flags = mzap_get_flags,

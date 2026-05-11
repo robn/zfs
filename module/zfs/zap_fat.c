@@ -929,7 +929,7 @@ out:
 	return (err);
 }
 
-int
+static int
 fzap_add(zap_name_t *zn, uint64_t integer_size, uint64_t num_integers,
     const void *val, dmu_tx_t *tx)
 {
@@ -941,7 +941,7 @@ fzap_add(zap_name_t *zn, uint64_t integer_size, uint64_t num_integers,
 	    val, ZAP_NEED_CD, tx));
 }
 
-int
+static int
 fzap_update(zap_name_t *zn, int integer_size, uint64_t num_integers,
     const void *val, dmu_tx_t *tx)
 {
@@ -1464,6 +1464,8 @@ const zap_ops_t zap_fat_ops = {
 	.zap_op_length = fzap_length,
 	.zap_op_prefetch = fzap_prefetch,
 	.zap_op_remove = fzap_remove,
+	.zap_op_add = fzap_add,
+	.zap_op_update = fzap_update,
 	.zap_op_cursor_retrieve = fzap_cursor_retrieve,
 	.zap_op_get_stats = fzap_get_stats,
 	.zap_op_get_flags = fzap_get_flags,

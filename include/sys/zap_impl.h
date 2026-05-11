@@ -284,18 +284,11 @@ uint64_t zap_getflags(zap_t *zap);
 void mzap_byteswap(mzap_phys_t *buf, size_t size);
 zap_t *mzap_open(dmu_buf_t *db);
 int mzap_upgrade(zap_t **zapp, dmu_tx_t *tx, zap_flags_t flags);
-mzap_ent_t *mze_find(zap_name_t *zn, zfs_btree_index_t *idx);
-boolean_t mze_canfit_fzap_leaf(zap_name_t *zn, uint64_t hash);
 void mze_destroy(zap_t *zap);
-void mzap_addent(zap_name_t *zn, uint64_t value);
 uint64_t zap_get_micro_max_size(spa_t *spa);
 
 /* Fatzap implementation. */
 void fzap_byteswap(void *buf, size_t size);
-int fzap_add(zap_name_t *zn, uint64_t integer_size, uint64_t num_integers,
-    const void *val, dmu_tx_t *tx);
-int fzap_update(zap_name_t *zn, int integer_size, uint64_t num_integers,
-    const void *val, dmu_tx_t *tx);
 void zap_put_leaf(struct zap_leaf *l);
 int fzap_add_cd(zap_name_t *zn, uint64_t integer_size, uint64_t num_integers,
     const void *val, uint32_t cd, dmu_tx_t *tx);
@@ -310,6 +303,10 @@ typedef struct zap_ops {
 	    uint64_t *num_integers);
 	void (*zap_op_prefetch)(zap_name_t *zn);
 	int (*zap_op_remove)(zap_name_t *zn, dmu_tx_t *tx);
+	int (*zap_op_add)(zap_name_t *zn, uint64_t integer_size,
+	    uint64_t num_integers, const void *val, dmu_tx_t *tx);
+	int (*zap_op_update)(zap_name_t *zn, int integer_size,
+	    uint64_t num_integers, const void *val, dmu_tx_t *tx);
 	int (*zap_op_cursor_retrieve)(zap_t *zap, zap_cursor_t *zc,
 	    zap_attribute_t *za);
 	void (*zap_op_get_stats)(zap_t *zap, zap_stats_t *zs);
