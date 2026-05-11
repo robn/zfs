@@ -300,21 +300,18 @@ zap_open(dmu_buf_t *db)
 	zap->zap_object = db->db_object;
 	zap->zap_dbuf = db;
 
-	if (zap_micro_ops.zap_op_can_open(zap)) {
+	if (zap_micro_ops.zap_op_can_open(zap))
 		zap->zap_ops = &zap_micro_ops;
-		zap->zap_ismicro = TRUE;
-	} else if (zap_fat_ops.zap_op_can_open(zap)) {
+	else if (zap_fat_ops.zap_op_can_open(zap))
 		zap->zap_ops = &zap_fat_ops;
-		zap->zap_ismicro = FALSE;
-	} else {
+	else {
 		winner = NULL;	/* No actual winner here... */
 		goto handle_winner;
 	}
 
 	/*
-	 * Make sure that zap_ismicro is set before we let others see
-	 * it, because zap_lockdir() checks zap_ismicro without the lock
-	 * held.
+	 * Make sure that zap_ops is set before we let others see it, because
+	 * zap_lockdir() checks zap_ops without the lock held.
 	 */
 	dmu_buf_init_user(&zap->zap_dbu, zap_evict_sync, NULL, &zap->zap_dbuf);
 	winner = dmu_buf_set_user(db, &zap->zap_dbu);
@@ -359,19 +356,22 @@ zap_lock_impl(dnode_t *dn, dmu_buf_t *db, dmu_tx_t *tx,
 	}
 
 	/*
-	 * We're checking zap_ismicro without the lock held, in order to
+	 * We're checking zap_ops without the lock held, in order to
 	 * tell what type of lock we want.  Once we have some sort of
 	 * lock, see if it really is the right type.  In practice this
 	 * can only be different if it was upgraded from micro to fat,
 	 * and micro wanted WRITER but fat only needs READER.
 	 */
-	krw_t lt = (!zap->zap_ismicro && fatreader) ? RW_READER : lti;
+	krw_t lt =
+	    (zap->zap_ops != &zap_micro_ops && fatreader) ? RW_READER : lti;
 	rw_enter(&zap->zap_rwlock, lt);
-	if (lt != ((!zap->zap_ismicro && fatreader) ? RW_READER : lti)) {
+	if (lt !=
+	    ((zap->zap_ops != &zap_micro_ops && fatreader) ? RW_READER : lti)) {
 		/* it was upgraded, now we only need reader */
-		ASSERT(lt == RW_WRITER);
-		ASSERT(RW_READER ==
-		    ((!zap->zap_ismicro && fatreader) ? RW_READER : lti));
+		ASSERT3U(lt, ==, RW_WRITER);
+		ASSERT3U(RW_READER, ==,
+		    ((zap->zap_ops != &zap_micro_ops && fatreader) ?
+		     RW_READER : lti));
 		rw_downgrade(&zap->zap_rwlock);
 		lt = RW_READER;
 	}
@@ -384,9 +384,9 @@ zap_lock_impl(dnode_t *dn, dmu_buf_t *db, dmu_tx_t *tx,
 
 	ASSERT3P(zap->zap_dbuf, ==, db);
 
-	ASSERT(!zap->zap_ismicro ||
+	ASSERT(zap->zap_ops != &zap_micro_ops ||
 	    zap->zap_m.zap_num_entries <= zap->zap_m.zap_num_chunks);
-	if (zap->zap_ismicro && tx && adding &&
+	if (zap->zap_ops == &zap_micro_ops && tx && adding &&
 	    zap->zap_m.zap_num_entries == zap->zap_m.zap_num_chunks) {
 		uint64_t newsz = db->db_size + SPA_MINBLOCKSIZE;
 		if (newsz > zap_get_micro_max_size(dmu_objset_spa(os))) {

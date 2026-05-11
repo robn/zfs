@@ -122,7 +122,6 @@ mze_insert(zap_t *zap, uint16_t chunkid, uint64_t hash)
 {
 	mzap_ent_t mze;
 
-	ASSERT(zap->zap_ismicro);
 	ASSERT(RW_WRITE_HELD(&zap->zap_rwlock));
 
 	mze.mze_chunkid = chunkid;
@@ -141,7 +140,6 @@ mze_find(zap_name_t *zn, zfs_btree_index_t *idx)
 	mzap_ent_t *mze;
 	zfs_btree_t *tree = &zn->zn_zap->zap_m.zap_tree;
 
-	ASSERT(zn->zn_zap->zap_ismicro);
 	ASSERT(RW_LOCK_HELD(&zn->zn_zap->zap_rwlock));
 
 	ASSERT0(zn->zn_hash & 0xffffffff);
@@ -168,7 +166,6 @@ mze_find_unused_cd(zap_t *zap, uint64_t hash)
 	zfs_btree_index_t idx;
 	zfs_btree_t *tree = &zap->zap_m.zap_tree;
 
-	ASSERT(zap->zap_ismicro);
 	ASSERT(RW_LOCK_HELD(&zap->zap_rwlock));
 
 	ASSERT0(hash & 0xffffffff);

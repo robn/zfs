@@ -114,7 +114,6 @@ void
 fzap_upgrade(zap_t *zap, dmu_tx_t *tx, zap_flags_t flags)
 {
 	ASSERT(RW_WRITE_HELD(&zap->zap_rwlock));
-	zap->zap_ismicro = FALSE;
 	zap->zap_ops = &zap_fat_ops;
 
 	zap->zap_dbu.dbu_evict_func_sync = zap_evict_sync;
@@ -461,7 +460,6 @@ zap_create_leaf(zap_t *zap, dmu_tx_t *tx)
 static int
 fzap_count(zap_t *zap, uint64_t *count)
 {
-	ASSERT(!zap->zap_ismicro);
 	mutex_enter(&zap->zap_f.zap_num_entries_mtx); /* unnecessary */
 	*count = zap_f_phys(zap)->zap_num_entries;
 	mutex_exit(&zap->zap_f.zap_num_entries_mtx);
@@ -896,7 +894,6 @@ fzap_add_cd(zap_name_t *zn, uint64_t integer_size, uint64_t num_integers,
 	zap_t *zap = zn->zn_zap;
 
 	ASSERT(RW_LOCK_HELD(&zap->zap_rwlock));
-	ASSERT(!zap->zap_ismicro);
 	ASSERT0(fzap_check(zn, integer_size, num_integers));
 
 	err = zap_deref_leaf(zap, zn->zn_hash, tx, RW_WRITER, &l);

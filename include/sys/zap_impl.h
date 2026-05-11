@@ -150,7 +150,6 @@ typedef struct zap {
 	dnode_t *zap_dnode;
 	struct dmu_buf *zap_dbuf;
 	krwlock_t zap_rwlock;
-	boolean_t zap_ismicro;
 	int zap_normflags;
 	uint64_t zap_salt;
 	union {
