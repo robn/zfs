@@ -55,119 +55,109 @@
 #include <sys/vdev.h>
 #include <cityhash.h>
 #include <sys/spa_impl.h>
-#include <sys/wmsum.h>
 #include <sys/vdev_impl.h>
+#include <sys/zstat.h>
 
-static kstat_t *dbuf_ksp;
+static zstat_t *dbuf_zstat;
 
-typedef struct dbuf_stats {
+enum {
+	DBUFSTAT_CACHE_COUNT,
+	DBUFSTAT_CACHE_SIZE_BYTES,
+	DBUFSTAT_CACHE_SIZE_BYTES_MAX,
+	DBUFSTAT_CACHE_TARGET_BYTES,
+	DBUFSTAT_CACHE_LOWATER_BYTES,
+	DBUFSTAT_CACHE_HIWATER_BYTES,
+	DBUFSTAT_CACHE_TOTAL_EVICTS,
+	DBUFSTAT_CACHE_LEVELS,
+	DBUFSTAT_CACHE_LEVELS_BYTES,
+	DBUFSTAT_HASH_HITS,
+	DBUFSTAT_HASH_MISSES,
+	DBUFSTAT_HASH_COLLISIONS,
+	DBUFSTAT_HASH_ELEMENTS,
+	DBUFSTAT_HASH_CHAINS,
+	DBUFSTAT_HASH_CHAIN_MAX,
+	DBUFSTAT_HASH_INSERT_RACE,
+	DBUFSTAT_HASH_TABLE_COUNT,
+	DBUFSTAT_HASH_MUTEX_COUNT,
+	DBUFSTAT_METADATA_CACHE_COUNT,
+	DBUFSTAT_METADATA_CACHE_SIZE_BYTES,
+	DBUFSTAT_METADATA_CACHE_SIZE_BYTES_MAX,
+	DBUFSTAT_METADATA_CACHE_OVERFLOW,
+	DBUFSTAT_MAX,
+};
+
+static zstat_def_t dbuf_zstat_def[] = {
 	/*
 	 * Various statistics about the size of the dbuf cache.
 	 */
-	kstat_named_t cache_count;
-	kstat_named_t cache_size_bytes;
-	kstat_named_t cache_size_bytes_max;
+	{ "cache_count",		ZSTAT_COUNTER },
+	{ "cache_size_bytes",		ZSTAT_COUNTER },
+	{ "cache_size_bytes_max",	ZSTAT_COUNTER },
 	/*
 	 * Statistics regarding the bounds on the dbuf cache size.
 	 */
-	kstat_named_t cache_target_bytes;
-	kstat_named_t cache_lowater_bytes;
-	kstat_named_t cache_hiwater_bytes;
+	{ "cache_target_bytes",		ZSTAT_COUNTER },
+	{ "cache_lowater_bytes",	ZSTAT_COUNTER },
+	{ "cache_hiwater_bytes",	ZSTAT_COUNTER },
 	/*
 	 * Total number of dbuf cache evictions that have occurred.
 	 */
-	kstat_named_t cache_total_evicts;
+	{ "cache_total_evicts",		ZSTAT_COUNTER },
 	/*
 	 * The distribution of dbuf levels in the dbuf cache and
 	 * the total size of all dbufs at each level.
 	 */
-	kstat_named_t cache_levels[DN_MAX_LEVELS];
-	kstat_named_t cache_levels_bytes[DN_MAX_LEVELS];
+	{ "cache_levels",		ZSTAT_COUNTER_GROUP(DN_MAX_LEVELS) },
+	{ "cache_levels_bytes",		ZSTAT_COUNTER_GROUP(DN_MAX_LEVELS) },
 	/*
 	 * Statistics about the dbuf hash table.
 	 */
-	kstat_named_t hash_hits;
-	kstat_named_t hash_misses;
-	kstat_named_t hash_collisions;
-	kstat_named_t hash_elements;
+	{ "hash_hits",			ZSTAT_COUNTER },
+	{ "hash_misses",		ZSTAT_COUNTER },
+	{ "hash_collisions",		ZSTAT_COUNTER },
+	{ "hash_elements",		ZSTAT_COUNTER },
 	/*
 	 * Number of sublists containing more than one dbuf in the dbuf
 	 * hash table. Keep track of the longest hash chain.
 	 */
-	kstat_named_t hash_chains;
-	kstat_named_t hash_chain_max;
+	{ "hash_chains",		ZSTAT_COUNTER },
+	{ "hash_chain_max",		ZSTAT_COUNTER },
 	/*
 	 * Number of times a dbuf_create() discovers that a dbuf was
 	 * already created and in the dbuf hash table.
 	 */
-	kstat_named_t hash_insert_race;
+	{ "hash_insert_race",		ZSTAT_COUNTER },
 	/*
 	 * Number of entries in the hash table dbuf and mutex arrays.
 	 */
-	kstat_named_t hash_table_count;
-	kstat_named_t hash_mutex_count;
+	{ "hash_table_count",		ZSTAT_COUNTER },
+	{ "hash_mutex_count",		ZSTAT_COUNTER },
 	/*
 	 * Statistics about the size of the metadata dbuf cache.
 	 */
-	kstat_named_t metadata_cache_count;
-	kstat_named_t metadata_cache_size_bytes;
-	kstat_named_t metadata_cache_size_bytes_max;
+	{ "metadata_cache_count",	ZSTAT_COUNTER },
+	{ "metadata_cache_size_bytes",	ZSTAT_COUNTER },
+	{ "metadata_cache_size_bytes_max",	ZSTAT_COUNTER },
 	/*
 	 * For diagnostic purposes, this is incremented whenever we can't add
 	 * something to the metadata cache because it's full, and instead put
 	 * the data in the regular dbuf cache.
 	 */
-	kstat_named_t metadata_cache_overflow;
-} dbuf_stats_t;
-
-dbuf_stats_t dbuf_stats = {
-	{ "cache_count",			KSTAT_DATA_UINT64 },
-	{ "cache_size_bytes",			KSTAT_DATA_UINT64 },
-	{ "cache_size_bytes_max",		KSTAT_DATA_UINT64 },
-	{ "cache_target_bytes",			KSTAT_DATA_UINT64 },
-	{ "cache_lowater_bytes",		KSTAT_DATA_UINT64 },
-	{ "cache_hiwater_bytes",		KSTAT_DATA_UINT64 },
-	{ "cache_total_evicts",			KSTAT_DATA_UINT64 },
-	{ { "cache_levels_N",			KSTAT_DATA_UINT64 } },
-	{ { "cache_levels_bytes_N",		KSTAT_DATA_UINT64 } },
-	{ "hash_hits",				KSTAT_DATA_UINT64 },
-	{ "hash_misses",			KSTAT_DATA_UINT64 },
-	{ "hash_collisions",			KSTAT_DATA_UINT64 },
-	{ "hash_elements",			KSTAT_DATA_UINT64 },
-	{ "hash_chains",			KSTAT_DATA_UINT64 },
-	{ "hash_chain_max",			KSTAT_DATA_UINT64 },
-	{ "hash_insert_race",			KSTAT_DATA_UINT64 },
-	{ "hash_table_count",			KSTAT_DATA_UINT64 },
-	{ "hash_mutex_count",			KSTAT_DATA_UINT64 },
-	{ "metadata_cache_count",		KSTAT_DATA_UINT64 },
-	{ "metadata_cache_size_bytes",		KSTAT_DATA_UINT64 },
-	{ "metadata_cache_size_bytes_max",	KSTAT_DATA_UINT64 },
-	{ "metadata_cache_overflow",		KSTAT_DATA_UINT64 }
+	{ "metadata_cache_overflow",	ZSTAT_COUNTER }
 };
 
-struct {
-	wmsum_t cache_count;
-	wmsum_t cache_total_evicts;
-	wmsum_t cache_levels[DN_MAX_LEVELS];
-	wmsum_t cache_levels_bytes[DN_MAX_LEVELS];
-	wmsum_t hash_hits;
-	wmsum_t hash_misses;
-	wmsum_t hash_collisions;
-	wmsum_t hash_elements;
-	wmsum_t hash_chains;
-	wmsum_t hash_insert_race;
-	wmsum_t metadata_cache_count;
-	wmsum_t metadata_cache_overflow;
-} dbuf_sums;
+#define	DBUFSTAT_ADD(stat, val)	zstat_add(dbuf_zstat, (stat), (val))
+#define	DBUFSTAT_SUB(stat, val)	zstat_sub(dbuf_zstat, (stat), (val))
+#define	DBUFSTAT_INC(stat)	zstat_inc(dbuf_zstat, (stat))
+#define	DBUFSTAT_DEC(stat)	zstat_dec(dbuf_zstat, (stat))
 
-#define	DBUF_STAT_INCR(stat, val)	\
-	wmsum_add(&dbuf_sums.stat, val)
-#define	DBUF_STAT_DECR(stat, val)	\
-	DBUF_STAT_INCR(stat, -(val))
-#define	DBUF_STAT_BUMP(stat)		\
-	DBUF_STAT_INCR(stat, 1)
-#define	DBUF_STAT_BUMPDOWN(stat)	\
-	DBUF_STAT_INCR(stat, -1)
+#define	DBUFSTAT_ADD_G(stat, i, val)	\
+	zstat_add_g(dbuf_zstat, (stat), i, (val))
+#define	DBUFSTAT_SUB_G(stat, i, val)	\
+	zstat_sub_g(dbuf_zstat, (stat), i, (val))
+#define	DBUFSTAT_INC_G(stat, i)	zstat_inc_g(dbuf_zstat, (stat), i)
+#define	DBUFSTAT_DEC_G(stat, i)	zstat_dec_g(dbuf_zstat, (stat), i)
+
 #define	DBUF_STAT_MAX(stat, v) {					\
 	uint64_t _m;							\
 	while ((v) > (_m = dbuf_stats.stat.value.ui64) &&		\
@@ -421,18 +411,18 @@ dbuf_hash_insert(dmu_buf_impl_t *db)
 	}
 
 	if (i > 0) {
-		DBUF_STAT_BUMP(hash_collisions);
+		DBUFSTAT_INC(DBUFSTAT_HASH_COLLISIONS);
 		if (i == 1)
-			DBUF_STAT_BUMP(hash_chains);
+			DBUFSTAT_INC(DBUFSTAT_HASH_CHAINS);
 
-		DBUF_STAT_MAX(hash_chain_max, i);
+		// XXX DBUF_STAT_MAX(hash_chain_max, i);
 	}
 
 	mutex_enter(&db->db_mtx);
 	db->db_hash_next = h->hash_table[idx];
 	h->hash_table[idx] = db;
 	mutex_exit(DBUF_HASH_MUTEX(h, idx));
-	DBUF_STAT_BUMP(hash_elements);
+	DBUFSTAT_INC(DBUFSTAT_HASH_HITS);
 
 	return (NULL);
 }
@@ -464,7 +454,7 @@ dbuf_include_in_metadata_cache(dmu_buf_impl_t *db)
 		if (zfs_refcount_count(
 		    &dbuf_caches[DB_DBUF_METADATA_CACHE].size) >
 		    dbuf_metadata_cache_target_bytes()) {
-			DBUF_STAT_BUMP(metadata_cache_overflow);
+			DBUFSTAT_INC(DBUFSTAT_METADATA_CACHE_OVERFLOW);
 			return (B_FALSE);
 		}
 
@@ -506,9 +496,9 @@ dbuf_hash_remove(dmu_buf_impl_t *db)
 	db->db_hash_next = NULL;
 	if (h->hash_table[idx] &&
 	    h->hash_table[idx]->db_hash_next == NULL)
-		DBUF_STAT_BUMPDOWN(hash_chains);
+		DBUFSTAT_DEC(DBUFSTAT_HASH_CHAINS);
 	mutex_exit(DBUF_HASH_MUTEX(h, idx));
-	DBUF_STAT_BUMPDOWN(hash_elements);
+	DBUFSTAT_DEC(DBUFSTAT_HASH_ELEMENTS);
 }
 
 typedef enum {
@@ -583,7 +573,7 @@ dbuf_evict_user(dmu_buf_impl_t *db)
 		(void) zfs_refcount_remove_many(
 		    &dbuf_caches[db->db_caching_status].size, size, dbu);
 		if (db->db_caching_status == DB_DBUF_CACHE)
-			DBUF_STAT_DECR(cache_levels_bytes[db->db_level], size);
+			DBUFSTAT_SUB_G(DBUFSTAT_CACHE_LEVELS_BYTES, db->db_level, size);
 	}
 
 	/*
@@ -799,13 +789,13 @@ dbuf_evict_one(void)
 		    &dbuf_caches[DB_DBUF_CACHE].size, size, db);
 		(void) zfs_refcount_remove_many(
 		    &dbuf_caches[DB_DBUF_CACHE].size, usize, db->db_user);
-		DBUF_STAT_BUMPDOWN(cache_levels[db->db_level]);
-		DBUF_STAT_BUMPDOWN(cache_count);
-		DBUF_STAT_DECR(cache_levels_bytes[db->db_level], size + usize);
+		DBUFSTAT_DEC_G(DBUFSTAT_CACHE_LEVELS, db->db_level);
+		DBUFSTAT_DEC(DBUFSTAT_CACHE_COUNT);
+		DBUFSTAT_SUB_G(DBUFSTAT_CACHE_LEVELS_BYTES, db->db_level, size + usize);
 		ASSERT3U(db->db_caching_status, ==, DB_DBUF_CACHE);
 		db->db_caching_status = DB_NO_CACHE;
 		dbuf_destroy(db);
-		DBUF_STAT_BUMP(cache_total_evicts);
+		DBUFSTAT_INC(DBUFSTAT_CACHE_TOTAL_EVICTS);
 	} else {
 		multilist_sublist_unlock(mls);
 	}
@@ -895,6 +885,7 @@ dbuf_cache_reduce_target_size(void)
 		cv_signal(&dbuf_evict_cv);
 }
 
+#if 0
 static int
 dbuf_kstat_update(kstat_t *ksp, int rw)
 {
@@ -941,6 +932,7 @@ dbuf_kstat_update(kstat_t *ksp, int rw)
 	    wmsum_value(&dbuf_sums.metadata_cache_overflow);
 	return (0);
 }
+#endif
 
 void
 dbuf_init(void)
@@ -1019,39 +1011,8 @@ dbuf_init(void)
 	dbuf_cache_evict_thread = thread_create(NULL, 0, dbuf_evict_thread,
 	    NULL, 0, &p0, TS_RUN, minclsyspri);
 
-	wmsum_init(&dbuf_sums.cache_count, 0);
-	wmsum_init(&dbuf_sums.cache_total_evicts, 0);
-	for (int i = 0; i < DN_MAX_LEVELS; i++) {
-		wmsum_init(&dbuf_sums.cache_levels[i], 0);
-		wmsum_init(&dbuf_sums.cache_levels_bytes[i], 0);
-	}
-	wmsum_init(&dbuf_sums.hash_hits, 0);
-	wmsum_init(&dbuf_sums.hash_misses, 0);
-	wmsum_init(&dbuf_sums.hash_collisions, 0);
-	wmsum_init(&dbuf_sums.hash_elements, 0);
-	wmsum_init(&dbuf_sums.hash_chains, 0);
-	wmsum_init(&dbuf_sums.hash_insert_race, 0);
-	wmsum_init(&dbuf_sums.metadata_cache_count, 0);
-	wmsum_init(&dbuf_sums.metadata_cache_overflow, 0);
-
-	dbuf_ksp = kstat_create("zfs", 0, "dbufstats", "misc",
-	    KSTAT_TYPE_NAMED, sizeof (dbuf_stats) / sizeof (kstat_named_t),
-	    KSTAT_FLAG_VIRTUAL);
-	if (dbuf_ksp != NULL) {
-		for (int i = 0; i < DN_MAX_LEVELS; i++) {
-			snprintf(dbuf_stats.cache_levels[i].name,
-			    KSTAT_STRLEN, "cache_level_%d", i);
-			dbuf_stats.cache_levels[i].data_type =
-			    KSTAT_DATA_UINT64;
-			snprintf(dbuf_stats.cache_levels_bytes[i].name,
-			    KSTAT_STRLEN, "cache_level_%d_bytes", i);
-			dbuf_stats.cache_levels_bytes[i].data_type =
-			    KSTAT_DATA_UINT64;
-		}
-		dbuf_ksp->ks_data = &dbuf_stats;
-		dbuf_ksp->ks_update = dbuf_kstat_update;
-		kstat_install(dbuf_ksp);
-	}
+	dbuf_zstat =
+	    zstat_create("zfs.dbufstats", dbuf_zstat_def, DBUFSTAT_MAX);
 }
 
 void
@@ -1088,25 +1049,7 @@ dbuf_fini(void)
 		multilist_destroy(&dbuf_caches[dcs].cache);
 	}
 
-	if (dbuf_ksp != NULL) {
-		kstat_delete(dbuf_ksp);
-		dbuf_ksp = NULL;
-	}
-
-	wmsum_fini(&dbuf_sums.cache_count);
-	wmsum_fini(&dbuf_sums.cache_total_evicts);
-	for (int i = 0; i < DN_MAX_LEVELS; i++) {
-		wmsum_fini(&dbuf_sums.cache_levels[i]);
-		wmsum_fini(&dbuf_sums.cache_levels_bytes[i]);
-	}
-	wmsum_fini(&dbuf_sums.hash_hits);
-	wmsum_fini(&dbuf_sums.hash_misses);
-	wmsum_fini(&dbuf_sums.hash_collisions);
-	wmsum_fini(&dbuf_sums.hash_elements);
-	wmsum_fini(&dbuf_sums.hash_chains);
-	wmsum_fini(&dbuf_sums.hash_insert_race);
-	wmsum_fini(&dbuf_sums.metadata_cache_count);
-	wmsum_fini(&dbuf_sums.metadata_cache_overflow);
+	zstat_destroy(dbuf_zstat);
 }
 
 /*
@@ -1884,9 +1827,9 @@ dbuf_read(dmu_buf_impl_t *db, zio_t *pio, dmu_flags_t flags)
 
 done:
 	if (miss)
-		DBUF_STAT_BUMP(hash_misses);
+		DBUFSTAT_INC(DBUFSTAT_HASH_MISSES);
 	else
-		DBUF_STAT_BUMP(hash_hits);
+		DBUFSTAT_INC(DBUFSTAT_HASH_HITS);
 	if (pio && err != 0) {
 		zio_t *zio = zio_null(pio, pio->io_spa, NULL, NULL, NULL,
 		    ZIO_FLAG_CANFAIL);
@@ -2892,7 +2835,7 @@ dmu_buf_untransform_direct(dmu_buf_impl_t *db, spa_t *spa)
 		dbuf_set_data(db, db->db_buf);
 	}
 	DB_DNODE_EXIT(db);
-	DBUF_STAT_BUMP(hash_hits);
+	DBUFSTAT_INC(DBUFSTAT_HASH_HITS);
 
 	return (err);
 }
@@ -3319,12 +3262,12 @@ dbuf_destroy(dmu_buf_impl_t *db)
 		    db->db.db_size, db);
 
 		if (db->db_caching_status == DB_DBUF_METADATA_CACHE) {
-			DBUF_STAT_BUMPDOWN(metadata_cache_count);
+			DBUFSTAT_DEC(DBUFSTAT_METADATA_CACHE_COUNT);
 		} else {
-			DBUF_STAT_BUMPDOWN(cache_levels[db->db_level]);
-			DBUF_STAT_BUMPDOWN(cache_count);
-			DBUF_STAT_DECR(cache_levels_bytes[db->db_level],
-			    db->db.db_size);
+			DBUFSTAT_DEC_G(DBUFSTAT_CACHE_LEVELS, db->db_level);
+			DBUFSTAT_DEC(DBUFSTAT_CACHE_COUNT);
+			DBUFSTAT_SUB_G(DBUFSTAT_CACHE_LEVELS_BYTES,
+			    db->db_level, db->db.db_size);
 		}
 		db->db_caching_status = DB_NO_CACHE;
 	}
@@ -3567,7 +3510,7 @@ dbuf_create(dnode_t *dn, uint8_t level, uint64_t blkid,
 		/* someone else inserted it first */
 		mutex_exit(&dn->dn_dbufs_mtx);
 		kmem_cache_free(dbuf_kmem_cache, db);
-		DBUF_STAT_BUMP(hash_insert_race);
+		DBUFSTAT_INC(DBUFSTAT_HASH_INSERT_RACE);
 		return (odb);
 	}
 	avl_add(&dn->dn_dbufs, db);
@@ -4070,12 +4013,12 @@ dbuf_hold_impl(dnode_t *dn, uint8_t level, uint64_t blkid,
 		    db->db_user);
 
 		if (db->db_caching_status == DB_DBUF_METADATA_CACHE) {
-			DBUF_STAT_BUMPDOWN(metadata_cache_count);
+			DBUFSTAT_DEC(DBUFSTAT_METADATA_CACHE_COUNT);
 		} else {
-			DBUF_STAT_BUMPDOWN(cache_levels[db->db_level]);
-			DBUF_STAT_BUMPDOWN(cache_count);
-			DBUF_STAT_DECR(cache_levels_bytes[db->db_level],
-			    size + usize);
+			DBUFSTAT_DEC_G(DBUFSTAT_CACHE_LEVELS, db->db_level);
+			DBUFSTAT_DEC(DBUFSTAT_CACHE_COUNT);
+			DBUFSTAT_SUB_G(DBUFSTAT_CACHE_LEVELS_BYTES,
+			    db->db_level, size + usize);
 		}
 		db->db_caching_status = DB_NO_CACHE;
 	}
@@ -4308,15 +4251,14 @@ dbuf_rele_and_unlock(dmu_buf_impl_t *db, const void *tag, boolean_t evicting)
 			mutex_exit(&db->db_mtx);
 
 			if (dcs == DB_DBUF_METADATA_CACHE) {
-				DBUF_STAT_BUMP(metadata_cache_count);
-				DBUF_STAT_MAX(metadata_cache_size_bytes_max,
-				    size);
+				DBUFSTAT_INC(DBUFSTAT_METADATA_CACHE_COUNT);
+				// XXX DBUF_STAT_MAX(metadata_cache_size_bytes_max, size);
 			} else {
-				DBUF_STAT_BUMP(cache_count);
-				DBUF_STAT_MAX(cache_size_bytes_max, size);
-				DBUF_STAT_BUMP(cache_levels[db_level]);
-				DBUF_STAT_INCR(cache_levels_bytes[db_level],
-				    db_size + dbu_size);
+				DBUFSTAT_INC(DBUFSTAT_CACHE_COUNT);
+				// XXX DBUF_STAT_MAX(cache_size_bytes_max, size);
+				DBUFSTAT_INC_G(DBUFSTAT_CACHE_LEVELS, db_level);
+				DBUFSTAT_ADD_G(DBUFSTAT_CACHE_LEVELS_BYTES,
+				    db_level, db_size + dbu_size);
 			}
 
 			if (dcs == DB_DBUF_CACHE && !evicting)
