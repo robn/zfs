@@ -45,8 +45,17 @@ typedef struct zstat {
 zstat_t *zstat_create(const char *name, const zstat_def_t *def, uint_t ndef);
 void zstat_destroy(zstat_t *zst);
 
+static inline void zstat_add(zstat_t *zst, uint_t n, int64_t v) {
+	wmsum_add(&zst->zst_sums[n], v);
+}
+static inline void zstat_sub(zstat_t *zst, uint_t n, int64_t v) {
+	wmsum_add(&zst->zst_sums[n], -v);
+}
 static inline void zstat_inc(zstat_t *zst, uint_t n) {
 	wmsum_add(&zst->zst_sums[n], 1);
+}
+static inline void zstat_dec(zstat_t *zst, uint_t n) {
+	wmsum_add(&zst->zst_sums[n], -1);
 }
 
 #endif
