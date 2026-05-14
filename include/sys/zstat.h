@@ -24,6 +24,8 @@
 #define	_ZSTAT_H
 
 #include <sys/types.h>
+#include <sys/kstat.h>
+#include <sys/wmsum.h>
 
 typedef enum ztat_type {
 	ZSTAT_TYPE_COUNTER,
@@ -35,14 +37,16 @@ typedef struct zstat_def {
 } zstat_def_t;
 
 typedef struct zstat {
+	uint_t		zst_nstat;
+	kstat_t		*zst_ksp;
+	wmsum_t		zst_sums[];
 } zstat_t;
 
 zstat_t *zstat_create(const zstat_def_t *def, uint_t ndef);
 void zstat_destroy(zstat_t *zst);
 
 static inline void zstat_inc(zstat_t *zst, uint_t n) {
-	(void) zst;
-	(void) n;
+	wmsum_add(&zst->zst_sums[n], 1);
 }
 
 #endif

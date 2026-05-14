@@ -21,108 +21,72 @@
  */
 
 #include <sys/zstat.h>
+#include <sys/zfs_context.h>
 
+static int
+zstat_kstat_update(kstat_t *ksp, int rw)
+{
+	if (rw == KSTAT_WRITE)
+		return (EACCES);
+
+	zstat_t *zst = ksp->ks_private;
+	kstat_named_t *kstats = (kstat_named_t *)ksp->ks_data;
+
+	// XXX mapping
+	for (uint_t i = 0; i < zst->zst_nstat; i++)
+		kstats[i].value.ui64 = wmsum_value(&zst->zst_sums[i]);
+
+	return (0);
+}
+/*
+ * XXX mappings for other stat types
+ *       ZSTAT_TYPE_COUNTER -> KSTAT_DATA_UINT64, wmsum_t
+ *       gauge? same?
+ *       histogram?
+ *       quantile?
+ *       rolling avg?
+ *         -- robn, 2024-05-22
+ */
 zstat_t *
 zstat_create(const zstat_def_t *def, uint_t ndef)
 {
 	(void) def;
-	(void) ndef;
-	return (NULL);
+
+	zstat_t *zst = kmem_alloc(sizeof (zstat_t) + ndef * sizeof (wmsum_t),
+	    KM_SLEEP);
+
+	zst->zst_nstat = ndef;
+	for (uint_t i = 0; i < ndef; i++)
+		wmsum_init(&zst->zst_sums[i], 0); // XXX type mapping
+
+	/* XXX for now, they're all bolted to kstats; in the future something a
+	 *     bit more generic, or not at all -- robn, 2024-05-22 */
+	/* XXX obvs bring module & name through */
+	zst->zst_ksp = kstat_create("zfs", 0, "brtstats", "misc",
+	    KSTAT_TYPE_NAMED, ndef, 0);
+	if (zst->zst_ksp == NULL)
+		return (zst);
+
+	kstat_named_t *kstats = (kstat_named_t *)zst->zst_ksp->ks_data;
+	for (uint_t i = 0; i < ndef; i++) {
+		strlcpy(kstats[i].name, def[i].zst_name, KSTAT_STRLEN);
+		kstats[i].data_type = KSTAT_DATA_UINT64; // XXX kstat mapping
+	}
+	zst->zst_ksp->ks_update = zstat_kstat_update;
+	zst->zst_ksp->ks_private = zst;
+	kstat_install(zst->zst_ksp);
+
+	return (zst);
 }
 
 void
 zstat_destroy(zstat_t *zst)
 {
-	(void) zst;
+	if (zst->zst_ksp != NULL)
+		kstat_delete(zst->zst_ksp);
+
+	for (uint_t i = 0; i < zst->zst_nstat; i++)
+		wmsum_fini(&zst->zst_sums[i]);	// XXX type mapping
+
+	kmem_free(zst, sizeof (zstat_t) + zst->zst_nstat * sizeof (wmsum_t));
 }
-
-#if 0
-static int
-brt_kstats_update(kstat_t *ksp, int rw)
-{
-	brt_stats_t *bs = ksp->ks_data;
-
-	if (rw == KSTAT_WRITE)
-		return (EACCES);
-
-	bs->brt_addref_entry_in_memory.value.ui64 =
-	    wmsum_value(&brt_sums.brt_addref_entry_in_memory);
-	bs->brt_addref_entry_not_on_disk.value.ui64 =
-	    wmsum_value(&brt_sums.brt_addref_entry_not_on_disk);
-	bs->brt_addref_entry_on_disk.value.ui64 =
-	    wmsum_value(&brt_sums.brt_addref_entry_on_disk);
-	bs->brt_addref_entry_read_lost_race.value.ui64 =
-	    wmsum_value(&brt_sums.brt_addref_entry_read_lost_race);
-	bs->brt_decref_entry_in_memory.value.ui64 =
-	    wmsum_value(&brt_sums.brt_decref_entry_in_memory);
-	bs->brt_decref_entry_loaded_from_disk.value.ui64 =
-	    wmsum_value(&brt_sums.brt_decref_entry_loaded_from_disk);
-	bs->brt_decref_entry_not_in_memory.value.ui64 =
-	    wmsum_value(&brt_sums.brt_decref_entry_not_in_memory);
-	bs->brt_decref_entry_not_on_disk.value.ui64 =
-	    wmsum_value(&brt_sums.brt_decref_entry_not_on_disk);
-	bs->brt_decref_entry_read_lost_race.value.ui64 =
-	    wmsum_value(&brt_sums.brt_decref_entry_read_lost_race);
-	bs->brt_decref_entry_still_referenced.value.ui64 =
-	    wmsum_value(&brt_sums.brt_decref_entry_still_referenced);
-	bs->brt_decref_free_data_later.value.ui64 =
-	    wmsum_value(&brt_sums.brt_decref_free_data_later);
-	bs->brt_decref_free_data_now.value.ui64 =
-	    wmsum_value(&brt_sums.brt_decref_free_data_now);
-	bs->brt_decref_no_entry.value.ui64 =
-	    wmsum_value(&brt_sums.brt_decref_no_entry);
-
-	return (0);
-}
-
-static void
-brt_stat_init(void)
-{
-
-	wmsum_init(&brt_sums.brt_addref_entry_in_memory, 0);
-	wmsum_init(&brt_sums.brt_addref_entry_not_on_disk, 0);
-	wmsum_init(&brt_sums.brt_addref_entry_on_disk, 0);
-	wmsum_init(&brt_sums.brt_addref_entry_read_lost_race, 0);
-	wmsum_init(&brt_sums.brt_decref_entry_in_memory, 0);
-	wmsum_init(&brt_sums.brt_decref_entry_loaded_from_disk, 0);
-	wmsum_init(&brt_sums.brt_decref_entry_not_in_memory, 0);
-	wmsum_init(&brt_sums.brt_decref_entry_not_on_disk, 0);
-	wmsum_init(&brt_sums.brt_decref_entry_read_lost_race, 0);
-	wmsum_init(&brt_sums.brt_decref_entry_still_referenced, 0);
-	wmsum_init(&brt_sums.brt_decref_free_data_later, 0);
-	wmsum_init(&brt_sums.brt_decref_free_data_now, 0);
-	wmsum_init(&brt_sums.brt_decref_no_entry, 0);
-
-	brt_ksp = kstat_create("zfs", 0, "brtstats", "misc", KSTAT_TYPE_NAMED,
-	    sizeof (brt_stats) / sizeof (kstat_named_t), KSTAT_FLAG_VIRTUAL);
-	if (brt_ksp != NULL) {
-		brt_ksp->ks_data = &brt_stats;
-		brt_ksp->ks_update = brt_kstats_update;
-		kstat_install(brt_ksp);
-	}
-}
-
-static void
-brt_stat_fini(void)
-{
-	if (brt_ksp != NULL) {
-		kstat_delete(brt_ksp);
-		brt_ksp = NULL;
-	}
-
-	wmsum_fini(&brt_sums.brt_addref_entry_in_memory);
-	wmsum_fini(&brt_sums.brt_addref_entry_not_on_disk);
-	wmsum_fini(&brt_sums.brt_addref_entry_on_disk);
-	wmsum_fini(&brt_sums.brt_addref_entry_read_lost_race);
-	wmsum_fini(&brt_sums.brt_decref_entry_in_memory);
-	wmsum_fini(&brt_sums.brt_decref_entry_loaded_from_disk);
-	wmsum_fini(&brt_sums.brt_decref_entry_not_in_memory);
-	wmsum_fini(&brt_sums.brt_decref_entry_not_on_disk);
-	wmsum_fini(&brt_sums.brt_decref_entry_read_lost_race);
-	wmsum_fini(&brt_sums.brt_decref_entry_still_referenced);
-	wmsum_fini(&brt_sums.brt_decref_free_data_later);
-	wmsum_fini(&brt_sums.brt_decref_free_data_now);
-	wmsum_fini(&brt_sums.brt_decref_no_entry);
-}
-
-#endif
