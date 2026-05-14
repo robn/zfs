@@ -443,6 +443,7 @@ ZFS_OBJS := \
 	zio_inject.o \
 	zle.o \
 	zrlock.o \
+	zstat.o \
 	zthr.o \
 	zvol.o
 

@@ -378,6 +378,7 @@ SRCS+=	abd.c \
 	zio_inject.c \
 	zle.c \
 	zrlock.c \
+	zstat.c \
 	zthr.c \
 	zvol.c
 

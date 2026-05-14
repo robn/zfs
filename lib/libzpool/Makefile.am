@@ -195,6 +195,7 @@ nodist_libzpool_la_SOURCES = \
 	module/zfs/zio_inject.c \
 	module/zfs/zle.c \
 	module/zfs/zrlock.c \
+	module/zfs/zstat.c \
 	module/zfs/zthr.c
 
 # Special case:
