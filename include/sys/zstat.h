@@ -29,12 +29,14 @@
 
 typedef enum ztat_type {
 	_ZSTAT_TYPE_OFFSET,
-	ZSTAT_TYPE_COUNTER,
+	_ZSTAT_TYPE_COUNTER,
 } zstat_type_t;
 
-#define _ZSTAT_GROUP(t, n)	\
+#define	ZSTAT_COUNTER		_ZSTAT_TYPE_COUNTER
+
+#define	_ZSTAT_GROUP(t, n)	\
 	(((uint32_t)(t & 0xffff)) | (((uint32_t)n) << 16))
-#define ZSTAT_COUNTER_GROUP(n)	_ZSTAT_GROUP(ZSTAT_TYPE_COUNTER, (n))
+#define	ZSTAT_COUNTER_GROUP(n)	_ZSTAT_GROUP(_ZSTAT_TYPE_COUNTER, (n))
 
 typedef struct zstat_def {
 	const char	*zst_name;
@@ -59,7 +61,7 @@ zstat_t *zstat_create(const char *name, const zstat_def_t *def, uint_t ndefs);
 void zstat_destroy(zstat_t *zst);
 
 static inline void _zstat_slot_add(zstat_slot_t *slot, int64_t v) {
-	ASSERT3U(slot->zst_type, ==, ZSTAT_TYPE_COUNTER);
+	ASSERT3U(slot->zst_type, ==, _ZSTAT_TYPE_COUNTER);
 	wmsum_add(&slot->zst_counter, v);
 }
 #define	zstat_add(zst, n, v)	_zstat_slot_add(&(zst)->zst_slots[(n)], v)

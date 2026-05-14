@@ -39,7 +39,7 @@ zstat_kstat_update(kstat_t *ksp, int rw)
 			continue;
 
 		switch (slot->zst_type) {
-		case ZSTAT_TYPE_COUNTER:
+		case _ZSTAT_TYPE_COUNTER:
 			kstat->value.ui64 = wmsum_value(&slot->zst_counter);
 			break;
 		default:
@@ -53,7 +53,7 @@ zstat_kstat_update(kstat_t *ksp, int rw)
 }
 /*
  * XXX mappings for other stat types
- *       ZSTAT_TYPE_COUNTER -> KSTAT_DATA_UINT64, wmsum_t
+ *       _ZSTAT_TYPE_COUNTER -> KSTAT_DATA_UINT64, wmsum_t
  *       gauge? same?
  *       histogram?
  *       quantile?
@@ -99,7 +99,7 @@ zstat_create(const char *name, const zstat_def_t *def, uint_t ndef)
 		for (uint_t n = 0; n < count; n++, slot++) {
 			slot->zst_type = type;
 			switch (type) {
-			case ZSTAT_TYPE_COUNTER:
+			case _ZSTAT_TYPE_COUNTER:
 				wmsum_init(&slot->zst_counter, 0);
 				break;
 			default:
@@ -148,7 +148,7 @@ zstat_create(const char *name, const zstat_def_t *def, uint_t ndef)
 
 		zstat_type_t type = def[i].zst_type & 0xffff;
 		switch (type) {
-		case ZSTAT_TYPE_COUNTER:
+		case _ZSTAT_TYPE_COUNTER:
 			kstat->data_type = KSTAT_DATA_UINT64;
 			break;
 		default:
@@ -173,7 +173,7 @@ zstat_create(const char *name, const zstat_def_t *def, uint_t ndef)
 				    "_%u", n);
 
 			switch (type) {
-			case ZSTAT_TYPE_COUNTER:
+			case _ZSTAT_TYPE_COUNTER:
 				kstat->data_type = KSTAT_DATA_UINT64;
 				break;
 			default:
@@ -201,7 +201,7 @@ zstat_destroy(zstat_t *zst)
 	for (uint_t i = 0; i < zst->zst_nslots; i++) {
 		zstat_slot_t *slot = &zst->zst_slots[i];
 		switch (slot->zst_type) {
-		case ZSTAT_TYPE_COUNTER:
+		case _ZSTAT_TYPE_COUNTER:
 			wmsum_fini(&slot->zst_counter);
 			break;
 		default:
