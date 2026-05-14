@@ -278,7 +278,7 @@ enum {
 	BRTSTAT_MAX,
 };
 
-static zstat_def_t brt_stats_def[] = {
+static const zstat_def_t brt_stats_def[] = {
 	{ "addref_entry_not_on_disk",		ZSTAT_TYPE_COUNTER },
 	{ "addref_entry_on_disk",		ZSTAT_TYPE_COUNTER },
 	{ "decref_entry_in_memory",		ZSTAT_TYPE_COUNTER },
