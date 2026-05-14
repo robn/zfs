@@ -279,19 +279,19 @@ enum {
 };
 
 static const zstat_def_t brt_stats_def[] = {
-	{ "addref_entry_not_on_disk",		ZSTAT_COUNTER },
-	{ "addref_entry_on_disk",		ZSTAT_COUNTER },
-	{ "decref_entry_in_memory",		ZSTAT_COUNTER },
-	{ "decref_entry_loaded_from_disk",	ZSTAT_COUNTER },
-	{ "decref_entry_not_in_memory",		ZSTAT_COUNTER },
-	{ "decref_entry_read_lost_race",	ZSTAT_COUNTER },
-	{ "decref_entry_still_referenced",	ZSTAT_COUNTER },
-	{ "decref_free_data_later",		ZSTAT_COUNTER },
-	{ "decref_free_data_now",		ZSTAT_COUNTER },
-	{ "decref_no_entry",			ZSTAT_COUNTER },
+	{ "addref_entry_not_on_disk",		ZSTAT_COUNTER_PERCPU },
+	{ "addref_entry_on_disk",		ZSTAT_COUNTER_PERCPU },
+	{ "decref_entry_in_memory",		ZSTAT_COUNTER_PERCPU },
+	{ "decref_entry_loaded_from_disk",	ZSTAT_COUNTER_PERCPU },
+	{ "decref_entry_not_in_memory",		ZSTAT_COUNTER_PERCPU },
+	{ "decref_entry_read_lost_race",	ZSTAT_COUNTER_PERCPU },
+	{ "decref_entry_still_referenced",	ZSTAT_COUNTER_PERCPU },
+	{ "decref_free_data_later",		ZSTAT_COUNTER_PERCPU },
+	{ "decref_free_data_now",		ZSTAT_COUNTER_PERCPU },
+	{ "decref_no_entry",			ZSTAT_COUNTER_PERCPU },
 };
 
-#define		BRTSTAT_BUMP(stat)	zstat_inc(brt_zstat, (stat))
+#define	BRTSTAT_BUMP(stat)	zstat_counter_percpu_inc(brt_zstat, stat)
 
 static int brt_entry_compare(const void *x1, const void *x2);
 static void brt_vdevs_expand(spa_t *spa, uint64_t nvdevs);

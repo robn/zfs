@@ -90,73 +90,77 @@ static zstat_def_t dbuf_zstat_def[] = {
 	/*
 	 * Various statistics about the size of the dbuf cache.
 	 */
-	{ "cache_count",		ZSTAT_COUNTER },
-	{ "cache_size_bytes",		ZSTAT_COUNTER },
-	{ "cache_size_bytes_max",	ZSTAT_COUNTER },
+	{ "cache_count",		ZSTAT_COUNTER_PERCPU },
+	{ "cache_size_bytes",		ZSTAT_COUNTER_PERCPU },
+	{ "cache_size_bytes_max",	ZSTAT_COUNTER_PERCPU },
 	/*
 	 * Statistics regarding the bounds on the dbuf cache size.
 	 */
-	{ "cache_target_bytes",		ZSTAT_COUNTER },
-	{ "cache_lowater_bytes",	ZSTAT_COUNTER },
-	{ "cache_hiwater_bytes",	ZSTAT_COUNTER },
+	{ "cache_target_bytes",		ZSTAT_COUNTER_PERCPU },
+	{ "cache_lowater_bytes",	ZSTAT_COUNTER_PERCPU },
+	{ "cache_hiwater_bytes",	ZSTAT_COUNTER_PERCPU },
 	/*
 	 * Total number of dbuf cache evictions that have occurred.
 	 */
-	{ "cache_total_evicts",		ZSTAT_COUNTER },
+	{ "cache_total_evicts",		ZSTAT_COUNTER_PERCPU },
 	/*
 	 * The distribution of dbuf levels in the dbuf cache and
 	 * the total size of all dbufs at each level.
 	 */
-	{ "cache_levels",		ZSTAT_COUNTER_GROUP(DN_MAX_LEVELS) },
-	{ "cache_levels_bytes",		ZSTAT_COUNTER_GROUP(DN_MAX_LEVELS) },
+	{ "cache_levels",
+	    ZSTAT_COUNTER_PERCPU_GROUP(DN_MAX_LEVELS) },
+	{ "cache_levels_bytes",
+	    ZSTAT_COUNTER_PERCPU_GROUP(DN_MAX_LEVELS) },
 	/*
 	 * Statistics about the dbuf hash table.
 	 */
-	{ "hash_hits",			ZSTAT_COUNTER },
-	{ "hash_misses",		ZSTAT_COUNTER },
-	{ "hash_collisions",		ZSTAT_COUNTER },
-	{ "hash_elements",		ZSTAT_COUNTER },
+	{ "hash_hits",			ZSTAT_COUNTER_PERCPU },
+	{ "hash_misses",		ZSTAT_COUNTER_PERCPU },
+	{ "hash_collisions",		ZSTAT_COUNTER_PERCPU },
+	{ "hash_elements",		ZSTAT_COUNTER_PERCPU },
 	/*
 	 * Number of sublists containing more than one dbuf in the dbuf
 	 * hash table. Keep track of the longest hash chain.
 	 */
-	{ "hash_chains",		ZSTAT_COUNTER },
-	{ "hash_chain_max",		ZSTAT_COUNTER },
+	{ "hash_chains",		ZSTAT_COUNTER_PERCPU },
+	{ "hash_chain_max",		ZSTAT_COUNTER_PERCPU },
 	/*
 	 * Number of times a dbuf_create() discovers that a dbuf was
 	 * already created and in the dbuf hash table.
 	 */
-	{ "hash_insert_race",		ZSTAT_COUNTER },
+	{ "hash_insert_race",		ZSTAT_COUNTER_PERCPU },
 	/*
 	 * Number of entries in the hash table dbuf and mutex arrays.
 	 */
-	{ "hash_table_count",		ZSTAT_COUNTER },
-	{ "hash_mutex_count",		ZSTAT_COUNTER },
+	{ "hash_table_count",		ZSTAT_COUNTER_PERCPU },
+	{ "hash_mutex_count",		ZSTAT_COUNTER_PERCPU },
 	/*
 	 * Statistics about the size of the metadata dbuf cache.
 	 */
-	{ "metadata_cache_count",	ZSTAT_COUNTER },
-	{ "metadata_cache_size_bytes",	ZSTAT_COUNTER },
-	{ "metadata_cache_size_bytes_max",	ZSTAT_COUNTER },
+	{ "metadata_cache_count",	ZSTAT_COUNTER_PERCPU },
+	{ "metadata_cache_size_bytes",	ZSTAT_COUNTER_PERCPU },
+	{ "metadata_cache_size_bytes_max",	ZSTAT_COUNTER_PERCPU },
 	/*
 	 * For diagnostic purposes, this is incremented whenever we can't add
 	 * something to the metadata cache because it's full, and instead put
 	 * the data in the regular dbuf cache.
 	 */
-	{ "metadata_cache_overflow",	ZSTAT_COUNTER }
+	{ "metadata_cache_overflow",	ZSTAT_COUNTER_PERCPU }
 };
 
-#define	DBUFSTAT_ADD(stat, val)	zstat_add(dbuf_zstat, (stat), (val))
-#define	DBUFSTAT_SUB(stat, val)	zstat_sub(dbuf_zstat, (stat), (val))
-#define	DBUFSTAT_INC(stat)	zstat_inc(dbuf_zstat, (stat))
-#define	DBUFSTAT_DEC(stat)	zstat_dec(dbuf_zstat, (stat))
+#define	DBUFSTAT_ADD(stat, val)	zstat_counter_percpu_add(dbuf_zstat, stat, (v))
+#define	DBUFSTAT_SUB(stat, val)	zstat_counter_precpu_sub(dbuf_zstat, stat, (v))
+#define	DBUFSTAT_INC(stat)	zstat_counter_percpu_inc(dbuf_zstat, stat)
+#define	DBUFSTAT_DEC(stat)	zstat_counter_percpu_dec(dbuf_zstat, stat)
 
 #define	DBUFSTAT_ADD_G(stat, i, val)	\
-	zstat_add_g(dbuf_zstat, (stat), i, (val))
+	zstat_counter_percpu_add_g(dbuf_zstat, (stat), i, (val))
 #define	DBUFSTAT_SUB_G(stat, i, val)	\
-	zstat_sub_g(dbuf_zstat, (stat), i, (val))
-#define	DBUFSTAT_INC_G(stat, i)	zstat_inc_g(dbuf_zstat, (stat), i)
-#define	DBUFSTAT_DEC_G(stat, i)	zstat_dec_g(dbuf_zstat, (stat), i)
+	zstat_counter_percpu_sub_g(dbuf_zstat, (stat), i, (val))
+#define	DBUFSTAT_INC_G(stat, i)		\
+	zstat_counter_percpu_inc_g(dbuf_zstat, (stat), i)
+#define	DBUFSTAT_DEC_G(stat, i)		\
+	zstat_counter_percpu_dec_g(dbuf_zstat, (stat), i)
 
 #define	DBUF_STAT_MAX(stat, v) {					\
 	uint64_t _m;							\

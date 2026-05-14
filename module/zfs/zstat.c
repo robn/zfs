@@ -39,8 +39,13 @@ zstat_kstat_update(kstat_t *ksp, int rw)
 			continue;
 
 		switch (slot->zst_type) {
-		case _ZSTAT_TYPE_COUNTER:
-			kstat->value.ui64 = wmsum_value(&slot->zst_counter);
+		case _ZSTAT_TYPE_COUNTER_ATOMIC:
+			kstat->value.ui64 =
+			    atomic_load_64(&slot->zst_counter_atomic);
+			break;
+		case _ZSTAT_TYPE_COUNTER_PERCPU:
+			kstat->value.ui64 =
+			    wmsum_value(&slot->zst_counter_percpu);
 			break;
 		default:
 			__builtin_unreachable();
@@ -99,8 +104,11 @@ zstat_create(const char *name, const zstat_def_t *def, uint_t ndef)
 		for (uint_t n = 0; n < count; n++, slot++) {
 			slot->zst_type = type;
 			switch (type) {
-			case _ZSTAT_TYPE_COUNTER:
-				wmsum_init(&slot->zst_counter, 0);
+			case _ZSTAT_TYPE_COUNTER_ATOMIC:
+				atomic_store_64(&slot->zst_counter_atomic, 0);
+				break;
+			case _ZSTAT_TYPE_COUNTER_PERCPU:
+				wmsum_init(&slot->zst_counter_percpu, 0);
 				break;
 			default:
 				__builtin_unreachable();
@@ -150,7 +158,8 @@ zstat_create(const char *name, const zstat_def_t *def, uint_t ndef)
 		strlcpy(kstat->name, def[i].zst_name, KSTAT_STRLEN);
 
 		switch (type) {
-		case _ZSTAT_TYPE_COUNTER:
+		case _ZSTAT_TYPE_COUNTER_ATOMIC:
+		case _ZSTAT_TYPE_COUNTER_PERCPU:
 			kstat->data_type = KSTAT_DATA_UINT64;
 			break;
 		default:
@@ -175,7 +184,8 @@ zstat_create(const char *name, const zstat_def_t *def, uint_t ndef)
 				    "_%u", n);
 
 			switch (type) {
-			case _ZSTAT_TYPE_COUNTER:
+			case _ZSTAT_TYPE_COUNTER_ATOMIC:
+			case _ZSTAT_TYPE_COUNTER_PERCPU:
 				kstat->data_type = KSTAT_DATA_UINT64;
 				break;
 			default:
@@ -203,8 +213,10 @@ zstat_destroy(zstat_t *zst)
 	for (uint_t i = 0; i < zst->zst_nslots; i++) {
 		zstat_slot_t *slot = &zst->zst_slots[i];
 		switch (slot->zst_type) {
-		case _ZSTAT_TYPE_COUNTER:
-			wmsum_fini(&slot->zst_counter);
+		case _ZSTAT_TYPE_COUNTER_ATOMIC:
+			break;
+		case _ZSTAT_TYPE_COUNTER_PERCPU:
+			wmsum_fini(&slot->zst_counter_percpu);
 			break;
 		default:
 			__builtin_unreachable();

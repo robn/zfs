@@ -89,64 +89,65 @@ enum {
 
 const zstat_def_t abd_stats_def[] = {
 	/* Amount of memory occupied by all of the abd_t struct allocations */
-	{ "struct_size",		ZSTAT_COUNTER },
+	{ "struct_size",		ZSTAT_COUNTER_PERCPU },
 	/*
 	 * The number of linear ABDs which are currently allocated, excluding
 	 * ABDs which don't own their data (for instance the ones which were
 	 * allocated through abd_get_offset() and abd_get_from_buf()). If an
 	 * ABD takes ownership of its buf then it will become tracked.
 	 */
-	{ "linear_cnt",			ZSTAT_COUNTER },
+	{ "linear_cnt",			ZSTAT_COUNTER_PERCPU },
 	/* Amount of data stored in all linear ABDs tracked by linear_cnt */
-	{ "linear_data_size",		ZSTAT_COUNTER },
+	{ "linear_data_size",		ZSTAT_COUNTER_PERCPU },
 	/*
 	 * The number of scatter ABDs which are currently allocated, excluding
 	 * ABDs which don't own their data (for instance the ones which were
 	 * allocated through abd_get_offset()).
 	 */
-	{ "scatter_cnt",		ZSTAT_COUNTER },
+	{ "scatter_cnt",		ZSTAT_COUNTER_PERCPU },
 	/* Amount of data stored in all scatter ABDs tracked by scatter_cnt */
-	{ "scatter_data_size",		ZSTAT_COUNTER },
+	{ "scatter_data_size",		ZSTAT_COUNTER_PERCPU },
 	/*
 	 * The amount of space wasted at the end of the last chunk across all
 	 * scatter ABDs tracked by scatter_cnt.
 	 */
-	{ "scatter_chunk_waste",	ZSTAT_COUNTER },
+	{ "scatter_chunk_waste",	ZSTAT_COUNTER_PERCPU },
 	/*
 	 * The number of compound allocations of a given order.  These
 	 * allocations are spread over all currently allocated ABDs, and
 	 * act as a measure of memory fragmentation.
 	 */
-	{ "scatter_order",		ZSTAT_COUNTER_GROUP(ABD_MAX_ORDER) },
+	{ "scatter_order", \
+	    ZSTAT_COUNTER_PERCPU_GROUP(ABD_MAX_ORDER) },
 	/*
 	 * The number of scatter ABDs which contain multiple chunks.
 	 * ABDs are preferentially allocated from the minimum number of
 	 * contiguous multi-page chunks, a single chunk is optimal.
 	 */
-	{ "scatter_page_multi_chunk",	ZSTAT_COUNTER },
+	{ "scatter_page_multi_chunk",	ZSTAT_COUNTER_PERCPU },
 	/*
 	 * The number of scatter ABDs which are split across memory zones.
 	 * ABDs are preferentially allocated using pages from a single zone.
 	 */
-	{ "scatter_page_multi_zone",	ZSTAT_COUNTER },
+	{ "scatter_page_multi_zone",	ZSTAT_COUNTER_PERCPU },
 	/*
 	 *  The total number of retries encountered when attempting to
 	 *  allocate the pages to populate the scatter ABD.
 	 */
-	{ "scatter_page_alloc_retry",	ZSTAT_COUNTER },
+	{ "scatter_page_alloc_retry",	ZSTAT_COUNTER_PERCPU },
 	/*
 	 *  The total number of retries encountered when attempting to
 	 *  allocate the sg table for an ABD.
 	 */
-	{ "scatter_sg_table_retry",	ZSTAT_COUNTER },
+	{ "scatter_sg_table_retry",	ZSTAT_COUNTER_PERCPU },
 };
 
-#define	ABDSTAT_ADD(stat, val)	zstat_add(abd_zstat, (stat), (val))
-#define	ABDSTAT_INC(stat)	zstat_inc(abd_zstat, (stat))
-#define	ABDSTAT_DEC(stat)	zstat_dec(abd_zstat, (stat))
+#define	ABDSTAT_ADD(stat, v)	zstat_counter_percpu_add(abd_zstat, (stat), (v))
+#define	ABDSTAT_INC(stat)	zstat_counter_percpu_inc(abd_zstat, (stat))
+#define	ABDSTAT_DEC(stat)	zstat_counter_percpu_dec(abd_zstat, (stat))
 
-#define	ABDSTAT_INC_G(stat, i)	zstat_inc_g(abd_zstat, (stat), i)
-#define	ABDSTAT_DEC_G(stat, i)	zstat_dec_g(abd_zstat, (stat), i)
+#define	ABDSTAT_INC_G(stat, i)	zstat_counter_percpu_inc_g(abd_zstat, (stat), i)
+#define	ABDSTAT_DEC_G(stat, i)	zstat_counter_percpu_dec_g(abd_zstat, (stat), i)
 
 #define	abd_for_each_sg(abd, sg, n, i)	\
 	for_each_sg(ABD_SCATTER(abd).abd_sgl, sg, n, i)
