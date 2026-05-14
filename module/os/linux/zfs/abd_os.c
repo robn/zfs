@@ -79,7 +79,7 @@ enum {
 	ABDSTAT_SCATTER_CNT,
 	ABDSTAT_SCATTER_DATA_SIZE,
 	ABDSTAT_SCATTER_CHUNK_WASTE,
-	//ABDSTAT_SCATTER_ORDERS,
+	ABDSTAT_SCATTER_ORDERS,
 	ABDSTAT_SCATTER_PAGE_MULTI_CHUNK,
 	ABDSTAT_SCATTER_PAGE_MULTI_ZONE,
 	ABDSTAT_SCATTER_PAGE_ALLOC_RETRY,
@@ -89,65 +89,64 @@ enum {
 
 const zstat_def_t abd_stats_def[] = {
 	/* Amount of memory occupied by all of the abd_t struct allocations */
-	{ "struct_size",			ZSTAT_TYPE_COUNTER },
+	{ "struct_size",		ZSTAT_TYPE_COUNTER },
 	/*
 	 * The number of linear ABDs which are currently allocated, excluding
 	 * ABDs which don't own their data (for instance the ones which were
 	 * allocated through abd_get_offset() and abd_get_from_buf()). If an
 	 * ABD takes ownership of its buf then it will become tracked.
 	 */
-	{ "linear_cnt",				ZSTAT_TYPE_COUNTER },
+	{ "linear_cnt",			ZSTAT_TYPE_COUNTER },
 	/* Amount of data stored in all linear ABDs tracked by linear_cnt */
-	{ "linear_data_size",			ZSTAT_TYPE_COUNTER },
+	{ "linear_data_size",		ZSTAT_TYPE_COUNTER },
 	/*
 	 * The number of scatter ABDs which are currently allocated, excluding
 	 * ABDs which don't own their data (for instance the ones which were
 	 * allocated through abd_get_offset()).
 	 */
-	{ "scatter_cnt",			ZSTAT_TYPE_COUNTER },
+	{ "scatter_cnt",		ZSTAT_TYPE_COUNTER },
 	/* Amount of data stored in all scatter ABDs tracked by scatter_cnt */
-	{ "scatter_data_size",			ZSTAT_TYPE_COUNTER },
+	{ "scatter_data_size",		ZSTAT_TYPE_COUNTER },
 	/*
 	 * The amount of space wasted at the end of the last chunk across all
 	 * scatter ABDs tracked by scatter_cnt.
 	 */
-	{ "scatter_chunk_waste",		ZSTAT_TYPE_COUNTER },
+	{ "scatter_chunk_waste",	ZSTAT_TYPE_COUNTER },
 	/*
 	 * The number of compound allocations of a given order.  These
 	 * allocations are spread over all currently allocated ABDs, and
 	 * act as a measure of memory fragmentation.
 	 */
-	//{ { "scatter_order_N",			ZSTAT_TYPE_COUNTER } },
+	{ "scatter_order",		ZSTAT_COUNTER_GROUP(ABD_MAX_ORDER) },
 	/*
 	 * The number of scatter ABDs which contain multiple chunks.
 	 * ABDs are preferentially allocated from the minimum number of
 	 * contiguous multi-page chunks, a single chunk is optimal.
 	 */
-	[ABDSTAT_SCATTER_PAGE_MULTI_CHUNK] =
-	    { "scatter_page_multi_chunk",	ZSTAT_TYPE_COUNTER },
+	{ "scatter_page_multi_chunk",	ZSTAT_TYPE_COUNTER },
 	/*
 	 * The number of scatter ABDs which are split across memory zones.
 	 * ABDs are preferentially allocated using pages from a single zone.
 	 */
-	[ABDSTAT_SCATTER_PAGE_MULTI_ZONE] =
-	    { "scatter_page_multi_zone",	ZSTAT_TYPE_COUNTER },
+	{ "scatter_page_multi_zone",	ZSTAT_TYPE_COUNTER },
 	/*
 	 *  The total number of retries encountered when attempting to
 	 *  allocate the pages to populate the scatter ABD.
 	 */
-	[ABDSTAT_SCATTER_PAGE_ALLOC_RETRY] =
-	    { "scatter_page_alloc_retry",	ZSTAT_TYPE_COUNTER },
+	{ "scatter_page_alloc_retry",	ZSTAT_TYPE_COUNTER },
 	/*
 	 *  The total number of retries encountered when attempting to
 	 *  allocate the sg table for an ABD.
 	 */
-	[ABDSTAT_SCATTER_SG_TABLE_RETRY] =
-	    { "scatter_sg_table_retry",		ZSTAT_TYPE_COUNTER },
+	{ "scatter_sg_table_retry",	ZSTAT_TYPE_COUNTER },
 };
 
 #define	ABDSTAT_ADD(stat, val)	zstat_add(abd_zstat, (stat), (val))
 #define	ABDSTAT_INC(stat)	zstat_inc(abd_zstat, (stat))
 #define	ABDSTAT_DEC(stat)	zstat_dec(abd_zstat, (stat))
+
+#define	ABDSTAT_INC_G(stat, i)	zstat_inc_g(abd_zstat, (stat), i)
+#define	ABDSTAT_DEC_G(stat, i)	zstat_dec_g(abd_zstat, (stat), i)
 
 #define	abd_for_each_sg(abd, sg, n, i)	\
 	for_each_sg(ABD_SCATTER(abd).abd_sgl, sg, n, i)
@@ -305,7 +304,7 @@ abd_alloc_chunks(abd_t *abd, size_t size)
 			zones++;
 
 		nid = page_to_nid(page);
-		//ABDSTAT_INC(ABDSTAT_SCATTER_ORDERS+order);
+		ABDSTAT_INC_G(ABDSTAT_SCATTER_ORDERS, order);
 		chunks++;
 		alloc_pages += chunk_pages;
 	}
@@ -408,7 +407,7 @@ abd_alloc_chunks(abd_t *abd, size_t size)
 			schedule_timeout_interruptible(1);
 		}
 
-		//ABDSTAT_INC(ABDSTAT_SCATTER_ORDERS);
+		ABDSTAT_INC_G(ABDSTAT_SCATTER_ORDERS, 0);
 		sg_set_page(sg, page, PAGESIZE, 0);
 		abd_mark_zfs_page(page);
 	}
@@ -459,7 +458,7 @@ abd_free_chunks(abd_t *abd)
 			order = compound_order(page);
 			__free_pages(page, order);
 			ASSERT3U(sg->length, <=, PAGE_SIZE << order);
-			//ABDSTAT_BUMPDOWN(abdstat_scatter_orders[order]);
+			ABDSTAT_DEC_G(ABDSTAT_SCATTER_ORDERS, order);
 		}
 	}
 

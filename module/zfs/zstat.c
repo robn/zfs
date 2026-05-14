@@ -30,11 +30,24 @@ zstat_kstat_update(kstat_t *ksp, int rw)
 		return (EACCES);
 
 	zstat_t *zst = ksp->ks_private;
-	kstat_named_t *kstats = (kstat_named_t *)ksp->ks_data;
 
-	// XXX mapping
-	for (uint_t i = 0; i < zst->zst_nstat; i++)
-		kstats[i].value.ui64 = wmsum_value(&zst->zst_sums[i]);
+	kstat_named_t *kstat = (kstat_named_t *)ksp->ks_data;
+
+	for (uint_t i = 0; i < zst->zst_nslots; i++) {
+		zstat_slot_t *slot = &zst->zst_slots[i];
+		if (slot->zst_type == _ZSTAT_TYPE_OFFSET)
+			continue;
+
+		switch (slot->zst_type) {
+		case ZSTAT_TYPE_COUNTER:
+			kstat->value.ui64 = wmsum_value(&slot->zst_counter);
+			break;
+		default:
+			__builtin_unreachable();
+		}
+
+		kstat++;
+	}
 
 	return (0);
 }
@@ -50,18 +63,55 @@ zstat_kstat_update(kstat_t *ksp, int rw)
 zstat_t *
 zstat_create(const char *name, const zstat_def_t *def, uint_t ndef)
 {
-	zstat_t *zst = kmem_alloc(sizeof (zstat_t) + ndef * sizeof (wmsum_t),
-	    KM_SLEEP);
-
-	zst->zst_nstat = ndef;
+	/*
+	 * Determine number of slots. One for each definition, plus extras for
+	 * stat groups.
+	 */
+	uint_t nslots = ndef;
 	for (uint_t i = 0; i < ndef; i++)
-		wmsum_init(&zst->zst_sums[i], 0); // XXX type mapping
+		nslots += (def[i].zst_type >> 16) & 0xffff;
 
-	/* XXX for now, they're all bolted to kstats; in the future something a
-	 *     bit more generic, or not at all -- robn, 2024-05-22 */
+	/* Allocate the zstat container with slots at the end. */
+	zstat_t *zst = kmem_alloc(sizeof (zstat_t) +
+	    nslots * sizeof (zstat_slot_t), KM_SLEEP);
+	zst->zst_nslots = nslots;
 
 	/*
-	 * split and rewrite name into kstats module and statname.
+	 * Initialise each slot. When we come across a group, make it an offset
+	 * slot, and then take that many slots from the tail and initialise
+	 * those with the wanted type.
+	 */
+	uint_t tail = ndef, nstats = 0;
+	for (uint_t i = 0; i < ndef; i++) {
+		zstat_type_t type = def[i].zst_type & 0xffff;
+
+		zstat_slot_t *slot = &zst->zst_slots[i];
+		uint_t count = (def[i].zst_type >> 16) & 0xffff;
+		if (count > 0) {
+			slot->zst_type = _ZSTAT_TYPE_OFFSET;
+			slot->zst_offset = tail - i;
+			slot += slot->zst_offset;
+			tail += count;
+		} else {
+			count = 1;
+		}
+
+		for (uint_t n = 0; n < count; n++, slot++) {
+			slot->zst_type = type;
+			switch (type) {
+			case ZSTAT_TYPE_COUNTER:
+				wmsum_init(&slot->zst_counter, 0);
+				break;
+			default:
+				__builtin_unreachable();
+			}
+		}
+
+		nstats += count;
+	}
+
+	/*
+	 * Split and rewrite name into kstats module and statname.
 	 *   foo.bar.baz => module=foo/bar, statname=baz
 	 */
 	char modulename[KSTAT_STRLEN], *statname = NULL, *p = modulename;
@@ -73,19 +123,71 @@ zstat_create(const char *name, const zstat_def_t *def, uint_t ndef)
 	if (statname > modulename)
 		statname[-1] = '\0';
 
-	zst->zst_ksp = kstat_create(modulename, 0, statname, "misc",
-	    KSTAT_TYPE_NAMED, ndef, 0);
-	if (zst->zst_ksp == NULL)
+	/*
+	 * Allocate kstat. This might fail, but that shouldn't fail the zstat
+	 * creation, as kstats are not the only way that this might be used.
+	 */
+	kstat_t *ksp = kstat_create(modulename, 0, statname, "misc",
+	    KSTAT_TYPE_NAMED, nstats, 0);
+	if (ksp == NULL)
 		return (zst);
 
-	kstat_named_t *kstats = (kstat_named_t *)zst->zst_ksp->ks_data;
+	/*
+	 * Now create the kstats. We want them to have the same order as the
+	 * slots array to make updating them just a walk through both lists.
+	 * So we do it in two passes: first the non-offset slots, then the
+	 * offset slots resolved into stat groups.
+	 */
+	kstat_named_t *kstat = (kstat_named_t *)ksp->ks_data;
 	for (uint_t i = 0; i < ndef; i++) {
-		strlcpy(kstats[i].name, def[i].zst_name, KSTAT_STRLEN);
-		kstats[i].data_type = KSTAT_DATA_UINT64; // XXX kstat mapping
+		/* First pass; skip offset slots */
+		if (((def[i].zst_type >> 16) & 0xffff) != 0)
+			continue;
+
+		strlcpy(kstat->name, def[i].zst_name, KSTAT_STRLEN);
+
+		zstat_type_t type = def[i].zst_type & 0xffff;
+		switch (type) {
+		case ZSTAT_TYPE_COUNTER:
+			kstat->data_type = KSTAT_DATA_UINT64;
+			break;
+		default:
+			__builtin_unreachable();
+		}
+
+		kstat++;
 	}
-	zst->zst_ksp->ks_update = zstat_kstat_update;
-	zst->zst_ksp->ks_private = zst;
-	kstat_install(zst->zst_ksp);
+	for (uint_t i = 0; i < ndef; i++) {
+		/* Second pass; skip non-offset slots */
+		uint_t count = (def[i].zst_type >> 16) & 0xffff;
+		if (count == 0)
+			continue;
+
+		zstat_type_t type = def[i].zst_type & 0xffff;
+
+		for (u_int n = 0; n < count; n++) {
+			size_t end =
+			    strlcpy(kstat->name, def[i].zst_name, KSTAT_STRLEN);
+			if (end < KSTAT_STRLEN)
+				snprintf(&kstat->name[end], KSTAT_STRLEN-end,
+				    "_%u", n);
+
+			switch (type) {
+			case ZSTAT_TYPE_COUNTER:
+				kstat->data_type = KSTAT_DATA_UINT64;
+				break;
+			default:
+				__builtin_unreachable();
+			}
+
+			kstat++;
+		}
+	}
+
+	ksp->ks_update = zstat_kstat_update;
+	ksp->ks_private = zst;
+	kstat_install(ksp);
+	zst->zst_ksp = ksp;
 
 	return (zst);
 }
@@ -96,8 +198,16 @@ zstat_destroy(zstat_t *zst)
 	if (zst->zst_ksp != NULL)
 		kstat_delete(zst->zst_ksp);
 
-	for (uint_t i = 0; i < zst->zst_nstat; i++)
-		wmsum_fini(&zst->zst_sums[i]);	// XXX type mapping
+	for (uint_t i = 0; i < zst->zst_nslots; i++) {
+		zstat_slot_t *slot = &zst->zst_slots[i];
+		switch (slot->zst_type) {
+		case ZSTAT_TYPE_COUNTER:
+			wmsum_fini(&slot->zst_counter);
+			break;
+		default:
+			__builtin_unreachable();
+		}
+	}
 
-	kmem_free(zst, sizeof (zstat_t) + zst->zst_nstat * sizeof (wmsum_t));
+	kmem_free(zst, sizeof (zstat_t) + zst->zst_nslots * sizeof (wmsum_t));
 }
