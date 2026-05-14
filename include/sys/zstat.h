@@ -32,16 +32,17 @@ typedef enum ztat_type {
 	_ZSTAT_TYPE_COUNTER,
 } zstat_type_t;
 
-#define	ZSTAT_COUNTER		_ZSTAT_TYPE_COUNTER
-
-#define	_ZSTAT_GROUP(t, n)	\
-	(((uint32_t)(t & 0xffff)) | (((uint32_t)n) << 16))
-#define	ZSTAT_COUNTER_GROUP(n)	_ZSTAT_GROUP(_ZSTAT_TYPE_COUNTER, (n))
-
 typedef struct zstat_def {
-	const char	*zst_name;
-	uint32_t	zst_type;
+	const char		*zst_name;
+	struct {
+		zstat_type_t	zst_type;
+		uint_t		zst_ngrouped;
+	};
 } zstat_def_t;
+
+#define	ZSTAT_COUNTER		{ _ZSTAT_TYPE_COUNTER, 0 }
+#define	_ZSTAT_GROUP(t, n)	{ t, n }
+#define	ZSTAT_COUNTER_GROUP(n)	_ZSTAT_GROUP(_ZSTAT_TYPE_COUNTER, n)
 
 typedef struct zstat_slot {
 	zstat_type_t	zst_type;

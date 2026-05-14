@@ -69,7 +69,7 @@ zstat_create(const char *name, const zstat_def_t *def, uint_t ndef)
 	 */
 	uint_t nslots = ndef;
 	for (uint_t i = 0; i < ndef; i++)
-		nslots += (def[i].zst_type >> 16) & 0xffff;
+		nslots += def[i].zst_ngrouped;
 
 	/* Allocate the zstat container with slots at the end. */
 	zstat_t *zst = kmem_alloc(sizeof (zstat_t) +
@@ -83,10 +83,10 @@ zstat_create(const char *name, const zstat_def_t *def, uint_t ndef)
 	 */
 	uint_t tail = ndef, nstats = 0;
 	for (uint_t i = 0; i < ndef; i++) {
-		zstat_type_t type = def[i].zst_type & 0xffff;
+		zstat_type_t type = def[i].zst_type;
+		uint_t count = def[i].zst_ngrouped;
 
 		zstat_slot_t *slot = &zst->zst_slots[i];
-		uint_t count = (def[i].zst_type >> 16) & 0xffff;
 		if (count > 0) {
 			slot->zst_type = _ZSTAT_TYPE_OFFSET;
 			slot->zst_offset = tail - i;
@@ -140,13 +140,15 @@ zstat_create(const char *name, const zstat_def_t *def, uint_t ndef)
 	 */
 	kstat_named_t *kstat = (kstat_named_t *)ksp->ks_data;
 	for (uint_t i = 0; i < ndef; i++) {
+		zstat_type_t type = def[i].zst_type;
+		uint_t count = def[i].zst_ngrouped;
+
 		/* First pass; skip offset slots */
-		if (((def[i].zst_type >> 16) & 0xffff) != 0)
+		if (count != 0)
 			continue;
 
 		strlcpy(kstat->name, def[i].zst_name, KSTAT_STRLEN);
 
-		zstat_type_t type = def[i].zst_type & 0xffff;
 		switch (type) {
 		case _ZSTAT_TYPE_COUNTER:
 			kstat->data_type = KSTAT_DATA_UINT64;
@@ -158,12 +160,12 @@ zstat_create(const char *name, const zstat_def_t *def, uint_t ndef)
 		kstat++;
 	}
 	for (uint_t i = 0; i < ndef; i++) {
+		zstat_type_t type = def[i].zst_type;
+		uint_t count = def[i].zst_ngrouped;
+
 		/* Second pass; skip non-offset slots */
-		uint_t count = (def[i].zst_type >> 16) & 0xffff;
 		if (count == 0)
 			continue;
-
-		zstat_type_t type = def[i].zst_type & 0xffff;
 
 		for (u_int n = 0; n < count; n++) {
 			size_t end =
