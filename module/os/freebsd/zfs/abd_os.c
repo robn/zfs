@@ -34,51 +34,44 @@
 #include <sys/zfs_context.h>
 #include <sys/zfs_znode.h>
 #include <sys/vm.h>
+#include <sys/zstat.h>
 
-typedef struct abd_stats {
-	kstat_named_t abdstat_struct_size;
-	kstat_named_t abdstat_scatter_cnt;
-	kstat_named_t abdstat_scatter_data_size;
-	kstat_named_t abdstat_scatter_chunk_waste;
-	kstat_named_t abdstat_linear_cnt;
-	kstat_named_t abdstat_linear_data_size;
-} abd_stats_t;
+enum {
+	ABDSTAT_STRUCT_SIZE,
+	ABDSTAT_SCATTER_CNT,
+	ABDSTAT_SCATTER_DATA_SIZE,
+	ABDSTAT_SCATTER_CHUNK_WASTE,
+	ABDSTAT_LINEAR_CNT,
+	ABDSTAT_LINEAR_DATA_SIZE,
+	ABDSTAT_MAX,
+};
 
-static abd_stats_t abd_stats = {
+static const zstat_def_t abd_stats_def[] = {
 	/* Amount of memory occupied by all of the abd_t struct allocations */
-	{ "struct_size",			KSTAT_DATA_UINT64 },
+	{ "struct_size",			ZSTAT_COUNTER },
 	/*
 	 * The number of scatter ABDs which are currently allocated, excluding
 	 * ABDs which don't own their data (for instance the ones which were
 	 * allocated through abd_get_offset()).
 	 */
-	{ "scatter_cnt",			KSTAT_DATA_UINT64 },
+	{ "scatter_cnt",			ZSTAT_COUNTER },
 	/* Amount of data stored in all scatter ABDs tracked by scatter_cnt */
-	{ "scatter_data_size",			KSTAT_DATA_UINT64 },
+	{ "scatter_data_size",			ZSTAT_COUNTER },
 	/*
 	 * The amount of space wasted at the end of the last chunk across all
 	 * scatter ABDs tracked by scatter_cnt.
 	 */
-	{ "scatter_chunk_waste",		KSTAT_DATA_UINT64 },
+	{ "scatter_chunk_waste",		ZSTAT_COUNTER },
 	/*
 	 * The number of linear ABDs which are currently allocated, excluding
 	 * ABDs which don't own their data (for instance the ones which were
 	 * allocated through abd_get_offset() and abd_get_from_buf()). If an
 	 * ABD takes ownership of its buf then it will become tracked.
 	 */
-	{ "linear_cnt",				KSTAT_DATA_UINT64 },
+	{ "linear_cnt",				ZSTAT_COUNTER },
 	/* Amount of data stored in all linear ABDs tracked by linear_cnt */
-	{ "linear_data_size",			KSTAT_DATA_UINT64 },
+	{ "linear_data_size",			ZSTAT_COUNTER },
 };
-
-struct {
-	wmsum_t abdstat_struct_size;
-	wmsum_t abdstat_scatter_cnt;
-	wmsum_t abdstat_scatter_data_size;
-	wmsum_t abdstat_scatter_chunk_waste;
-	wmsum_t abdstat_linear_cnt;
-	wmsum_t abdstat_linear_data_size;
-} abd_sums;
 
 /*
  * zfs_abd_scatter_min_size is the minimum allocation size to use scatter
@@ -105,7 +98,7 @@ SYSCTL_ULONG(_vfs_zfs, OID_AUTO, abd_scatter_min_size, CTLFLAG_RWTUN,
 	&zfs_abd_scatter_min_size, 0, "Minimum size of scatter allocations.");
 
 kmem_cache_t *abd_chunk_cache;
-static kstat_t *abd_ksp;
+static zstat_t *abd_zstat;
 
 /*
  * We use a scattered SPA_MAXBLOCKSIZE sized ABD whose chunks are
@@ -143,14 +136,14 @@ abd_update_scatter_stats(abd_t *abd, abd_stats_op_t op)
 	ASSERT(op == ABDSTAT_INCR || op == ABDSTAT_DECR);
 	int waste = (n << PAGE_SHIFT) - abd->abd_size;
 	if (op == ABDSTAT_INCR) {
-		ABDSTAT_BUMP(abdstat_scatter_cnt);
-		ABDSTAT_INCR(abdstat_scatter_data_size, abd->abd_size);
-		ABDSTAT_INCR(abdstat_scatter_chunk_waste, waste);
+		ABDSTAT_INC(abdstat_scatter_cnt);
+		ABDSTAT_ADD(abdstat_scatter_data_size, abd->abd_size);
+		ABDSTAT_ADD(abdstat_scatter_chunk_waste, waste);
 		arc_space_consume(waste, ARC_SPACE_ABD_CHUNK_WASTE);
 	} else {
-		ABDSTAT_BUMPDOWN(abdstat_scatter_cnt);
-		ABDSTAT_INCR(abdstat_scatter_data_size, -(int)abd->abd_size);
-		ABDSTAT_INCR(abdstat_scatter_chunk_waste, -waste);
+		ABDSTAT_DEC(abdstat_scatter_cnt);
+		ABDSTAT_ADD(abdstat_scatter_data_size, -(int)abd->abd_size);
+		ABDSTAT_ADD(abdstat_scatter_chunk_waste, -waste);
 		arc_space_return(waste, ARC_SPACE_ABD_CHUNK_WASTE);
 	}
 }
@@ -160,11 +153,11 @@ abd_update_linear_stats(abd_t *abd, abd_stats_op_t op)
 {
 	ASSERT(op == ABDSTAT_INCR || op == ABDSTAT_DECR);
 	if (op == ABDSTAT_INCR) {
-		ABDSTAT_BUMP(abdstat_linear_cnt);
-		ABDSTAT_INCR(abdstat_linear_data_size, abd->abd_size);
+		ABDSTAT_INC(abdstat_linear_cnt);
+		ABDSTAT_ADD(abdstat_linear_data_size, abd->abd_size);
 	} else {
-		ABDSTAT_BUMPDOWN(abdstat_linear_cnt);
-		ABDSTAT_INCR(abdstat_linear_data_size, -(int)abd->abd_size);
+		ABDSTAT_DEC(abdstat_linear_cnt);
+		ABDSTAT_ADD(abdstat_linear_data_size, -(int)abd->abd_size);
 	}
 }
 
@@ -230,7 +223,7 @@ abd_alloc_struct_impl(size_t size)
 	    offsetof(abd_t, abd_u.abd_scatter.abd_chunks[chunkcnt]));
 	abd_t *abd = kmem_alloc(abd_size, KM_PUSHPAGE);
 	ASSERT3P(abd, !=, NULL);
-	ABDSTAT_INCR(abdstat_struct_size, abd_size);
+	ABDSTAT_ADD(abdstat_struct_size, abd_size);
 
 	return (abd);
 }
@@ -243,7 +236,7 @@ abd_free_struct_impl(abd_t *abd)
 	ssize_t size = MAX(sizeof (abd_t),
 	    offsetof(abd_t, abd_u.abd_scatter.abd_chunks[chunkcnt]));
 	kmem_free(abd, size);
-	ABDSTAT_INCR(abdstat_struct_size, -size);
+	ABDSTAT_ADD(abdstat_struct_size, -size);
 }
 
 /*
@@ -268,40 +261,18 @@ abd_alloc_zero_scatter(void)
 		    __DECONST(void *, zero_region);
 	}
 
-	ABDSTAT_BUMP(abdstat_scatter_cnt);
-	ABDSTAT_INCR(abdstat_scatter_data_size, PAGE_SIZE);
+	ABDSTAT_INC(abdstat_scatter_cnt);
+	ABDSTAT_ADD(abdstat_scatter_data_size, PAGE_SIZE);
 }
 
 static void
 abd_free_zero_scatter(void)
 {
-	ABDSTAT_BUMPDOWN(abdstat_scatter_cnt);
-	ABDSTAT_INCR(abdstat_scatter_data_size, -(int)PAGE_SIZE);
+	ABDSTAT_DEC(abdstat_scatter_cnt);
+	ABDSTAT_ADD(abdstat_scatter_data_size, -(int)PAGE_SIZE);
 
 	abd_free_struct(abd_zero_scatter);
 	abd_zero_scatter = NULL;
-}
-
-static int
-abd_kstats_update(kstat_t *ksp, int rw)
-{
-	abd_stats_t *as = ksp->ks_data;
-
-	if (rw == KSTAT_WRITE)
-		return (EACCES);
-	as->abdstat_struct_size.value.ui64 =
-	    wmsum_value(&abd_sums.abdstat_struct_size);
-	as->abdstat_scatter_cnt.value.ui64 =
-	    wmsum_value(&abd_sums.abdstat_scatter_cnt);
-	as->abdstat_scatter_data_size.value.ui64 =
-	    wmsum_value(&abd_sums.abdstat_scatter_data_size);
-	as->abdstat_scatter_chunk_waste.value.ui64 =
-	    wmsum_value(&abd_sums.abdstat_scatter_chunk_waste);
-	as->abdstat_linear_cnt.value.ui64 =
-	    wmsum_value(&abd_sums.abdstat_linear_cnt);
-	as->abdstat_linear_data_size.value.ui64 =
-	    wmsum_value(&abd_sums.abdstat_linear_data_size);
-	return (0);
 }
 
 void
@@ -310,20 +281,8 @@ abd_init(void)
 	abd_chunk_cache = kmem_cache_create("abd_chunk", PAGE_SIZE, 0,
 	    NULL, NULL, NULL, NULL, 0, KMC_NODEBUG | KMC_RECLAIMABLE);
 
-	wmsum_init(&abd_sums.abdstat_struct_size, 0);
-	wmsum_init(&abd_sums.abdstat_scatter_cnt, 0);
-	wmsum_init(&abd_sums.abdstat_scatter_data_size, 0);
-	wmsum_init(&abd_sums.abdstat_scatter_chunk_waste, 0);
-	wmsum_init(&abd_sums.abdstat_linear_cnt, 0);
-	wmsum_init(&abd_sums.abdstat_linear_data_size, 0);
 
-	abd_ksp = kstat_create("zfs", 0, "abdstats", "misc", KSTAT_TYPE_NAMED,
-	    sizeof (abd_stats) / sizeof (kstat_named_t), KSTAT_FLAG_VIRTUAL);
-	if (abd_ksp != NULL) {
-		abd_ksp->ks_data = &abd_stats;
-		abd_ksp->ks_update = abd_kstats_update;
-		kstat_install(abd_ksp);
-	}
+	abd_zstat = zstat_create("zfs.abdstats", abd_stats_def, ABDSTAT_MAX);
 
 	abd_alloc_zero_scatter();
 }
@@ -333,17 +292,7 @@ abd_fini(void)
 {
 	abd_free_zero_scatter();
 
-	if (abd_ksp != NULL) {
-		kstat_delete(abd_ksp);
-		abd_ksp = NULL;
-	}
-
-	wmsum_fini(&abd_sums.abdstat_struct_size);
-	wmsum_fini(&abd_sums.abdstat_scatter_cnt);
-	wmsum_fini(&abd_sums.abdstat_scatter_data_size);
-	wmsum_fini(&abd_sums.abdstat_scatter_chunk_waste);
-	wmsum_fini(&abd_sums.abdstat_linear_cnt);
-	wmsum_fini(&abd_sums.abdstat_linear_data_size);
+	zstat_destroy(abd_zstat);
 
 	kmem_cache_destroy(abd_chunk_cache);
 	abd_chunk_cache = NULL;
