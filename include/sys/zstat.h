@@ -81,6 +81,20 @@ void zstat_destroy(zstat_t *zst);
 #define __ZSTAT_COUNTER_ATOMIC_SUB(slot, v)		\
 	atomic_sub_64(&((slot)->zst_counter_atomic), -(v))
 
+/*
+ * XXX I'm not really sure that "max" is an op that should be on a counter.
+ *     What is it counting exactly? Maybe its a MINMAX or something.
+ *       -- robn, 2024-05-23
+ */
+#define	__ZSTAT_COUNTER_ATOMIC_MAX(slot, v) do {			\
+	uint64_t __zstat_m;						\
+	while ((v) > (__zstat_m = (slot)->zst_counter_atomic) &&	\
+		(__zstat_m !=						\
+		    atomic_cas_64(&((slot)->zst_counter_atomic),	\
+		    __zstat_m, (v))))					\
+		continue;						\
+} while (0)
+
 #define __ZSTAT_COUNTER_PERCPU_INC(slot)	\
 	wmsum_add(&((slot)->zst_counter_percpu), 1)
 #define __ZSTAT_COUNTER_PERCPU_DEC(slot)	\
@@ -172,6 +186,8 @@ void zstat_destroy(zstat_t *zst);
 	_ZSTAT_DO_V(zst, n, COUNTER_ATOMIC, ADD, v)
 #define	zstat_counter_atomic_sub(zst, n, v)	\
 	_ZSTAT_DO_V(zst, n, COUNTER_ATOMIC, SUB, v)
+#define	zstat_counter_atomic_max(zst, n, v)	\
+	_ZSTAT_DO_V(zst, n, COUNTER_ATOMIC, MAX, v)
 
 #define	zstat_counter_percpu_inc(zst, n)	\
 	_ZSTAT_DO(zst, n, COUNTER_PERCPU, INC)

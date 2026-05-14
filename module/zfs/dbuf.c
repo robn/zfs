@@ -92,7 +92,7 @@ static zstat_def_t dbuf_zstat_def[] = {
 	 */
 	{ "cache_count",		ZSTAT_COUNTER_PERCPU },
 	{ "cache_size_bytes",		ZSTAT_COUNTER_PERCPU },
-	{ "cache_size_bytes_max",	ZSTAT_COUNTER_PERCPU },
+	{ "cache_size_bytes_max",	ZSTAT_COUNTER_ATOMIC },
 	/*
 	 * Statistics regarding the bounds on the dbuf cache size.
 	 */
@@ -123,7 +123,7 @@ static zstat_def_t dbuf_zstat_def[] = {
 	 * hash table. Keep track of the longest hash chain.
 	 */
 	{ "hash_chains",		ZSTAT_COUNTER_PERCPU },
-	{ "hash_chain_max",		ZSTAT_COUNTER_PERCPU },
+	{ "hash_chain_max",		ZSTAT_COUNTER_ATOMIC },
 	/*
 	 * Number of times a dbuf_create() discovers that a dbuf was
 	 * already created and in the dbuf hash table.
@@ -139,7 +139,7 @@ static zstat_def_t dbuf_zstat_def[] = {
 	 */
 	{ "metadata_cache_count",	ZSTAT_COUNTER_PERCPU },
 	{ "metadata_cache_size_bytes",	ZSTAT_COUNTER_PERCPU },
-	{ "metadata_cache_size_bytes_max",	ZSTAT_COUNTER_PERCPU },
+	{ "metadata_cache_size_bytes_max",	ZSTAT_COUNTER_ATOMIC },
 	/*
 	 * For diagnostic purposes, this is incremented whenever we can't add
 	 * something to the metadata cache because it's full, and instead put
@@ -162,12 +162,7 @@ static zstat_def_t dbuf_zstat_def[] = {
 #define	DBUFSTAT_DEC_G(stat, i)		\
 	zstat_counter_percpu_dec_g(dbuf_zstat, (stat), i)
 
-#define	DBUF_STAT_MAX(stat, v) {					\
-	uint64_t _m;							\
-	while ((v) > (_m = dbuf_stats.stat.value.ui64) &&		\
-	    (_m != atomic_cas_64(&dbuf_stats.stat.value.ui64, _m, (v))))\
-		continue;						\
-}
+#define	DBUFSTAT_MAX(stat, v)	zstat_counter_atomic_max(dbuf_zstat, stat, v)
 
 static void dbuf_write(dbuf_dirty_record_t *dr, arc_buf_t *data, dmu_tx_t *tx);
 static void dbuf_sync_leaf_verify_bonus_dnode(dbuf_dirty_record_t *dr);
@@ -419,7 +414,7 @@ dbuf_hash_insert(dmu_buf_impl_t *db)
 		if (i == 1)
 			DBUFSTAT_INC(DBUFSTAT_HASH_CHAINS);
 
-		// XXX DBUF_STAT_MAX(hash_chain_max, i);
+		DBUFSTAT_MAX(DBUFSTAT_HASH_CHAIN_MAX, i);
 	}
 
 	mutex_enter(&db->db_mtx);
@@ -4256,10 +4251,14 @@ dbuf_rele_and_unlock(dmu_buf_impl_t *db, const void *tag, boolean_t evicting)
 
 			if (dcs == DB_DBUF_METADATA_CACHE) {
 				DBUFSTAT_INC(DBUFSTAT_METADATA_CACHE_COUNT);
-				// XXX DBUF_STAT_MAX(metadata_cache_size_bytes_max, size);
+				DBUFSTAT_MAX(
+				    DBUFSTAT_METADATA_CACHE_SIZE_BYTES_MAX,
+				    size);
 			} else {
 				DBUFSTAT_INC(DBUFSTAT_CACHE_COUNT);
-				// XXX DBUF_STAT_MAX(cache_size_bytes_max, size);
+				DBUFSTAT_MAX(
+				    DBUFSTAT_METADATA_CACHE_SIZE_BYTES_MAX,
+				    size);
 				DBUFSTAT_INC_G(DBUFSTAT_CACHE_LEVELS, db_level);
 				DBUFSTAT_ADD_G(DBUFSTAT_CACHE_LEVELS_BYTES,
 				    db_level, db_size + dbu_size);
