@@ -112,11 +112,6 @@ void abd_iter_page(struct abd_iter *);
 /*
  * Helper macros
  */
-#define	ABDSTAT_INCR(stat, val) \
-	wmsum_add(&abd_sums.stat, (val))
-#define	ABDSTAT_BUMP(stat)	ABDSTAT_INCR(stat, 1)
-#define	ABDSTAT_BUMPDOWN(stat)	ABDSTAT_INCR(stat, -1)
-
 #define	ABD_SCATTER(abd)	((abd)->abd_u.abd_scatter)
 #define	ABD_LINEAR_BUF(abd)	((abd)->abd_u.abd_linear.abd_buf)
 #define	ABD_GANG(abd)		((abd)->abd_u.abd_gang)
