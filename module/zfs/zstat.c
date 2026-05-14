@@ -48,10 +48,8 @@ zstat_kstat_update(kstat_t *ksp, int rw)
  *         -- robn, 2024-05-22
  */
 zstat_t *
-zstat_create(const zstat_def_t *def, uint_t ndef)
+zstat_create(const char *name, const zstat_def_t *def, uint_t ndef)
 {
-	(void) def;
-
 	zstat_t *zst = kmem_alloc(sizeof (zstat_t) + ndef * sizeof (wmsum_t),
 	    KM_SLEEP);
 
@@ -61,8 +59,21 @@ zstat_create(const zstat_def_t *def, uint_t ndef)
 
 	/* XXX for now, they're all bolted to kstats; in the future something a
 	 *     bit more generic, or not at all -- robn, 2024-05-22 */
-	/* XXX obvs bring module & name through */
-	zst->zst_ksp = kstat_create("zfs", 0, "brtstats", "misc",
+
+	/*
+	 * split and rewrite name into kstats module and statname.
+	 *   foo.bar.baz => module=foo/bar, statname=baz
+	 */
+	char modulename[KSTAT_STRLEN], *statname = NULL, *p = modulename;
+	strlcpy(modulename, name, KSTAT_STRLEN);
+	while (p != NULL && (statname = strsep(&p, "."))) {
+		if (p != NULL && p > statname)
+			p[-1] = '/';
+	}
+	if (statname > modulename)
+		statname[-1] = '\0';
+
+	zst->zst_ksp = kstat_create(modulename, 0, statname, "misc",
 	    KSTAT_TYPE_NAMED, ndef, 0);
 	if (zst->zst_ksp == NULL)
 		return (zst);

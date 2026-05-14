@@ -42,7 +42,7 @@ typedef struct zstat {
 	wmsum_t		zst_sums[];
 } zstat_t;
 
-zstat_t *zstat_create(const zstat_def_t *def, uint_t ndef);
+zstat_t *zstat_create(const char *name, const zstat_def_t *def, uint_t ndef);
 void zstat_destroy(zstat_t *zst);
 
 static inline void zstat_inc(zstat_t *zst, uint_t n) {

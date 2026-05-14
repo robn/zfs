@@ -958,7 +958,7 @@ brt_init(void)
 	brt_entry_cache = kmem_cache_create("brt_entry_cache",
 	    sizeof (brt_entry_t), 0, NULL, NULL, NULL, NULL, NULL, 0);
 
-	brt_zstat = zstat_create(brt_stats_def, BRTSTAT_MAX);
+	brt_zstat = zstat_create("zfs.brtstats", brt_stats_def, BRTSTAT_MAX);
 }
 
 void
