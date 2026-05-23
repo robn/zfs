@@ -327,6 +327,50 @@ test_zap_contains(const MunitParameter params[], void *data)
 	return (MUNIT_OK);
 }
 
+/*
+ * Test zap_length_by_dnode, which queries value metadata (integer_size and
+ * num_integers) without fetching the value itself.
+ *
+ * For microzap, all values are uint64_t so the answer is always 8/1.
+ * For fatzap, the stored size and count are returned directly from the
+ * leaf chunk.  We exercise both by starting in microzap and triggering an
+ * upgrade via a multi-integer insert.
+ */
+static MunitResult
+test_zap_length(const MunitParameter params[], void *data)
+{
+	(void) data;
+
+	dnode_t *dn = mock_zap_create_params(params, "type");
+	dmu_tx_t *tx = (dmu_tx_t *) mock_tx_create();
+
+	/* uint64: integer_size=8, num_integers=1. */
+	uint64_t v = 42;
+	unit_ok(zap_add_by_dnode(dn, "u64",
+	    sizeof (uint64_t), 1, &v, tx));
+
+	uint64_t isz = 0, nint = 0;
+	unit_ok(zap_length_by_dnode(dn, "u64", &isz, &nint));
+	unit_eq(isz, 8);
+	unit_eq(nint, 1);
+
+	/* Missing key returns ENOENT. */
+	unit_err(zap_length_by_dnode(dn, "nope", &isz, &nint), ENOENT);
+
+	/* Either output pointer may be NULL. */
+	isz = 0; nint = 0;
+	unit_ok(zap_length_by_dnode(dn, "u64", NULL, &nint));
+	unit_ok(zap_length_by_dnode(dn, "u64", &isz, NULL));
+	unit_eq(isz, 8);
+	unit_eq(nint, 1);
+
+	mock_tx_destroy((mock_dmu_tx_t *) tx);
+	unit_true(mock_zap_is_params(dn, params, "type"));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
 /* ========== */
 
 /*
@@ -1044,6 +1088,7 @@ static const MunitTest zap_tests[] = {
 	UNIT_TEST("zap_count",		test_zap_count, 	zap_type_params),
 
 	UNIT_TEST("zap_contains",	test_zap_contains, 	zap_type_params),
+	UNIT_TEST("zap_length",		test_zap_length, 	zap_type_params),
 
 	UNIT_TEST("microzap_format",		test_microzap_format),
 	UNIT_TEST("fatzap_format",		test_fatzap_format),
