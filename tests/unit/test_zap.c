@@ -405,6 +405,47 @@ test_zap_update(const MunitParameter params[], void *data)
 	return (MUNIT_OK);
 }
 
+static MunitResult
+test_zap_increment(const MunitParameter params[], void *data)
+{
+	(void) data;
+
+	dnode_t *dn = mock_zap_create_params(params, "type");
+	dmu_tx_t *tx = (dmu_tx_t *) mock_tx_create();
+
+	/* Increment a missing key creates it with that value. */
+	unit_ok(zap_increment_by_dnode(dn, "ctr", 5, tx));
+	uint64_t result = 0;
+	unit_ok(zap_lookup_by_dnode(dn, "ctr", sizeof (uint64_t), 1, &result));
+	unit_eq(result, 5);
+
+	/* Further increments accumulate. */
+	unit_ok(zap_increment_by_dnode(dn, "ctr", 3, tx));
+	unit_ok(zap_lookup_by_dnode(dn, "ctr", sizeof (uint64_t), 1, &result));
+	unit_eq(result, 8);
+
+	/* Decrement works. */
+	unit_ok(zap_increment_by_dnode(dn, "ctr", -2, tx));
+	unit_ok(zap_lookup_by_dnode(dn, "ctr", sizeof (uint64_t), 1, &result));
+	unit_eq(result, 6);
+
+	/* Decrementing to zero removes the entry. */
+	unit_ok(zap_increment_by_dnode(dn, "ctr", -6, tx));
+	unit_err(zap_lookup_by_dnode(dn, "ctr",
+	    sizeof (uint64_t), 1, &result), ENOENT);
+
+	/* Delta of zero is a no-op even for a missing key. */
+	unit_ok(zap_increment_by_dnode(dn, "ctr", 0, tx));
+	unit_err(zap_lookup_by_dnode(dn, "ctr",
+	    sizeof (uint64_t), 1, &result), ENOENT);
+
+	mock_tx_destroy((mock_dmu_tx_t *) tx);
+	unit_true(mock_zap_is_params(dn, params, "type"));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
 /* ========== */
 
 /*
@@ -1124,6 +1165,7 @@ static const MunitTest zap_tests[] = {
 	UNIT_TEST("zap_contains",	test_zap_contains, 	zap_type_params),
 	UNIT_TEST("zap_length",		test_zap_length, 	zap_type_params),
 	UNIT_TEST("zap_update",		test_zap_update, 	zap_type_params),
+	UNIT_TEST("zap_increment",	test_zap_increment, 	zap_type_params),
 
 	UNIT_TEST("microzap_format",		test_microzap_format),
 	UNIT_TEST("fatzap_format",		test_fatzap_format),
