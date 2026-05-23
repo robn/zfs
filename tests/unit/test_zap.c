@@ -300,6 +300,33 @@ test_zap_count(const MunitParameter params[], void *data)
 	return (MUNIT_OK);
 }
 
+/*
+ * zap_contains_by_dnode: existence check without reading the value.
+ *
+ * On microzap the lookup returns EOVERFLOW (num_integers=0), which the
+ * function converts to 0.  On fatzap the same conversion handles EOVERFLOW
+ * from the fat path.
+ */
+static MunitResult
+test_zap_contains(const MunitParameter params[], void *data)
+{
+	(void) data;
+
+	dnode_t *dn = mock_zap_create_params(params, "type");
+	dmu_tx_t *tx = (dmu_tx_t *) mock_tx_create();
+
+	uint64_t v = 42;
+	unit_ok(zap_add_by_dnode(dn, "present", sizeof (uint64_t), 1, &v, tx));
+	unit_ok(zap_contains_by_dnode(dn, "present"));
+	unit_err(zap_contains_by_dnode(dn, "absent"), ENOENT);
+
+	mock_tx_destroy((mock_dmu_tx_t *) tx);
+	unit_true(mock_zap_is_params(dn, params, "type"));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
 /* ========== */
 
 /*
@@ -1015,6 +1042,8 @@ static const MunitTest zap_tests[] = {
 	UNIT_TEST("zap_basic",	test_zap_basic,	zap_type_params),
 
 	UNIT_TEST("zap_count",		test_zap_count, 	zap_type_params),
+
+	UNIT_TEST("zap_contains",	test_zap_contains, 	zap_type_params),
 
 	UNIT_TEST("microzap_format",		test_microzap_format),
 	UNIT_TEST("fatzap_format",		test_fatzap_format),
