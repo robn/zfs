@@ -446,6 +446,65 @@ test_zap_increment(const MunitParameter params[], void *data)
 	return (MUNIT_OK);
 }
 
+/*
+ * The int-key family stores integer keys as hex strings ("%llx").
+ *
+ * zap_add_int / zap_remove_int / zap_lookup_int: name == value.
+ * zap_add_int_key / zap_update_int_key / zap_lookup_int_key: name == key,
+ *   stored value is separate.
+ * zap_increment_int: increment by key; delta=0 is a no-op; reaching zero
+ *   removes the entry.
+ */
+static MunitResult
+test_zap_int_keys(const MunitParameter params[], void *data)
+{
+	(void) data;
+
+	dnode_t *dn = mock_zap_create_params(params, "type");
+	dmu_tx_t *tx = (dmu_tx_t *) mock_tx_create();
+
+	/* add_int / lookup_int / remove_int */
+	unit_ok(zap_add_int_by_dnode(dn, 0x42, tx));
+	unit_ok(zap_add_int_by_dnode(dn, 0xFF, tx));
+	unit_ok(zap_lookup_int_by_dnode(dn, 0x42));
+	unit_ok(zap_lookup_int_by_dnode(dn, 0xFF));
+	unit_err(zap_lookup_int_by_dnode(dn, 0x01), ENOENT);
+
+	/* duplicate add → EEXIST */
+	unit_err(zap_add_int_by_dnode(dn, 0x42, tx), EEXIST);
+	unit_ok(zap_remove_int_by_dnode(dn, 0x42, tx));
+	unit_err(zap_lookup_int_by_dnode(dn, 0x42), ENOENT);
+
+	/* add_int_key / update_int_key / lookup_int_key: key and value differ */
+	unit_ok(zap_add_int_key_by_dnode(dn, 0x100, 0xAABB, tx));
+	uint64_t v = 0;
+	unit_ok(zap_lookup_int_key_by_dnode(dn, 0x100, &v));
+
+	unit_eq(v, 0xAABB);
+	unit_ok(zap_update_int_key_by_dnode(dn, 0x100, 0xCCDD, tx));
+	unit_ok(zap_lookup_int_key_by_dnode(dn, 0x100, &v));
+	unit_eq(v, 0xCCDD);
+
+	/* increment_int: delta=0 is no-op (entry need not exist) */
+	unit_ok(zap_increment_int_by_dnode(dn, 0x200, 0, tx));
+	unit_err(zap_lookup_int_key_by_dnode(dn, 0x200, &v), ENOENT);
+
+	/* delta > 0 creates entry */
+	unit_ok(zap_increment_int_by_dnode(dn, 0x200, 3, tx));
+	unit_ok(zap_lookup_int_key_by_dnode(dn, 0x200, &v));
+	unit_eq(v, 3);
+
+	/* decrement back to zero removes the entry */
+	unit_ok(zap_increment_int_by_dnode(dn, 0x200, -3, tx));
+	unit_err(zap_lookup_int_key_by_dnode(dn, 0x200, &v), ENOENT);
+
+	mock_tx_destroy((mock_dmu_tx_t *) tx);
+	unit_true(mock_zap_is_params(dn, params, "type"));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
 /* ========== */
 
 /*
@@ -1166,6 +1225,7 @@ static const MunitTest zap_tests[] = {
 	UNIT_TEST("zap_length",		test_zap_length, 	zap_type_params),
 	UNIT_TEST("zap_update",		test_zap_update, 	zap_type_params),
 	UNIT_TEST("zap_increment",	test_zap_increment, 	zap_type_params),
+	UNIT_TEST("zap_int_keys",	test_zap_int_keys, 	zap_type_params),
 
 	UNIT_TEST("microzap_format",		test_microzap_format),
 	UNIT_TEST("fatzap_format",		test_fatzap_format),
