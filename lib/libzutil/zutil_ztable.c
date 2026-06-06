@@ -16,14 +16,9 @@
  */
 
 #include <stdlib.h>
+#include <stdbool.h>
 #include <sys/debug.h>
 #include "libzutil.h"
-
-/* column header. name, accumulated width and style (render properties) */
-typedef struct {
-	char		*tc_name;
-	size_t		tc_width;
-} ztable_col_t;
 
 /*
  * cell. an actual unit of data in the table. carries the stringified data,
@@ -33,6 +28,13 @@ typedef struct {
 	char 		*tcl_data;
 	size_t		tcl_width;
 } ztable_cell_t;
+
+/* column header. a cell for display, and accumulated width */
+typedef struct {
+	ztable_cell_t	tc_cell;
+
+	size_t		tc_max_width;
+} ztable_col_t;
 
 /* row. list of cells */
 typedef struct {
@@ -77,8 +79,8 @@ ztable_add_column(ztable_t *t, const char *name,
 	}
 	ztable_col_t *col = &t->t_cols[t->t_ncols++];
 
-	col->tc_name = strdup(name);
-	col->tc_width = strlen(name);
+	col->tc_cell.tcl_data = strdup(name);
+	col->tc_cell.tcl_width = col->tc_max_width = strlen(name);
 }
 
 void
@@ -111,7 +113,7 @@ ztable_add_cell(ztable_t *t, const void *data)
 	cell->tcl_width = strlen(cell->tcl_data);
 
 	ztable_col_t *col = &t->t_cols[row->tr_ncells-1];
-	col->tc_width = MAX(col->tc_width, cell->tcl_width);
+	col->tc_max_width = MAX(col->tc_max_width, cell->tcl_width);
 }
 
 void
@@ -126,29 +128,10 @@ ztable_add_row(ztable_t *t, const void *data[])
 }
 
 void
-ztable_print(ztable_t *t)
-{
-	for(size_t i = 0; i < t->t_ncols; i++)
-		printf("%-*s", (int)t->t_cols[i].tc_width+2,
-		    t->t_cols[i].tc_name);
-	printf("\n");
-
-	for (size_t ri = 0; ri < t->t_nrows; ri++) {
-		ztable_row_t *row = &t->t_rows[ri];
-		for (size_t i = 0; i < row->tr_ncells; i++) {
-			ztable_cell_t *cell = &row->tr_cells[i];
-			printf("%-*s", (int)t->t_cols[i].tc_width+2,
-			    cell->tcl_data);
-		}
-		printf("\n");
-	}
-}
-
-void
 ztable_destroy(ztable_t *t)
 {
 	for(size_t i = 0; i < t->t_ncols; i++)
-		free(t->t_cols[i].tc_name);
+		free(t->t_cols[i].tc_cell.tcl_data);
 	free(t->t_cols);
 
 	for (size_t ri = 0; ri < t->t_nrows; ri++) {
@@ -161,3 +144,201 @@ ztable_destroy(ztable_t *t)
 
 	free(t);
 }
+
+/* ========== */
+
+typedef enum {
+    BC_PAD,
+    BC_HORIZ,
+    BC_VERT,
+    BC_CORNER_TOP_LEFT,
+    BC_CORNER_TOP_RIGHT,
+    BC_CORNER_BOTTOM_LEFT,
+    BC_CORNER_BOTTOM_RIGHT,
+    BC_JOIN_RIGHT,
+    BC_JOIN_LEFT,
+    BC_JOIN_BOTTOM,
+    BC_JOIN_TOP,
+    BC_JOIN_CROSS,
+} ztable_charspec_t;
+
+static const char *ascii_chars[] =
+    { " ", "-", "|", "/", "\\", "\\", "/", "+", "+", "+", "+", "+" };
+static const char *box_heavy_chars[] =
+    { " ", "━", "┃", "┏", "┓", "┗", "┛", "┣", "┫", "┳", "┻", "╋" };
+static const char *box_double_chars[] =
+    { " ", "═", "║", "╔", "╗", "╚", "╝", "╠", "╣", "╦", "╩", "╬" };
+
+typedef struct {
+	bool		s_ruler;
+	bool		s_divider;
+	size_t		s_edge_gap;
+	bool		s_edge_border;
+	size_t		s_cell_gap;
+	bool		s_cell_border;
+	const char	**s_chars;
+} ztable_stylespec_t;
+
+static const ztable_stylespec_t classic_style = {
+	.s_ruler = false,
+	.s_divider = false,
+	.s_edge_gap = 0,
+	.s_edge_border = false,
+	.s_cell_gap = 2,
+	.s_cell_border = false,
+	.s_chars = ascii_chars,
+};
+
+static const ztable_stylespec_t simple_style = {
+	.s_ruler = false,
+	.s_divider = true,
+	.s_edge_gap = 0,
+	.s_edge_border = false,
+	.s_cell_gap = 1,
+	.s_cell_border = true,
+	.s_chars = ascii_chars,
+};
+
+static const ztable_stylespec_t box_style = {
+	.s_ruler = true,
+	.s_divider = true,
+	.s_edge_gap = 1,
+	.s_edge_border = true,
+	.s_cell_gap = 1,
+	.s_cell_border = true,
+	.s_chars = box_heavy_chars,
+};
+
+static const ztable_stylespec_t double_style = {
+	.s_ruler = true,
+	.s_divider = true,
+	.s_edge_gap = 1,
+	.s_edge_border = true,
+	.s_cell_gap = 1,
+	.s_cell_border = true,
+	.s_chars = box_double_chars,
+};
+
+static void
+ztable_print_cell(ztable_t *t, ztable_cell_t *cell, size_t colidx,
+    const ztable_stylespec_t *ss, ztable_charspec_t pad,
+    ztable_charspec_t edge_border_left, ztable_charspec_t edge_border_right,
+    ztable_charspec_t edge_gap, ztable_charspec_t cell_border,
+    ztable_charspec_t cell_gap)
+{
+	if (colidx == 0) {
+		if (ss->s_edge_border)
+			/* edge border (left) */
+			fputs(ss->s_chars[edge_border_left], stdout);
+		/* edge gap (left) */
+		for (size_t p = 0; p < ss->s_edge_gap; p++)
+			fputs(ss->s_chars[edge_gap], stdout);
+	} else {
+		/* cell gap (left) */
+		for (size_t p = 0; p < ss->s_cell_gap; p++)
+			fputs(ss->s_chars[cell_gap], stdout);
+		if (ss->s_cell_border) {
+			/* cell border */
+			fputs(ss->s_chars[cell_border], stdout);
+			/* cell gap (right) */
+			for (size_t p = 0; p < ss->s_cell_gap; p++)
+				fputs(ss->s_chars[cell_gap], stdout);
+		}
+	}
+
+	/* content */
+	if (cell)
+		fputs(cell->tcl_data, stdout);
+
+	/* content padding */
+	for (size_t p = cell ? cell->tcl_width : 0;
+	    p < t->t_cols[colidx].tc_max_width; p++)
+		fputs(ss->s_chars[pad], stdout);
+
+	if (colidx == t->t_ncols-1) {
+		/* edge gap (right) */
+		for (size_t p = 0; p < ss->s_edge_gap; p++)
+			fputs(ss->s_chars[edge_gap], stdout);
+		if (ss->s_edge_border)
+			/* edge border (right) */
+			fputs(ss->s_chars[edge_border_right], stdout);
+	}
+}
+
+void
+ztable_print(ztable_t *t)
+{
+	//const ztable_stylespec_t *ss = &classic_style;
+	//const ztable_stylespec_t *ss = &simple_style;
+	const ztable_stylespec_t *ss = &box_style;
+	//const ztable_stylespec_t *ss = &border_style;
+	(void)classic_style; (void)simple_style;
+	(void)box_style; (void)double_style;
+
+	if (t->t_ncols == 0)
+		return;
+
+	/* content width */
+	size_t width = 0;
+	for (size_t i = 0; i < t->t_ncols; i++)
+		width += t->t_cols[i].tc_max_width;
+
+	/* edge gap */
+	width += ss->s_edge_gap * 2;
+
+	/* edge border */
+	if (ss->s_edge_border)
+		/* +1 for border glyph each side */
+		width += 2;
+
+	/* cell gap */
+	width += (t->t_ncols-1) * ss->s_cell_gap;
+
+	/* cell border */
+	if (ss->s_cell_border)
+		/* +1 for border glyph, + cell gap on the other side */
+		width += (t->t_ncols-1) * (ss->s_cell_gap + 1);
+
+	/* top ruler */
+	if (ss->s_ruler) {
+		for (size_t i = 0; i < t->t_ncols; i++)
+			ztable_print_cell(t, NULL, i, ss,
+			    BC_HORIZ, BC_CORNER_TOP_LEFT, BC_CORNER_TOP_RIGHT,
+			    BC_HORIZ, BC_JOIN_BOTTOM, BC_HORIZ);
+		fputc('\n', stdout);
+	}
+
+	/* heading row */
+	for (size_t i = 0; i < t->t_ncols; i++)
+		ztable_print_cell(t, &t->t_cols[i].tc_cell, i, ss,
+		    BC_PAD, BC_VERT, BC_VERT, BC_PAD, BC_VERT, BC_PAD);
+	fputc('\n', stdout);
+
+	/* divider */
+	if (ss->s_divider) {
+		for (size_t i = 0; i < t->t_ncols; i++)
+			ztable_print_cell(t, NULL, i, ss,
+			    BC_HORIZ, BC_JOIN_RIGHT, BC_JOIN_LEFT,
+			    BC_HORIZ, BC_JOIN_CROSS, BC_HORIZ);
+		fputc('\n', stdout);
+	}
+
+	/* data rows */
+	for (size_t ri = 0; ri < t->t_nrows; ri++) {
+		ztable_row_t *row = &t->t_rows[ri];
+		for (size_t i = 0; i < row->tr_ncells; i++)
+			ztable_print_cell(t, &row->tr_cells[i], i, ss,
+			    BC_PAD, BC_VERT, BC_VERT, BC_PAD, BC_VERT, BC_PAD);
+		fputc('\n', stdout);
+	}
+
+	/* bottom ruler */
+	if (ss->s_ruler) {
+		for (size_t i = 0; i < t->t_ncols; i++)
+			ztable_print_cell(t, NULL, i, ss, BC_HORIZ,
+			    BC_CORNER_BOTTOM_LEFT, BC_CORNER_BOTTOM_RIGHT,
+			    BC_HORIZ, BC_JOIN_TOP, BC_HORIZ);
+		fputc('\n', stdout);
+	}
+}
+
