@@ -3652,6 +3652,7 @@ typedef struct list_cbdata {
 	boolean_t	cb_json;
 	nvlist_t	*cb_jsobj;
 	boolean_t	cb_json_as_int;
+	ztable_t	*cb_tab;
 } list_cbdata_t;
 
 /*
@@ -3660,45 +3661,57 @@ typedef struct list_cbdata {
 static void
 print_header(list_cbdata_t *cb)
 {
-	zprop_list_t *pl = cb->cb_proplist;
-	char headerbuf[ZFS_MAXPROPLEN];
-	const char *header;
-	int i;
-	boolean_t first = B_TRUE;
-	boolean_t right_justify;
+	cb->cb_tab = ztable_create(cb->cb_scripted ?
+	    ZT_STYLE_SCRIPTED : ZT_STYLE_DEFAULT);
 
-	color_start(ANSI_BOLD);
+	for (zprop_list_t *pl = cb->cb_proplist; pl != NULL; pl = pl->pl_next) {
+		zprop_type_t proptype = zfs_prop_get_type(pl->pl_prop);
 
-	for (; pl != NULL; pl = pl->pl_next) {
-		if (!first) {
-			(void) printf("  ");
-		} else {
-			first = B_FALSE;
+		ztable_colspec_t colspec = {
+		    .cs_type = ZT_TYPE_STRING,
+		    .cs_header_effect = cb->cb_scripted ?
+			ZT_EFFECT_DEFAULT : ZT_EFFECT_BOLD,
+		};
+
+		if (proptype == PROP_TYPE_NUMBER) {
+			colspec.cs_type = ZT_TYPE_UINT64;
+			if (!cb->cb_literal) {
+				switch (pl->pl_prop) {
+				case ZFS_PROP_CREATION:
+					colspec.cs_format = ZT_FORMAT_TIME;
+					break;
+				case ZFS_PROP_QUOTA:
+				case ZFS_PROP_REFQUOTA:
+				case ZFS_PROP_RESERVATION:
+				case ZFS_PROP_REFRESERVATION:
+				case ZFS_PROP_REFERENCED:
+				case ZFS_PROP_AVAILABLE:
+				case ZFS_PROP_USED:
+				case ZFS_PROP_USEDSNAP:
+				case ZFS_PROP_USEDDS:
+				case ZFS_PROP_USEDREFRESERV:
+				case ZFS_PROP_USEDCHILD:
+					colspec.cs_format = ZT_FORMAT_BYTES;
+					break;
+				}
+			}
 		}
 
-		right_justify = B_FALSE;
-		if (pl->pl_prop != ZPROP_USERPROP) {
+		const char *header;
+		if (pl->pl_prop == ZPROP_USERPROP)
+			header = pl->pl_user_prop;
+		else {
 			header = zfs_prop_column_name(pl->pl_prop);
-			right_justify = zfs_prop_align_right(pl->pl_prop);
-		} else {
-			for (i = 0; pl->pl_user_prop[i] != '\0'; i++)
-				headerbuf[i] = toupper(pl->pl_user_prop[i]);
-			headerbuf[i] = '\0';
-			header = headerbuf;
+			colspec.cs_align = zfs_prop_align_right(pl->pl_prop) ?
+			    ZT_ALIGN_RIGHT : ZT_ALIGN_LEFT;
 		}
 
-		if (pl->pl_next == NULL && !right_justify)
-			(void) printf("%s", header);
-		else if (right_justify)
-			(void) printf("%*s", (int)pl->pl_width, header);
-		else
-			(void) printf("%-*s", (int)pl->pl_width, header);
+		ztable_add_column(cb->cb_tab, header, &colspec);
 	}
-
-	color_end();
-
-	(void) printf("\n");
 }
+
+#if 0
+XXX the stuff that colourises AVAILABLE in zfs list
 
 /*
  * Decides on the color that the avail value should be printed in.
@@ -3719,6 +3732,7 @@ zfs_list_avail_color(zfs_handle_t *zhp)
 	else
 		return (ANSI_RED);
 }
+#endif
 
 /*
  * Given a dataset and a list of fields, print out all the properties according
@@ -3729,12 +3743,10 @@ static void
 collect_dataset(zfs_handle_t *zhp, list_cbdata_t *cb)
 {
 	zprop_list_t *pl = cb->cb_proplist;
-	boolean_t first = B_TRUE;
 	char property[ZFS_MAXPROPLEN];
 	nvlist_t *userprops = zfs_get_user_props(zhp);
 	nvlist_t *propval;
 	const char *propstr;
-	boolean_t right_justify;
 	nvlist_t *item, *d, *props;
 	item = d = props = NULL;
 	zprop_source_t sourcetype = ZPROP_SRC_NONE;
@@ -3751,20 +3763,40 @@ collect_dataset(zfs_handle_t *zhp, list_cbdata_t *cb)
 	}
 
 	for (; pl != NULL; pl = pl->pl_next) {
-		if (!cb->cb_json && !first) {
-			if (cb->cb_scripted)
-				(void) putchar('\t');
+		zprop_type_t proptype = zfs_prop_get_type(pl->pl_prop);
+		switch (proptype) {
+		case PROP_TYPE_NUMBER: {
+			uint64_t v = zfs_prop_get_int(zhp, pl->pl_prop);
+			ztable_add_cell(cb->cb_tab, &v);
+			break;
+		}
+		case PROP_TYPE_STRING:
+		case PROP_TYPE_INDEX:
+			if (zfs_prop_get(zhp, pl->pl_prop, property,
+			    sizeof (property), NULL, NULL, 0, 0) == 0)
+				ztable_add_cell(cb->cb_tab, property);
 			else
-				(void) fputs("  ", stdout);
-		} else {
-			first = B_FALSE;
+				ztable_add_cell(cb->cb_tab, NULL);
+			break;
+#if 0
+		case PROP_TYPE_INDEX: {
+			//uint64_t v = zfs_prop_get_int(zhp, pl->pl_prop);
+			uint64_t v;
+			if (zfs_prop_get_numeric(zhp, pl->pl_prop, &v,
+			    NULL, NULL, 0) == 0 &&
+			    zfs_prop_index_to_string(pl->pl_prop, v,
+			    &propstr) == 0)
+				ztable_add_cell(cb->cb_tab, propstr);
+			else
+				ztable_add_cell(cb->cb_tab, NULL);
+		}
+#endif
 		}
 
 		if (pl->pl_prop == ZFS_PROP_NAME) {
 			(void) strlcpy(property, zfs_get_name(zhp),
 			    sizeof (property));
-			propstr = property;
-			right_justify = zfs_prop_align_right(pl->pl_prop);
+			propstr = zfs_get_name(zhp);
 		} else if (pl->pl_prop != ZPROP_USERPROP) {
 			if (zfs_prop_get(zhp, pl->pl_prop, property,
 			    sizeof (property), &sourcetype, source,
@@ -3772,7 +3804,6 @@ collect_dataset(zfs_handle_t *zhp, list_cbdata_t *cb)
 				propstr = "-";
 			else
 				propstr = property;
-			right_justify = zfs_prop_align_right(pl->pl_prop);
 		} else if (zfs_prop_userquota(pl->pl_user_prop)) {
 			sourcetype = ZPROP_SRC_LOCAL;
 			if (zfs_prop_get_userquota(zhp, pl->pl_user_prop,
@@ -3782,7 +3813,6 @@ collect_dataset(zfs_handle_t *zhp, list_cbdata_t *cb)
 			} else {
 				propstr = property;
 			}
-			right_justify = B_TRUE;
 		} else if (zfs_prop_written(pl->pl_user_prop)) {
 			sourcetype = ZPROP_SRC_LOCAL;
 			if (zfs_prop_get_written(zhp, pl->pl_user_prop,
@@ -3792,7 +3822,6 @@ collect_dataset(zfs_handle_t *zhp, list_cbdata_t *cb)
 			} else {
 				propstr = property;
 			}
-			right_justify = B_TRUE;
 		} else {
 			if (nvlist_lookup_nvlist(userprops,
 			    pl->pl_user_prop, &propval) != 0) {
@@ -3813,7 +3842,6 @@ collect_dataset(zfs_handle_t *zhp, list_cbdata_t *cb)
 					sourcetype = ZPROP_SRC_INHERITED;
 				}
 			}
-			right_justify = B_FALSE;
 		}
 
 		if (cb->cb_json) {
@@ -3829,7 +3857,9 @@ collect_dataset(zfs_handle_t *zhp, list_cbdata_t *cb)
 			    sourcetype, source, NULL, props,
 			    cb->cb_json_as_int) != 0)
 				nomem();
+#if 0
 		} else {
+		XXX this is the thing that colourises AVAILABLE -- robn, 2026-06-08 
 			/*
 			 * zfs_list_avail_color() needs
 			 * ZFS_PROP_AVAILABLE + USED, so we need another
@@ -3851,24 +3881,9 @@ collect_dataset(zfs_handle_t *zhp, list_cbdata_t *cb)
 				}
 			}
 
-			/*
-			 * If this is being called in scripted mode, or if
-			 * this is the last column and it is left-justified,
-			 * don't include a width format specifier.
-			 */
-			if (cb->cb_scripted || (pl->pl_next == NULL &&
-			    !right_justify))
-				(void) fputs(propstr, stdout);
-			else if (right_justify) {
-				(void) printf("%*s", (int)pl->pl_width,
-				    propstr);
-			} else {
-				(void) printf("%-*s", (int)pl->pl_width,
-				    propstr);
-			}
-
 			if (pl->pl_prop == ZFS_PROP_AVAILABLE)
 				color_end();
+#endif
 		}
 	}
 	if (cb->cb_json) {
@@ -3876,8 +3891,7 @@ collect_dataset(zfs_handle_t *zhp, list_cbdata_t *cb)
 		fnvlist_add_nvlist(d, zfs_get_name(zhp), item);
 		fnvlist_free(props);
 		fnvlist_free(item);
-	} else
-		(void) putchar('\n');
+	}
 }
 
 /*
@@ -3889,7 +3903,7 @@ list_callback(zfs_handle_t *zhp, void *data)
 	list_cbdata_t *cbp = data;
 
 	if (cbp->cb_first) {
-		if (!cbp->cb_scripted && !cbp->cb_json)
+		if (!cbp->cb_json)
 			print_header(cbp);
 		cbp->cb_first = B_FALSE;
 	}
@@ -4077,6 +4091,11 @@ found3:;
 
 	if (ret == 0 && cb.cb_first && !cb.cb_scripted)
 		(void) fprintf(stderr, gettext("no datasets available\n"));
+
+	if (cb.cb_tab) {
+		ztable_print(cb.cb_tab, NULL);
+		ztable_destroy(cb.cb_tab);
+	}
 
 	return (ret);
 }
