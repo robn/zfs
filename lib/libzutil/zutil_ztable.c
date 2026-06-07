@@ -21,6 +21,150 @@
 #include <sys/debug.h>
 #include "libzutil.h"
 
+/* ========== */
+
+/* style: layout and formatting controls */
+
+typedef struct {
+	bool		s_header;
+	bool		s_headline;
+	bool		s_midline;
+	bool		s_footline;
+	size_t		s_edge_gap;
+	bool		s_edge_border;
+	size_t		s_cell_gap;
+	bool		s_cell_border;
+	const char	**s_chars;
+} ztable_stylespec_t;
+
+static const ztable_colspec_t default_colspec = {
+	.cs_align = ZT_ALIGN_LEFT,
+};
+
+typedef enum {
+    BC_PAD,
+    BC_HORIZ,
+    BC_VERT,
+    BC_CORNER_TOP_LEFT,
+    BC_CORNER_TOP_RIGHT,
+    BC_CORNER_BOTTOM_LEFT,
+    BC_CORNER_BOTTOM_RIGHT,
+    BC_JOIN_RIGHT,
+    BC_JOIN_LEFT,
+    BC_JOIN_BOTTOM,
+    BC_JOIN_TOP,
+    BC_JOIN_CROSS,
+} ztable_charspec_t;
+
+static const char *ascii_chars[] =
+    { " ", "-", "|", "/", "\\", "\\", "/", "+", "+", "+", "+", "+" };
+static const char *box_heavy_chars[] =
+    { " ", "━", "┃", "┏", "┓", "┗", "┛", "┣", "┫", "┳", "┻", "╋" };
+static const char *box_double_chars[] =
+    { " ", "═", "║", "╔", "╗", "╚", "╝", "╠", "╣", "╦", "╩", "╬" };
+
+typedef struct {
+	ztable_charspec_t cs_pad;
+	ztable_charspec_t cs_edge_border_left;
+	ztable_charspec_t cs_edge_border_right;
+	ztable_charspec_t cs_edge_gap;
+	ztable_charspec_t cs_cell_border;
+	ztable_charspec_t cs_cell_gap;
+} ztable_cellcharspec_t;
+
+static const ztable_cellcharspec_t headlinespec = {
+    BC_HORIZ,
+    BC_CORNER_TOP_LEFT, BC_CORNER_TOP_RIGHT, BC_HORIZ,
+    BC_JOIN_BOTTOM, BC_HORIZ,
+};
+static const ztable_cellcharspec_t midlinespec = {
+    BC_HORIZ,
+    BC_JOIN_RIGHT, BC_JOIN_LEFT, BC_HORIZ,
+    BC_JOIN_CROSS, BC_HORIZ,
+};
+static const ztable_cellcharspec_t footlinespec = {
+    BC_HORIZ,
+    BC_CORNER_BOTTOM_LEFT, BC_CORNER_BOTTOM_RIGHT, BC_HORIZ,
+    BC_JOIN_TOP, BC_HORIZ,
+};
+static const ztable_cellcharspec_t headingspec = {
+    BC_PAD,
+    BC_VERT, BC_VERT, BC_PAD,
+    BC_VERT, BC_PAD,
+};
+static const ztable_cellcharspec_t dataspec = {
+    BC_PAD,
+    BC_VERT, BC_VERT, BC_PAD,
+    BC_VERT, BC_PAD,
+};
+
+static const ztable_stylespec_t classic_style = {
+	.s_header = true,
+	.s_headline = false,
+	.s_midline = false,
+	.s_footline = false,
+	.s_edge_gap = 0,
+	.s_edge_border = false,
+	.s_cell_gap = 2,
+	.s_cell_border = false,
+	.s_chars = ascii_chars,
+};
+
+static const ztable_stylespec_t simple_style = {
+	.s_header = true,
+	.s_headline = true,
+	.s_midline = true,
+	.s_footline = true,
+	.s_edge_gap = 0,
+	.s_edge_border = false,
+	.s_cell_gap = 1,
+	.s_cell_border = true,
+	.s_chars = ascii_chars,
+};
+
+static const ztable_stylespec_t box_style = {
+	.s_header = true,
+	.s_headline = true,
+	.s_midline = true,
+	.s_footline = true,
+	.s_edge_gap = 1,
+	.s_edge_border = true,
+	.s_cell_gap = 1,
+	.s_cell_border = true,
+	.s_chars = box_heavy_chars,
+};
+
+static const ztable_stylespec_t double_style = {
+	.s_header = true,
+	.s_headline = true,
+	.s_midline = true,
+	.s_footline = true,
+	.s_edge_gap = 1,
+	.s_edge_border = true,
+	.s_cell_gap = 1,
+	.s_cell_border = true,
+	.s_chars = box_double_chars,
+};
+
+static const ztable_stylespec_t *
+default_style(void)
+{
+	const char *env_style = getenv("ZFS_TABLE_STYLE");
+	if (env_style == NULL)
+		return (&box_style);	/* XXX temp for dev */
+	if (strcmp(env_style, "classic") == 0)
+		return (&classic_style);
+	if (strcmp(env_style, "simple") == 0)
+		return (&simple_style);
+	if (strcmp(env_style, "box") == 0)
+		return (&box_style);
+	if (strcmp(env_style, "double") == 0)
+		return (&double_style);
+	return (&classic_style);
+}
+
+/* ========== */
+
 /*
  * cell. an actual unit of data in the table. carries the stringified data,
  * and its width.
@@ -47,25 +191,43 @@ typedef struct {
 
 /* the table proper */
 struct ztable {
-	size_t		t_acols;
-	size_t		t_ncols;
-	ztable_col_t	*t_cols;
+	const ztable_stylespec_t	*t_style;
 
-	size_t		t_arows;
-	size_t		t_nrows;
-	ztable_row_t	*t_rows;
-};
+	size_t				t_acols;
+	size_t				t_ncols;
+	ztable_col_t			*t_cols;
 
-static const ztable_colspec_t default_colspec = {
-	.cs_align = ZT_ALIGN_LEFT,
+	size_t				t_arows;
+	size_t				t_nrows;
+	ztable_row_t			*t_rows;
 };
 
 /* ========== */
 
 ztable_t *
-ztable_create(void)
+ztable_create(ztable_style_t style)
 {
 	ztable_t *t = calloc(1, sizeof (ztable_t));
+
+	switch (style) {
+	case ZT_STYLE_CLASSIC:
+		t->t_style = &classic_style;
+		break;
+	case ZT_STYLE_SIMPLE:
+		t->t_style = &simple_style;
+		break;
+	case ZT_STYLE_BOX:
+		t->t_style = &box_style;
+		break;
+	case ZT_STYLE_DOUBLE:
+		t->t_style = &double_style;
+		break;
+
+	default:
+		t->t_style = default_style();
+		break;
+	}
+
 	return (t);
 }
 
@@ -153,123 +315,6 @@ ztable_destroy(ztable_t *t)
 
 /* ========== */
 
-typedef enum {
-    BC_PAD,
-    BC_HORIZ,
-    BC_VERT,
-    BC_CORNER_TOP_LEFT,
-    BC_CORNER_TOP_RIGHT,
-    BC_CORNER_BOTTOM_LEFT,
-    BC_CORNER_BOTTOM_RIGHT,
-    BC_JOIN_RIGHT,
-    BC_JOIN_LEFT,
-    BC_JOIN_BOTTOM,
-    BC_JOIN_TOP,
-    BC_JOIN_CROSS,
-} ztable_charspec_t;
-
-static const char *ascii_chars[] =
-    { " ", "-", "|", "/", "\\", "\\", "/", "+", "+", "+", "+", "+" };
-static const char *box_heavy_chars[] =
-    { " ", "━", "┃", "┏", "┓", "┗", "┛", "┣", "┫", "┳", "┻", "╋" };
-static const char *box_double_chars[] =
-    { " ", "═", "║", "╔", "╗", "╚", "╝", "╠", "╣", "╦", "╩", "╬" };
-
-typedef struct {
-	ztable_charspec_t cs_pad;
-	ztable_charspec_t cs_edge_border_left;
-	ztable_charspec_t cs_edge_border_right;
-	ztable_charspec_t cs_edge_gap;
-	ztable_charspec_t cs_cell_border;
-	ztable_charspec_t cs_cell_gap;
-} ztable_cellcharspec_t;
-
-static const ztable_cellcharspec_t headlinespec = {
-    BC_HORIZ,
-    BC_CORNER_TOP_LEFT, BC_CORNER_TOP_RIGHT, BC_HORIZ,
-    BC_JOIN_BOTTOM, BC_HORIZ,
-};
-static const ztable_cellcharspec_t midlinespec = {
-    BC_HORIZ,
-    BC_JOIN_RIGHT, BC_JOIN_LEFT, BC_HORIZ,
-    BC_JOIN_CROSS, BC_HORIZ,
-};
-static const ztable_cellcharspec_t footlinespec = {
-    BC_HORIZ,
-    BC_CORNER_BOTTOM_LEFT, BC_CORNER_BOTTOM_RIGHT, BC_HORIZ,
-    BC_JOIN_TOP, BC_HORIZ,
-};
-static const ztable_cellcharspec_t headingspec = {
-    BC_PAD,
-    BC_VERT, BC_VERT, BC_PAD,
-    BC_VERT, BC_PAD,
-};
-static const ztable_cellcharspec_t dataspec = {
-    BC_PAD,
-    BC_VERT, BC_VERT, BC_PAD,
-    BC_VERT, BC_PAD,
-};
-
-typedef struct {
-	bool		s_header;
-	bool		s_headline;
-	bool		s_midline;
-	bool		s_footline;
-	size_t		s_edge_gap;
-	bool		s_edge_border;
-	size_t		s_cell_gap;
-	bool		s_cell_border;
-	const char	**s_chars;
-} ztable_stylespec_t;
-
-static const ztable_stylespec_t classic_style = {
-	.s_header = true,
-	.s_headline = false,
-	.s_midline = false,
-	.s_footline = false,
-	.s_edge_gap = 0,
-	.s_edge_border = false,
-	.s_cell_gap = 2,
-	.s_cell_border = false,
-	.s_chars = ascii_chars,
-};
-
-static const ztable_stylespec_t simple_style = {
-	.s_header = true,
-	.s_headline = true,
-	.s_midline = true,
-	.s_footline = true,
-	.s_edge_gap = 0,
-	.s_edge_border = false,
-	.s_cell_gap = 1,
-	.s_cell_border = true,
-	.s_chars = ascii_chars,
-};
-
-static const ztable_stylespec_t box_style = {
-	.s_header = true,
-	.s_headline = true,
-	.s_midline = true,
-	.s_footline = true,
-	.s_edge_gap = 1,
-	.s_edge_border = true,
-	.s_cell_gap = 1,
-	.s_cell_border = true,
-	.s_chars = box_heavy_chars,
-};
-
-static const ztable_stylespec_t double_style = {
-	.s_header = true,
-	.s_headline = true,
-	.s_midline = true,
-	.s_footline = true,
-	.s_edge_gap = 1,
-	.s_edge_border = true,
-	.s_cell_gap = 1,
-	.s_cell_border = true,
-	.s_chars = box_double_chars,
-};
-
 static size_t
 ztable_format_cell(ztable_t *t, ztable_cell_t *cell, size_t colidx,
     const ztable_stylespec_t *ss, const ztable_cellcharspec_t *cs,
@@ -344,30 +389,13 @@ ztable_format_cell(ztable_t *t, ztable_cell_t *cell, size_t colidx,
 	return (bp);
 }
 
-static const ztable_stylespec_t *
-default_style(void)
-{
-	const char *env_style = getenv("ZFS_TABLE_STYLE");
-	if (env_style == NULL)
-		return (&box_style);	/* XXX temp for dev */
-	if (strcmp(env_style, "classic") == 0)
-		return (&classic_style);
-	if (strcmp(env_style, "simple") == 0)
-		return (&simple_style);
-	if (strcmp(env_style, "box") == 0)
-		return (&box_style);
-	if (strcmp(env_style, "double") == 0)
-		return (&double_style);
-	return (&classic_style);
-}
-
 void
 ztable_print(ztable_t *t)
 {
-	const ztable_stylespec_t *ss = default_style();
-
 	if (t->t_ncols == 0)
 		return;
+
+	const ztable_stylespec_t *ss = t->t_style;
 
 	/* content width */
 	size_t width = 0;

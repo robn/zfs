@@ -298,6 +298,15 @@ static inline char *zfs_strerror(int errnum) {
 typedef struct ztable ztable_t;
 
 typedef enum {
+	ZT_STYLE_DEFAULT = 0,
+
+	ZT_STYLE_CLASSIC = 32,
+	ZT_STYLE_SIMPLE,
+	ZT_STYLE_BOX,
+	ZT_STYLE_DOUBLE,
+} ztable_style_t;
+
+typedef enum {
 	ZT_ALIGN_LEFT = 0,
 	ZT_ALIGN_CENTER,
 	ZT_ALIGN_RIGHT,
@@ -307,7 +316,7 @@ typedef struct {
 	ztable_colspec_align_t	cs_align;
 } ztable_colspec_t;
 
-ztable_t *ztable_create(void);
+ztable_t *ztable_create(ztable_style_t style);
 void ztable_add_column(ztable_t *tab, const char *name,
     const ztable_colspec_t *colspec);
 void ztable_add_cell(ztable_t *tab, const void *data);
