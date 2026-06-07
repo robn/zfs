@@ -248,7 +248,10 @@ ztable_add_column(ztable_t *t, const char *name,
 	col->tc_spec = colspec == NULL ? default_colspec : *colspec;
 
 	col->tc_cell.tcl_data = strdup(name);
-	col->tc_cell.tcl_width = col->tc_max_width = strlen(name);
+	col->tc_cell.tcl_width = strlen(name);
+
+	if (t->t_style->s_header)
+		col->tc_max_width = col->tc_cell.tcl_width;
 }
 
 void
