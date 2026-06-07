@@ -30,6 +30,7 @@ typedef struct {
 	bool		s_headline;
 	bool		s_midline;
 	bool		s_footline;
+	bool		s_pad_cells;
 	size_t		s_edge_gap;
 	bool		s_edge_border;
 	size_t		s_cell_gap;
@@ -103,6 +104,7 @@ static const ztable_stylespec_t classic_style = {
 	.s_headline = false,
 	.s_midline = false,
 	.s_footline = false,
+	.s_pad_cells = true,
 	.s_edge_gap = 0,
 	.s_edge_border = false,
 	.s_cell_gap = 2,
@@ -115,6 +117,7 @@ static const ztable_stylespec_t simple_style = {
 	.s_headline = true,
 	.s_midline = true,
 	.s_footline = true,
+	.s_pad_cells = true,
 	.s_edge_gap = 0,
 	.s_edge_border = false,
 	.s_cell_gap = 1,
@@ -127,6 +130,7 @@ static const ztable_stylespec_t box_style = {
 	.s_headline = true,
 	.s_midline = true,
 	.s_footline = true,
+	.s_pad_cells = true,
 	.s_edge_gap = 1,
 	.s_edge_border = true,
 	.s_cell_gap = 1,
@@ -139,6 +143,7 @@ static const ztable_stylespec_t double_style = {
 	.s_headline = true,
 	.s_midline = true,
 	.s_footline = true,
+	.s_pad_cells = true,
 	.s_edge_gap = 1,
 	.s_edge_border = true,
 	.s_cell_gap = 1,
@@ -352,20 +357,22 @@ ztable_format_cell(ztable_t *t, ztable_cell_t *cell, size_t colidx,
 		}
 	}
 
-	size_t pad = col->tc_max_width - (cell ? cell->tcl_width : 0);
 	size_t lpad = 0, rpad = 0;
-	switch (col->tc_spec.cs_align) {
-	case ZT_ALIGN_LEFT:
-		rpad = pad;
-		break;
-	case ZT_ALIGN_RIGHT:
-		lpad = pad;
-		rpad = 0;
-		break;
-	case ZT_ALIGN_CENTER:
-		lpad = pad/2;
-		rpad = pad/2 + (pad & 1);
-		break;
+	if (ss->s_pad_cells) {
+		size_t pad = col->tc_max_width - (cell ? cell->tcl_width : 0);
+		switch (col->tc_spec.cs_align) {
+		case ZT_ALIGN_LEFT:
+			rpad = pad;
+			break;
+		case ZT_ALIGN_RIGHT:
+			lpad = pad;
+			rpad = 0;
+			break;
+		case ZT_ALIGN_CENTER:
+			lpad = pad/2;
+			rpad = pad/2 + (pad & 1);
+			break;
+		}
 	}
 
 	/* padding (left) */
