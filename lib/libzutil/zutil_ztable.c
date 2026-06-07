@@ -254,47 +254,59 @@ static const ztable_stylespec_t double_style = {
 	.s_chars = box_double_chars,
 };
 
-static void
-ztable_print_cell(ztable_t *t, ztable_cell_t *cell, size_t colidx,
-    const ztable_stylespec_t *ss, const ztable_cellcharspec_t *cs)
+static size_t
+ztable_format_cell(ztable_t *t, ztable_cell_t *cell, size_t colidx,
+    const ztable_stylespec_t *ss, const ztable_cellcharspec_t *cs,
+    char *buf, size_t bufsz)
 {
+	size_t bp = 0;
+
 	if (colidx == 0) {
 		if (ss->s_edge_border)
 			/* edge border (left) */
-			fputs(ss->s_chars[cs->cs_edge_border_left], stdout);
+			bp += strlcpy(&buf[bp],
+			    ss->s_chars[cs->cs_edge_border_left], bufsz-bp);
 		/* edge gap (left) */
 		for (size_t p = 0; p < ss->s_edge_gap; p++)
-			fputs(ss->s_chars[cs->cs_edge_gap], stdout);
+			bp += strlcpy(&buf[bp],
+			    ss->s_chars[cs->cs_edge_gap], bufsz-bp);
 	} else {
 		/* cell gap (left) */
 		for (size_t p = 0; p < ss->s_cell_gap; p++)
-			fputs(ss->s_chars[cs->cs_cell_gap], stdout);
+			bp += strlcpy(&buf[bp],
+			    ss->s_chars[cs->cs_cell_gap], bufsz-bp);
 		if (ss->s_cell_border) {
 			/* cell border */
-			fputs(ss->s_chars[cs->cs_cell_border], stdout);
+			bp += strlcpy(&buf[bp],
+			    ss->s_chars[cs->cs_cell_border], bufsz-bp);
 			/* cell gap (right) */
 			for (size_t p = 0; p < ss->s_cell_gap; p++)
-				fputs(ss->s_chars[cs->cs_cell_gap], stdout);
+				bp += strlcpy(&buf[bp],
+				    ss->s_chars[cs->cs_cell_gap], bufsz-bp);
 		}
 	}
 
 	/* content */
 	if (cell)
-		fputs(cell->tcl_data, stdout);
+		bp += strlcpy(&buf[bp], cell->tcl_data, bufsz-bp);
 
 	/* content padding */
 	for (size_t p = cell ? cell->tcl_width : 0;
 	    p < t->t_cols[colidx].tc_max_width; p++)
-		fputs(ss->s_chars[cs->cs_pad], stdout);
+		bp += strlcpy(&buf[bp], ss->s_chars[cs->cs_pad], bufsz-bp);
 
 	if (colidx == t->t_ncols-1) {
 		/* edge gap (right) */
 		for (size_t p = 0; p < ss->s_edge_gap; p++)
-			fputs(ss->s_chars[cs->cs_edge_gap], stdout);
+			bp += strlcpy(&buf[bp],
+			    ss->s_chars[cs->cs_edge_gap], bufsz-bp);
 		if (ss->s_edge_border)
 			/* edge border (right) */
-			fputs(ss->s_chars[cs->cs_edge_border_right], stdout);
+			bp += strlcpy(&buf[bp],
+			    ss->s_chars[cs->cs_edge_border_right], bufsz-bp);
 	}
+
+	return (bp);
 }
 
 void
@@ -331,39 +343,51 @@ ztable_print(ztable_t *t)
 		/* +1 for border glyph, + cell gap on the other side */
 		width += (t->t_ncols-1) * (ss->s_cell_gap + 1);
 
+	char buf[1024];
+	size_t bufsz = sizeof (buf);
+	size_t bp = 0;
+
 	/* top ruler */
 	if (ss->s_ruler) {
+		bp = 0;
 		for (size_t i = 0; i < t->t_ncols; i++)
-			ztable_print_cell(t, NULL, i, ss, &toprulerspec);
-		fputc('\n', stdout);
+			bp += ztable_format_cell(t, NULL, i, ss, &toprulerspec,
+			    &buf[bp], bufsz-bp);
+		printf("%s\n", buf);
 	}
 
 	/* heading row */
+	bp = 0;
 	for (size_t i = 0; i < t->t_ncols; i++)
-		ztable_print_cell(t, &t->t_cols[i].tc_cell, i,
-		    ss, &headingspec);
-	fputc('\n', stdout);
+		bp += ztable_format_cell(t, &t->t_cols[i].tc_cell, i,
+		    ss, &headingspec, &buf[bp], bufsz-bp);
+	printf("%s\n", buf);
 
 	/* divider */
 	if (ss->s_divider) {
+		bp = 0;
 		for (size_t i = 0; i < t->t_ncols; i++)
-			ztable_print_cell(t, NULL, i, ss, &dividerspec);
-		fputc('\n', stdout);
+			bp += ztable_format_cell(t, NULL, i, ss, &dividerspec,
+			    &buf[bp], bufsz-bp);
+		printf("%s\n", buf);
 	}
 
 	/* data rows */
 	for (size_t ri = 0; ri < t->t_nrows; ri++) {
 		ztable_row_t *row = &t->t_rows[ri];
+		bp = 0;
 		for (size_t i = 0; i < row->tr_ncells; i++)
-			ztable_print_cell(t, &row->tr_cells[i], i, ss, &dataspec);
-		fputc('\n', stdout);
+			bp += ztable_format_cell(t, &row->tr_cells[i], i,
+			    ss, &dataspec, &buf[bp], bufsz-bp);
+		printf("%s\n", buf);
 	}
 
 	/* bottom ruler */
 	if (ss->s_ruler) {
+		bp = 0;
 		for (size_t i = 0; i < t->t_ncols; i++)
-			ztable_print_cell(t, NULL, i, ss, &bottomrulerspec);
-		fputc('\n', stdout);
+			bp += ztable_format_cell(t, NULL, i,
+			    ss, &bottomrulerspec, &buf[bp], bufsz-bp);
+		printf("%s\n", buf);
 	}
 }
-
