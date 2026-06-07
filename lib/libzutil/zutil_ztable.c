@@ -170,6 +170,41 @@ static const char *box_double_chars[] =
     { " ", "═", "║", "╔", "╗", "╚", "╝", "╠", "╣", "╦", "╩", "╬" };
 
 typedef struct {
+	ztable_charspec_t cs_pad;
+	ztable_charspec_t cs_edge_border_left;
+	ztable_charspec_t cs_edge_border_right;
+	ztable_charspec_t cs_edge_gap;
+	ztable_charspec_t cs_cell_border;
+	ztable_charspec_t cs_cell_gap;
+} ztable_cellcharspec_t;
+
+static const ztable_cellcharspec_t toprulerspec = {
+    BC_HORIZ,
+    BC_CORNER_TOP_LEFT, BC_CORNER_TOP_RIGHT, BC_HORIZ,
+    BC_JOIN_BOTTOM, BC_HORIZ,
+};
+static const ztable_cellcharspec_t bottomrulerspec = {
+    BC_HORIZ,
+    BC_CORNER_BOTTOM_LEFT, BC_CORNER_BOTTOM_RIGHT, BC_HORIZ,
+    BC_JOIN_TOP, BC_HORIZ,
+};
+static const ztable_cellcharspec_t headingspec = {
+    BC_PAD,
+    BC_VERT, BC_VERT, BC_PAD,
+    BC_VERT, BC_PAD,
+};
+static const ztable_cellcharspec_t dividerspec = {
+    BC_HORIZ,
+    BC_JOIN_RIGHT, BC_JOIN_LEFT, BC_HORIZ,
+    BC_JOIN_CROSS, BC_HORIZ,
+};
+static const ztable_cellcharspec_t dataspec = {
+    BC_PAD,
+    BC_VERT, BC_VERT, BC_PAD,
+    BC_VERT, BC_PAD,
+};
+
+typedef struct {
 	bool		s_ruler;
 	bool		s_divider;
 	size_t		s_edge_gap;
@@ -221,28 +256,25 @@ static const ztable_stylespec_t double_style = {
 
 static void
 ztable_print_cell(ztable_t *t, ztable_cell_t *cell, size_t colidx,
-    const ztable_stylespec_t *ss, ztable_charspec_t pad,
-    ztable_charspec_t edge_border_left, ztable_charspec_t edge_border_right,
-    ztable_charspec_t edge_gap, ztable_charspec_t cell_border,
-    ztable_charspec_t cell_gap)
+    const ztable_stylespec_t *ss, const ztable_cellcharspec_t *cs)
 {
 	if (colidx == 0) {
 		if (ss->s_edge_border)
 			/* edge border (left) */
-			fputs(ss->s_chars[edge_border_left], stdout);
+			fputs(ss->s_chars[cs->cs_edge_border_left], stdout);
 		/* edge gap (left) */
 		for (size_t p = 0; p < ss->s_edge_gap; p++)
-			fputs(ss->s_chars[edge_gap], stdout);
+			fputs(ss->s_chars[cs->cs_edge_gap], stdout);
 	} else {
 		/* cell gap (left) */
 		for (size_t p = 0; p < ss->s_cell_gap; p++)
-			fputs(ss->s_chars[cell_gap], stdout);
+			fputs(ss->s_chars[cs->cs_cell_gap], stdout);
 		if (ss->s_cell_border) {
 			/* cell border */
-			fputs(ss->s_chars[cell_border], stdout);
+			fputs(ss->s_chars[cs->cs_cell_border], stdout);
 			/* cell gap (right) */
 			for (size_t p = 0; p < ss->s_cell_gap; p++)
-				fputs(ss->s_chars[cell_gap], stdout);
+				fputs(ss->s_chars[cs->cs_cell_gap], stdout);
 		}
 	}
 
@@ -253,15 +285,15 @@ ztable_print_cell(ztable_t *t, ztable_cell_t *cell, size_t colidx,
 	/* content padding */
 	for (size_t p = cell ? cell->tcl_width : 0;
 	    p < t->t_cols[colidx].tc_max_width; p++)
-		fputs(ss->s_chars[pad], stdout);
+		fputs(ss->s_chars[cs->cs_pad], stdout);
 
 	if (colidx == t->t_ncols-1) {
 		/* edge gap (right) */
 		for (size_t p = 0; p < ss->s_edge_gap; p++)
-			fputs(ss->s_chars[edge_gap], stdout);
+			fputs(ss->s_chars[cs->cs_edge_gap], stdout);
 		if (ss->s_edge_border)
 			/* edge border (right) */
-			fputs(ss->s_chars[edge_border_right], stdout);
+			fputs(ss->s_chars[cs->cs_edge_border_right], stdout);
 	}
 }
 
@@ -302,24 +334,20 @@ ztable_print(ztable_t *t)
 	/* top ruler */
 	if (ss->s_ruler) {
 		for (size_t i = 0; i < t->t_ncols; i++)
-			ztable_print_cell(t, NULL, i, ss,
-			    BC_HORIZ, BC_CORNER_TOP_LEFT, BC_CORNER_TOP_RIGHT,
-			    BC_HORIZ, BC_JOIN_BOTTOM, BC_HORIZ);
+			ztable_print_cell(t, NULL, i, ss, &toprulerspec);
 		fputc('\n', stdout);
 	}
 
 	/* heading row */
 	for (size_t i = 0; i < t->t_ncols; i++)
-		ztable_print_cell(t, &t->t_cols[i].tc_cell, i, ss,
-		    BC_PAD, BC_VERT, BC_VERT, BC_PAD, BC_VERT, BC_PAD);
+		ztable_print_cell(t, &t->t_cols[i].tc_cell, i,
+		    ss, &headingspec);
 	fputc('\n', stdout);
 
 	/* divider */
 	if (ss->s_divider) {
 		for (size_t i = 0; i < t->t_ncols; i++)
-			ztable_print_cell(t, NULL, i, ss,
-			    BC_HORIZ, BC_JOIN_RIGHT, BC_JOIN_LEFT,
-			    BC_HORIZ, BC_JOIN_CROSS, BC_HORIZ);
+			ztable_print_cell(t, NULL, i, ss, &dividerspec);
 		fputc('\n', stdout);
 	}
 
@@ -327,17 +355,14 @@ ztable_print(ztable_t *t)
 	for (size_t ri = 0; ri < t->t_nrows; ri++) {
 		ztable_row_t *row = &t->t_rows[ri];
 		for (size_t i = 0; i < row->tr_ncells; i++)
-			ztable_print_cell(t, &row->tr_cells[i], i, ss,
-			    BC_PAD, BC_VERT, BC_VERT, BC_PAD, BC_VERT, BC_PAD);
+			ztable_print_cell(t, &row->tr_cells[i], i, ss, &dataspec);
 		fputc('\n', stdout);
 	}
 
 	/* bottom ruler */
 	if (ss->s_ruler) {
 		for (size_t i = 0; i < t->t_ncols; i++)
-			ztable_print_cell(t, NULL, i, ss, BC_HORIZ,
-			    BC_CORNER_BOTTOM_LEFT, BC_CORNER_BOTTOM_RIGHT,
-			    BC_HORIZ, BC_JOIN_TOP, BC_HORIZ);
+			ztable_print_cell(t, NULL, i, ss, &bottomrulerspec);
 		fputc('\n', stdout);
 	}
 }
