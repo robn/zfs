@@ -296,7 +296,16 @@ static inline char *zfs_strerror(int errnum) {
 
 /* opaque types */
 typedef struct ztable ztable_t;
-typedef struct ztable_colspec ztable_colspec_t;
+
+typedef enum {
+	ZT_ALIGN_LEFT = 0,
+	ZT_ALIGN_CENTER,
+	ZT_ALIGN_RIGHT,
+} ztable_colspec_align_t;
+
+typedef struct {
+	ztable_colspec_align_t	cs_align;
+} ztable_colspec_t;
 
 ztable_t *ztable_create(void);
 void ztable_add_column(ztable_t *tab, const char *name,

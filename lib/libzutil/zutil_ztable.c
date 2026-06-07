@@ -31,9 +31,10 @@ typedef struct {
 
 /* column header. a cell for display, and accumulated width */
 typedef struct {
-	ztable_cell_t	tc_cell;
+	ztable_colspec_t	tc_spec;
+	size_t			tc_max_width;
 
-	size_t		tc_max_width;
+	ztable_cell_t		tc_cell;
 } ztable_col_t;
 
 /* row. list of cells */
@@ -54,6 +55,10 @@ struct ztable {
 	ztable_row_t	*t_rows;
 };
 
+static const ztable_colspec_t default_colspec = {
+	.cs_align = ZT_ALIGN_LEFT,
+};
+
 /* ========== */
 
 ztable_t *
@@ -67,8 +72,6 @@ void
 ztable_add_column(ztable_t *t, const char *name,
     const ztable_colspec_t *colspec)
 {
-	(void) colspec;
-
 	/* can't add columns once the first row is started */
 	ASSERT0(t->t_nrows);
 
@@ -78,6 +81,8 @@ ztable_add_column(ztable_t *t, const char *name,
 		    t->t_acols * sizeof (ztable_col_t));
 	}
 	ztable_col_t *col = &t->t_cols[t->t_ncols++];
+
+	col->tc_spec = colspec == NULL ? default_colspec : *colspec;
 
 	col->tc_cell.tcl_data = strdup(name);
 	col->tc_cell.tcl_width = col->tc_max_width = strlen(name);
@@ -259,6 +264,8 @@ ztable_format_cell(ztable_t *t, ztable_cell_t *cell, size_t colidx,
     const ztable_stylespec_t *ss, const ztable_cellcharspec_t *cs,
     char *buf, size_t bufsz)
 {
+	ztable_col_t *col = &t->t_cols[colidx];
+
 	size_t bp = 0;
 
 	if (colidx == 0) {
@@ -286,13 +293,30 @@ ztable_format_cell(ztable_t *t, ztable_cell_t *cell, size_t colidx,
 		}
 	}
 
+	size_t pad = col->tc_max_width - (cell ? cell->tcl_width : 0);
+	size_t lpad = 0, rpad = 0;
+	switch (col->tc_spec.cs_align) {
+	case ZT_ALIGN_LEFT:
+		rpad = pad;
+		break;
+	case ZT_ALIGN_RIGHT:
+		lpad = pad;
+		rpad = 0;
+		break;
+	case ZT_ALIGN_CENTER:
+		lpad = pad/2;
+		rpad = pad/2 + (pad & 1);
+		break;
+	}
+
+	/* padding (left) */
+	for (size_t p = 0; p < lpad; p++)
+		bp += strlcpy(&buf[bp], ss->s_chars[cs->cs_pad], bufsz-bp);
 	/* content */
 	if (cell)
 		bp += strlcpy(&buf[bp], cell->tcl_data, bufsz-bp);
-
-	/* content padding */
-	for (size_t p = cell ? cell->tcl_width : 0;
-	    p < t->t_cols[colidx].tc_max_width; p++)
+	/* padding (right) */
+	for (size_t p = 0; p < rpad; p++)
 		bp += strlcpy(&buf[bp], ss->s_chars[cs->cs_pad], bufsz-bp);
 
 	if (colidx == t->t_ncols-1) {
