@@ -211,6 +211,7 @@ static const ztable_cellcharspec_t dataspec = {
 };
 
 typedef struct {
+	bool		s_header;
 	bool		s_headline;
 	bool		s_midline;
 	bool		s_footline;
@@ -222,6 +223,7 @@ typedef struct {
 } ztable_stylespec_t;
 
 static const ztable_stylespec_t classic_style = {
+	.s_header = true,
 	.s_headline = false,
 	.s_midline = false,
 	.s_footline = false,
@@ -233,6 +235,7 @@ static const ztable_stylespec_t classic_style = {
 };
 
 static const ztable_stylespec_t simple_style = {
+	.s_header = true,
 	.s_headline = true,
 	.s_midline = true,
 	.s_footline = true,
@@ -244,6 +247,7 @@ static const ztable_stylespec_t simple_style = {
 };
 
 static const ztable_stylespec_t box_style = {
+	.s_header = true,
 	.s_headline = true,
 	.s_midline = true,
 	.s_footline = true,
@@ -255,6 +259,7 @@ static const ztable_stylespec_t box_style = {
 };
 
 static const ztable_stylespec_t double_style = {
+	.s_header = true,
 	.s_headline = true,
 	.s_midline = true,
 	.s_footline = true,
@@ -389,7 +394,13 @@ ztable_print(ztable_t *t)
 	size_t bufsz = sizeof (buf);
 	size_t bp = 0;
 
-	/* header border line */
+	/*
+	 * head border line. if header is disabled, but midline is enabled,
+	 * draw the headline in place of the midline, since its a better
+	 * style for the top of the table
+	 */
+	if ((ss->s_header && ss->s_headline) ||
+	    (!ss->s_header && ss->s_midline))
 	if (ss->s_headline) {
 		bp = 0;
 		for (size_t i = 0; i < t->t_ncols; i++)
@@ -398,20 +409,22 @@ ztable_print(ztable_t *t)
 		printf("%s\n", buf);
 	}
 
-	/* header row */
-	bp = 0;
-	for (size_t i = 0; i < t->t_ncols; i++)
-		bp += ztable_format_cell(t, &t->t_cols[i].tc_cell, i,
-		    ss, &headingspec, &buf[bp], bufsz-bp);
-	printf("%s\n", buf);
-
-	/* middle border line (separates header and data) */
-	if (ss->s_midline) {
+	if (ss->s_header) {
+		/* header row */
 		bp = 0;
 		for (size_t i = 0; i < t->t_ncols; i++)
-			bp += ztable_format_cell(t, NULL, i, ss, &midlinespec,
-			    &buf[bp], bufsz-bp);
+			bp += ztable_format_cell(t, &t->t_cols[i].tc_cell, i,
+			    ss, &headingspec, &buf[bp], bufsz-bp);
 		printf("%s\n", buf);
+
+		/* middle border line (separates header and data) */
+		if (ss->s_midline) {
+			bp = 0;
+			for (size_t i = 0; i < t->t_ncols; i++)
+				bp += ztable_format_cell(t, NULL, i, ss, &midlinespec,
+				    &buf[bp], bufsz-bp);
+			printf("%s\n", buf);
+		}
 	}
 
 	/* data rows */
