@@ -2454,6 +2454,8 @@ found3:;
 	}
 
 	cb.cb_first = B_TRUE;
+	cb.cb_tab = ztable_create(cb.cb_scripted ?
+	    ZT_STYLE_SCRIPTED : ZT_STYLE_DEFAULT);
 
 	/* run for each object */
 	ret = zfs_for_each(argc, argv, flags, types, NULL,
@@ -2463,6 +2465,9 @@ found3:;
 		zcmd_print_json(cb.cb_jsobj);
 	else if (ret != 0 && cb.cb_json)
 		nvlist_free(cb.cb_jsobj);
+	else
+		ztable_print(cb.cb_tab, NULL);
+	ztable_destroy(cb.cb_tab);
 
 	if (cb.cb_proplist == &fake_name)
 		zprop_free_list(fake_name.pl_next);

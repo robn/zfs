@@ -1298,91 +1298,21 @@ zcmd_print_json(nvlist_t *nvl)
 static void
 zprop_print_headers(zprop_get_cbdata_t *cbp, zfs_type_t type)
 {
-	zprop_list_t *pl;
 	int i;
 	char *title;
-	size_t len;
 
 	cbp->cb_first = B_FALSE;
-	if (cbp->cb_scripted)
-		return;
-
-	/*
-	 * Start with the length of the column headers.
-	 */
-	cbp->cb_colwidths[GET_COL_NAME] = strlen(dgettext(TEXT_DOMAIN, "NAME"));
-	cbp->cb_colwidths[GET_COL_PROPERTY] = strlen(dgettext(TEXT_DOMAIN,
-	    "PROPERTY"));
-	cbp->cb_colwidths[GET_COL_VALUE] = strlen(dgettext(TEXT_DOMAIN,
-	    "VALUE"));
-	cbp->cb_colwidths[GET_COL_RECVD] = strlen(dgettext(TEXT_DOMAIN,
-	    "RECEIVED"));
-	cbp->cb_colwidths[GET_COL_SOURCE] = strlen(dgettext(TEXT_DOMAIN,
-	    "SOURCE"));
 
 	/* first property is always NAME */
 	assert(cbp->cb_proplist->pl_prop ==
 	    ((type == ZFS_TYPE_POOL) ? ZPOOL_PROP_NAME :
 	    ((type == ZFS_TYPE_VDEV) ? VDEV_PROP_NAME : ZFS_PROP_NAME)));
 
-	/*
-	 * Go through and calculate the widths for each column.  For the
-	 * 'source' column, we kludge it up by taking the worst-case scenario of
-	 * inheriting from the longest name.  This is acceptable because in the
-	 * majority of cases 'SOURCE' is the last column displayed, and we don't
-	 * use the width anyway.  Note that the 'VALUE' column can be oversized,
-	 * if the name of the property is much longer than any values we find.
-	 */
-	for (pl = cbp->cb_proplist; pl != NULL; pl = pl->pl_next) {
-		/*
-		 * 'PROPERTY' column
-		 */
-		if (pl->pl_prop != ZPROP_USERPROP) {
-			const char *propname = (type == ZFS_TYPE_POOL) ?
-			    zpool_prop_to_name(pl->pl_prop) :
-			    ((type == ZFS_TYPE_VDEV) ?
-			    vdev_prop_to_name(pl->pl_prop) :
-			    zfs_prop_to_name(pl->pl_prop));
-
-			assert(propname != NULL);
-			len = strlen(propname);
-			if (len > cbp->cb_colwidths[GET_COL_PROPERTY])
-				cbp->cb_colwidths[GET_COL_PROPERTY] = len;
-		} else {
-			assert(pl->pl_user_prop != NULL);
-			len = strlen(pl->pl_user_prop);
-			if (len > cbp->cb_colwidths[GET_COL_PROPERTY])
-				cbp->cb_colwidths[GET_COL_PROPERTY] = len;
-		}
-
-		/*
-		 * 'VALUE' column.  The first property is always the 'name'
-		 * property that was tacked on either by /sbin/zfs's
-		 * zfs_do_get() or when calling zprop_expand_list(), so we
-		 * ignore its width.  If the user specified the name property
-		 * to display, then it will be later in the list in any case.
-		 */
-		if (pl != cbp->cb_proplist &&
-		    pl->pl_width > cbp->cb_colwidths[GET_COL_VALUE])
-			cbp->cb_colwidths[GET_COL_VALUE] = pl->pl_width;
-
-		/* 'RECEIVED' column. */
-		if (pl != cbp->cb_proplist &&
-		    pl->pl_recvd_width > cbp->cb_colwidths[GET_COL_RECVD])
-			cbp->cb_colwidths[GET_COL_RECVD] = pl->pl_recvd_width;
-
-		/*
-		 * 'NAME' and 'SOURCE' columns
-		 */
-		if (pl->pl_prop == ((type == ZFS_TYPE_POOL) ? ZPOOL_PROP_NAME :
-		    ((type == ZFS_TYPE_VDEV) ? VDEV_PROP_NAME :
-		    ZFS_PROP_NAME)) && pl->pl_width >
-		    cbp->cb_colwidths[GET_COL_NAME]) {
-			cbp->cb_colwidths[GET_COL_NAME] = pl->pl_width;
-			cbp->cb_colwidths[GET_COL_SOURCE] = pl->pl_width +
-			    strlen(dgettext(TEXT_DOMAIN, "inherited from"));
-		}
-	}
+	ztable_colspec_t colspec = {
+		.cs_type = ZT_TYPE_STRING,
+		.cs_header_effect = cbp->cb_scripted ?
+		    ZT_EFFECT_DEFAULT : ZT_EFFECT_BOLD,
+	};
 
 	/*
 	 * Now go through and print the headers.
@@ -1408,17 +1338,9 @@ zprop_print_headers(zprop_get_cbdata_t *cbp, zfs_type_t type)
 			title = NULL;
 		}
 
-		if (title != NULL) {
-			if (i == (ZFS_GET_NCOLS - 1) ||
-			    cbp->cb_columns[i + 1] == GET_COL_NONE)
-				(void) printf("%s", title);
-			else
-				(void) printf("%-*s  ",
-				    cbp->cb_colwidths[cbp->cb_columns[i]],
-				    title);
-		}
+		if (title != NULL)
+			ztable_add_column(cbp->cb_tab, title, &colspec);
 	}
-	(void) printf("\n");
 }
 
 /*
@@ -1595,18 +1517,8 @@ zprop_print_one_property(const char *name, zprop_get_cbdata_t *cbp,
 			continue;
 		}
 
-		if (i == (ZFS_GET_NCOLS - 1) ||
-		    cbp->cb_columns[i + 1] == GET_COL_NONE)
-			(void) printf("%s", str);
-		else if (cbp->cb_scripted)
-			(void) printf("%s\t", str);
-		else
-			(void) printf("%-*s  ",
-			    cbp->cb_colwidths[cbp->cb_columns[i]],
-			    str);
+		ztable_add_cell(cbp->cb_tab, str);
 	}
-
-	(void) printf("\n");
 }
 
 int

@@ -685,6 +685,7 @@ typedef struct vdev_cbdata {
 	unsigned int cb_names_count;
 } vdev_cbdata_t;
 
+typedef struct ztable ztable_t;
 typedef struct zprop_get_cbdata {
 	int cb_sources;
 	zfs_get_column_t cb_columns[ZFS_GET_NCOLS];
@@ -699,6 +700,7 @@ typedef struct zprop_get_cbdata {
 	nvlist_t *cb_jsobj;
 	boolean_t cb_json_as_int;
 	boolean_t cb_json_pool_key_guid;
+	ztable_t *cb_tab;
 } zprop_get_cbdata_t;
 
 #define	ZFS_SET_NOMOUNT		1
