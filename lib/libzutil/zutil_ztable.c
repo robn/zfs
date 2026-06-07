@@ -63,6 +63,8 @@ static const char *box_heavy_chars[] =
     { " ", "━", "┃", "┏", "┓", "┗", "┛", "┣", "┫", "┳", "┻", "╋" };
 static const char *box_double_chars[] =
     { " ", "═", "║", "╔", "╗", "╚", "╝", "╠", "╣", "╦", "╩", "╬" };
+static const char *scripted_chars[] =
+    { "\t", "", "", "", "", "", "", "", "", "", "", "" };
 
 typedef struct {
 	ztable_charspec_t cs_pad;
@@ -151,6 +153,19 @@ static const ztable_stylespec_t double_style = {
 	.s_chars = box_double_chars,
 };
 
+static const ztable_stylespec_t scripted_style = {
+	.s_header = false,
+	.s_headline = false,
+	.s_midline = false,
+	.s_footline = false,
+	.s_pad_cells = false,
+	.s_edge_gap = 0,
+	.s_edge_border = false,
+	.s_cell_gap = 1,
+	.s_cell_border = false,
+	.s_chars = scripted_chars,
+};
+
 static const ztable_stylespec_t *
 default_style(void)
 {
@@ -226,6 +241,10 @@ ztable_create(ztable_style_t style)
 		break;
 	case ZT_STYLE_DOUBLE:
 		t->t_style = &double_style;
+		break;
+
+	case ZT_STYLE_SCRIPTED:
+		t->t_style = &scripted_style;
 		break;
 
 	default:

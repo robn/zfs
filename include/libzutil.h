@@ -299,6 +299,7 @@ typedef struct ztable ztable_t;
 
 typedef enum {
 	ZT_STYLE_DEFAULT = 0,
+	ZT_STYLE_SCRIPTED,
 
 	ZT_STYLE_CLASSIC = 32,
 	ZT_STYLE_SIMPLE,
