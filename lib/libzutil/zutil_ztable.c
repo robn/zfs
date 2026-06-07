@@ -17,6 +17,7 @@
 
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include <sys/debug.h>
 #include "libzutil.h"
 
@@ -333,15 +334,28 @@ ztable_format_cell(ztable_t *t, ztable_cell_t *cell, size_t colidx,
 	return (bp);
 }
 
+static const ztable_stylespec_t *
+default_style(void)
+{
+	const char *env_style = getenv("ZFS_TABLE_STYLE");
+	if (env_style == NULL)
+		return (&box_style);	/* XXX temp for dev */
+	if (strcmp(env_style, "classic") == 0)
+		return (&classic_style);
+	if (strcmp(env_style, "simple") == 0)
+		return (&simple_style);
+	if (strcmp(env_style, "box") == 0)
+		return (&box_style);
+	if (strcmp(env_style, "double") == 0)
+		return (&double_style);
+	return (&classic_style);
+}
+
 void
 ztable_print(ztable_t *t)
 {
-	//const ztable_stylespec_t *ss = &classic_style;
-	//const ztable_stylespec_t *ss = &simple_style;
-	const ztable_stylespec_t *ss = &box_style;
-	//const ztable_stylespec_t *ss = &border_style;
-	(void)classic_style; (void)simple_style;
-	(void)box_style; (void)double_style;
+	
+	const ztable_stylespec_t *ss = default_style();
 
 	if (t->t_ncols == 0)
 		return;
