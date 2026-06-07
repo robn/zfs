@@ -184,12 +184,17 @@ typedef struct {
 	ztable_charspec_t cs_cell_gap;
 } ztable_cellcharspec_t;
 
-static const ztable_cellcharspec_t toprulerspec = {
+static const ztable_cellcharspec_t headlinespec = {
     BC_HORIZ,
     BC_CORNER_TOP_LEFT, BC_CORNER_TOP_RIGHT, BC_HORIZ,
     BC_JOIN_BOTTOM, BC_HORIZ,
 };
-static const ztable_cellcharspec_t bottomrulerspec = {
+static const ztable_cellcharspec_t midlinespec = {
+    BC_HORIZ,
+    BC_JOIN_RIGHT, BC_JOIN_LEFT, BC_HORIZ,
+    BC_JOIN_CROSS, BC_HORIZ,
+};
+static const ztable_cellcharspec_t footlinespec = {
     BC_HORIZ,
     BC_CORNER_BOTTOM_LEFT, BC_CORNER_BOTTOM_RIGHT, BC_HORIZ,
     BC_JOIN_TOP, BC_HORIZ,
@@ -199,11 +204,6 @@ static const ztable_cellcharspec_t headingspec = {
     BC_VERT, BC_VERT, BC_PAD,
     BC_VERT, BC_PAD,
 };
-static const ztable_cellcharspec_t dividerspec = {
-    BC_HORIZ,
-    BC_JOIN_RIGHT, BC_JOIN_LEFT, BC_HORIZ,
-    BC_JOIN_CROSS, BC_HORIZ,
-};
 static const ztable_cellcharspec_t dataspec = {
     BC_PAD,
     BC_VERT, BC_VERT, BC_PAD,
@@ -211,8 +211,9 @@ static const ztable_cellcharspec_t dataspec = {
 };
 
 typedef struct {
-	bool		s_ruler;
-	bool		s_divider;
+	bool		s_headline;
+	bool		s_midline;
+	bool		s_footline;
 	size_t		s_edge_gap;
 	bool		s_edge_border;
 	size_t		s_cell_gap;
@@ -221,8 +222,9 @@ typedef struct {
 } ztable_stylespec_t;
 
 static const ztable_stylespec_t classic_style = {
-	.s_ruler = false,
-	.s_divider = false,
+	.s_headline = false,
+	.s_midline = false,
+	.s_footline = false,
 	.s_edge_gap = 0,
 	.s_edge_border = false,
 	.s_cell_gap = 2,
@@ -231,8 +233,9 @@ static const ztable_stylespec_t classic_style = {
 };
 
 static const ztable_stylespec_t simple_style = {
-	.s_ruler = false,
-	.s_divider = true,
+	.s_headline = true,
+	.s_midline = true,
+	.s_footline = true,
 	.s_edge_gap = 0,
 	.s_edge_border = false,
 	.s_cell_gap = 1,
@@ -241,8 +244,9 @@ static const ztable_stylespec_t simple_style = {
 };
 
 static const ztable_stylespec_t box_style = {
-	.s_ruler = true,
-	.s_divider = true,
+	.s_headline = true,
+	.s_midline = true,
+	.s_footline = true,
 	.s_edge_gap = 1,
 	.s_edge_border = true,
 	.s_cell_gap = 1,
@@ -251,8 +255,9 @@ static const ztable_stylespec_t box_style = {
 };
 
 static const ztable_stylespec_t double_style = {
-	.s_ruler = true,
-	.s_divider = true,
+	.s_headline = true,
+	.s_midline = true,
+	.s_footline = true,
 	.s_edge_gap = 1,
 	.s_edge_border = true,
 	.s_cell_gap = 1,
@@ -354,7 +359,6 @@ default_style(void)
 void
 ztable_print(ztable_t *t)
 {
-	
 	const ztable_stylespec_t *ss = default_style();
 
 	if (t->t_ncols == 0)
@@ -385,27 +389,27 @@ ztable_print(ztable_t *t)
 	size_t bufsz = sizeof (buf);
 	size_t bp = 0;
 
-	/* top ruler */
-	if (ss->s_ruler) {
+	/* header border line */
+	if (ss->s_headline) {
 		bp = 0;
 		for (size_t i = 0; i < t->t_ncols; i++)
-			bp += ztable_format_cell(t, NULL, i, ss, &toprulerspec,
+			bp += ztable_format_cell(t, NULL, i, ss, &headlinespec,
 			    &buf[bp], bufsz-bp);
 		printf("%s\n", buf);
 	}
 
-	/* heading row */
+	/* header row */
 	bp = 0;
 	for (size_t i = 0; i < t->t_ncols; i++)
 		bp += ztable_format_cell(t, &t->t_cols[i].tc_cell, i,
 		    ss, &headingspec, &buf[bp], bufsz-bp);
 	printf("%s\n", buf);
 
-	/* divider */
-	if (ss->s_divider) {
+	/* middle border line (separates header and data) */
+	if (ss->s_midline) {
 		bp = 0;
 		for (size_t i = 0; i < t->t_ncols; i++)
-			bp += ztable_format_cell(t, NULL, i, ss, &dividerspec,
+			bp += ztable_format_cell(t, NULL, i, ss, &midlinespec,
 			    &buf[bp], bufsz-bp);
 		printf("%s\n", buf);
 	}
@@ -420,12 +424,12 @@ ztable_print(ztable_t *t)
 		printf("%s\n", buf);
 	}
 
-	/* bottom ruler */
-	if (ss->s_ruler) {
+	/* footer border line */
+	if (ss->s_footline) {
 		bp = 0;
 		for (size_t i = 0; i < t->t_ncols; i++)
 			bp += ztable_format_cell(t, NULL, i,
-			    ss, &bottomrulerspec, &buf[bp], bufsz-bp);
+			    ss, &footlinespec, &buf[bp], bufsz-bp);
 		printf("%s\n", buf);
 	}
 }
