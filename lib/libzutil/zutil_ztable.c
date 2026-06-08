@@ -232,15 +232,15 @@ typedef struct {
 
 /* the table proper */
 struct ztable {
-	const ztable_stylespec_t	*t_style;
+	ztable_stylespec_t	t_style;
 
-	size_t				t_acols;
-	size_t				t_ncols;
-	ztable_col_t			*t_cols;
+	size_t			t_acols;
+	size_t			t_ncols;
+	ztable_col_t		*t_cols;
 
-	size_t				t_arows;
-	size_t				t_nrows;
-	ztable_row_t			*t_rows;
+	size_t			t_arows;
+	size_t			t_nrows;
+	ztable_row_t		*t_rows;
 };
 
 /* ========== */
@@ -252,24 +252,24 @@ ztable_create(ztable_style_t style)
 
 	switch (style) {
 	case ZT_STYLE_CLASSIC:
-		t->t_style = &classic_style;
+		t->t_style = classic_style;
 		break;
 	case ZT_STYLE_SIMPLE:
-		t->t_style = &simple_style;
+		t->t_style = simple_style;
 		break;
 	case ZT_STYLE_BOX:
-		t->t_style = &box_style;
+		t->t_style = box_style;
 		break;
 	case ZT_STYLE_DOUBLE:
-		t->t_style = &double_style;
+		t->t_style = double_style;
 		break;
 
 	case ZT_STYLE_SCRIPTED:
-		t->t_style = &scripted_style;
+		t->t_style = scripted_style;
 		break;
 
 	default:
-		t->t_style = default_style();
+		t->t_style = *default_style();
 		break;
 	}
 
@@ -295,7 +295,7 @@ ztable_add_column(ztable_t *t, const char *name,
 	col->tc_cell.tcl_data = strdup(name);
 	col->tc_cell.tcl_width = strlen(name);
 
-	if (t->t_style->s_header)
+	if (t->t_style.s_header)
 		col->tc_max_width = col->tc_cell.tcl_width;
 }
 
@@ -371,9 +371,10 @@ typedef enum {
 
 static size_t
 ztable_format_cell(ztable_t *t, ztable_cell_t *cell,
-    ztable_celltype_t celltype, size_t colidx, const ztable_stylespec_t *ss,
+    ztable_celltype_t celltype, size_t colidx,
     const ztable_cellcharspec_t *cs, char *buf, size_t bufsz)
 {
+	const ztable_stylespec_t *ss = &t->t_style;
 	ztable_col_t *col = &t->t_cols[colidx];
 
 	size_t bp = 0;
@@ -521,7 +522,7 @@ ztable_print(ztable_t *t)
 	if (t->t_ncols == 0)
 		return;
 
-	const ztable_stylespec_t *ss = t->t_style;
+	const ztable_stylespec_t *ss = &t->t_style;
 
 	/* content width */
 	size_t width = 0;
@@ -559,7 +560,7 @@ ztable_print(ztable_t *t)
 		bp = 0;
 		for (size_t i = 0; i < t->t_ncols; i++)
 			bp += ztable_format_cell(t, NULL, ZT_CELL_DECORATION,
-			    i, ss, &headlinespec, &buf[bp], bufsz-bp);
+			    i, &headlinespec, &buf[bp], bufsz-bp);
 		printf("%s\n", buf);
 	}
 
@@ -568,7 +569,7 @@ ztable_print(ztable_t *t)
 		bp = 0;
 		for (size_t i = 0; i < t->t_ncols; i++)
 			bp += ztable_format_cell(t, &t->t_cols[i].tc_cell,
-			    ZT_CELL_HEADER, i, ss, &headingspec,
+			    ZT_CELL_HEADER, i, &headingspec,
 			    &buf[bp], bufsz-bp);
 		printf("%s\n", buf);
 
@@ -577,7 +578,7 @@ ztable_print(ztable_t *t)
 			bp = 0;
 			for (size_t i = 0; i < t->t_ncols; i++)
 				bp += ztable_format_cell(t, NULL,
-				    ZT_CELL_DECORATION, i, ss, &midlinespec,
+				    ZT_CELL_DECORATION, i, &midlinespec,
 				    &buf[bp], bufsz-bp);
 			printf("%s\n", buf);
 		}
@@ -589,8 +590,7 @@ ztable_print(ztable_t *t)
 		bp = 0;
 		for (size_t i = 0; i < row->tr_ncells; i++)
 			bp += ztable_format_cell(t, &row->tr_cells[i],
-			    ZT_CELL_DATA, i, ss, &dataspec,
-			    &buf[bp], bufsz-bp);
+			    ZT_CELL_DATA, i, &dataspec, &buf[bp], bufsz-bp);
 		printf("%s\n", buf);
 	}
 
@@ -599,7 +599,7 @@ ztable_print(ztable_t *t)
 		bp = 0;
 		for (size_t i = 0; i < t->t_ncols; i++)
 			bp += ztable_format_cell(t, NULL, ZT_CELL_DECORATION,
-			    i, ss, &footlinespec, &buf[bp], bufsz-bp);
+			    i, &footlinespec, &buf[bp], bufsz-bp);
 		printf("%s\n", buf);
 	}
 }
