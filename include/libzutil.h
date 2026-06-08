@@ -308,6 +308,18 @@ typedef enum {
 } ztable_style_t;
 
 typedef enum {
+	ZT_TYPE_STRING = 0,
+	ZT_TYPE_UINT64,
+} ztable_colspec_type_t;
+
+typedef enum {
+	ZT_FORMAT_RAW = 0,
+	ZT_FORMAT_NUMBER,
+	ZT_FORMAT_BYTES,
+	ZT_FORMAT_TIME,
+} ztable_colspec_format_t;
+
+typedef enum {
 	ZT_ALIGN_LEFT = 0,
 	ZT_ALIGN_CENTER,
 	ZT_ALIGN_RIGHT,
@@ -335,6 +347,8 @@ typedef enum {
 } ztable_colspec_color_t;
 
 typedef struct {
+	ztable_colspec_type_t	cs_type;
+	ztable_colspec_format_t	cs_format;
 	ztable_colspec_align_t	cs_align;
 	ztable_colspec_effect_t	cs_effect;
 	ztable_colspec_effect_t	cs_header_effect;

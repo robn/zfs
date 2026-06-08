@@ -26,6 +26,7 @@
 /* style: layout and formatting controls */
 
 typedef struct {
+	bool		s_format;
 	bool		s_color;
 	bool		s_header;
 	bool		s_headline;
@@ -40,6 +41,7 @@ typedef struct {
 } ztable_stylespec_t;
 
 static const ztable_colspec_t default_colspec = {
+	.cs_type = ZT_TYPE_STRING,
 	.cs_align = ZT_ALIGN_LEFT,
 	.cs_effect = ZT_EFFECT_DEFAULT,
 	.cs_header_effect = ZT_EFFECT_DEFAULT,
@@ -124,6 +126,7 @@ static const ztable_cellcharspec_t dataspec = {
 };
 
 static const ztable_stylespec_t classic_style = {
+	.s_format = true,
 	.s_color = true,
 	.s_header = true,
 	.s_headline = false,
@@ -138,6 +141,7 @@ static const ztable_stylespec_t classic_style = {
 };
 
 static const ztable_stylespec_t simple_style = {
+	.s_format = true,
 	.s_color = true,
 	.s_header = true,
 	.s_headline = true,
@@ -152,6 +156,7 @@ static const ztable_stylespec_t simple_style = {
 };
 
 static const ztable_stylespec_t box_style = {
+	.s_format = true,
 	.s_color = true,
 	.s_header = true,
 	.s_headline = true,
@@ -166,6 +171,7 @@ static const ztable_stylespec_t box_style = {
 };
 
 static const ztable_stylespec_t double_style = {
+	.s_format = true,
 	.s_color = true,
 	.s_header = true,
 	.s_headline = true,
@@ -180,6 +186,7 @@ static const ztable_stylespec_t double_style = {
 };
 
 static const ztable_stylespec_t scripted_style = {
+	.s_format = false,
 	.s_color = false,
 	.s_header = false,
 	.s_headline = false,
@@ -319,6 +326,9 @@ ztable_add_column(ztable_t *t, const char *name,
 
 	if (t->t_style.s_header)
 		col->tc_max_width = col->tc_cell.tcl_width;
+
+	if (!t->t_style.s_format)
+		col->tc_spec.cs_format = ZT_FORMAT_RAW;
 }
 
 void
@@ -347,10 +357,46 @@ ztable_add_cell(ztable_t *t, const void *data)
 	}
 	ztable_cell_t *cell = &row->tr_cells[row->tr_ncells++];
 
-	cell->tcl_data = strdup((const char *)data);
+	ztable_col_t *col = &t->t_cols[row->tr_ncells-1];
+
+	if (data == NULL)
+		cell->tcl_data = strdup("-");
+	else {
+		switch (col->tc_spec.cs_type) {
+		case ZT_TYPE_STRING:
+			cell->tcl_data = strdup((const char *)data);
+			break;
+		case ZT_TYPE_UINT64: {
+			uint64_t v = *(const uint64_t *)data;
+			char buf[64];
+			switch (col->tc_spec.cs_format) {
+			case ZT_FORMAT_NUMBER:
+				zfs_nicenum(v, buf, sizeof (buf));
+				break;
+			case ZT_FORMAT_BYTES:
+				zfs_nicebytes(v, buf, sizeof (buf));
+				break;
+			case ZT_FORMAT_TIME: {
+				time_t t = (time_t)v;
+				struct tm tm;
+				if (localtime_r(&t, &tm) == NULL ||
+				    strftime(buf, sizeof (buf), "%c", &tm) == 0)
+					goto fallback;
+				break;
+			}
+			default:
+fallback:
+				snprintf(buf, sizeof (buf), "%" PRIu64, v);
+				break;
+			}
+			cell->tcl_data = strdup(buf);
+			break;
+		}
+		}
+	}
+
 	cell->tcl_width = strlen(cell->tcl_data);
 
-	ztable_col_t *col = &t->t_cols[row->tr_ncells-1];
 	col->tc_max_width = MAX(col->tc_max_width, cell->tcl_width);
 }
 
