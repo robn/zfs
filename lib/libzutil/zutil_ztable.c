@@ -26,6 +26,7 @@
 /* style: layout and formatting controls */
 
 typedef struct {
+	bool		s_color;
 	bool		s_header;
 	bool		s_headline;
 	bool		s_midline;
@@ -123,6 +124,7 @@ static const ztable_cellcharspec_t dataspec = {
 };
 
 static const ztable_stylespec_t classic_style = {
+	.s_color = true,
 	.s_header = true,
 	.s_headline = false,
 	.s_midline = false,
@@ -136,6 +138,7 @@ static const ztable_stylespec_t classic_style = {
 };
 
 static const ztable_stylespec_t simple_style = {
+	.s_color = true,
 	.s_header = true,
 	.s_headline = true,
 	.s_midline = true,
@@ -149,6 +152,7 @@ static const ztable_stylespec_t simple_style = {
 };
 
 static const ztable_stylespec_t box_style = {
+	.s_color = true,
 	.s_header = true,
 	.s_headline = true,
 	.s_midline = true,
@@ -162,6 +166,7 @@ static const ztable_stylespec_t box_style = {
 };
 
 static const ztable_stylespec_t double_style = {
+	.s_color = true,
 	.s_header = true,
 	.s_headline = true,
 	.s_midline = true,
@@ -175,6 +180,7 @@ static const ztable_stylespec_t double_style = {
 };
 
 static const ztable_stylespec_t scripted_style = {
+	.s_color = false,
 	.s_header = false,
 	.s_headline = false,
 	.s_midline = false,
@@ -202,6 +208,19 @@ default_style(void)
 	if (strcmp(env_style, "double") == 0)
 		return (&double_style);
 	return (&classic_style);
+}
+
+static bool
+color_effects_available(void)
+{
+	if (!isatty(STDOUT_FILENO))
+		return (false);
+
+	const char *env = getenv("NO_COLOR");
+	if (env)
+		return (false);
+
+	return (true);
 }
 
 /* ========== */
@@ -272,6 +291,9 @@ ztable_create(ztable_style_t style)
 		t->t_style = *default_style();
 		break;
 	}
+
+	if (t->t_style.s_color && !color_effects_available())
+		t->t_style.s_color = false;
 
 	return (t);
 }
@@ -430,6 +452,7 @@ ztable_format_cell(ztable_t *t, ztable_cell_t *cell,
 	if (cell) {
 		/* color */
 		ztable_colspec_color_t color =
+		    !ss->s_color ? ZT_COLOR_DEFAULT :
 		    celltype == ZT_CELL_HEADER ? col->tc_spec.cs_header_color :
 		    celltype == ZT_CELL_DATA ? col->tc_spec.cs_color :
 		    ZT_COLOR_DEFAULT;
@@ -464,6 +487,7 @@ ztable_format_cell(ztable_t *t, ztable_cell_t *cell,
 		}
 		/* effect */
 		ztable_colspec_effect_t effect =
+		    !ss->s_color ? ZT_EFFECT_DEFAULT :
 		    celltype == ZT_CELL_HEADER ? col->tc_spec.cs_header_effect :
 		    celltype == ZT_CELL_DATA ? col->tc_spec.cs_effect :
 		    ZT_EFFECT_DEFAULT;
