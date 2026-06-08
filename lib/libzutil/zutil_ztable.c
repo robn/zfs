@@ -40,6 +40,8 @@ typedef struct {
 
 static const ztable_colspec_t default_colspec = {
 	.cs_align = ZT_ALIGN_LEFT,
+	.cs_effect = ZT_EFFECT_DEFAULT,
+	.cs_header_effect = ZT_EFFECT_DEFAULT,
 };
 
 typedef enum {
@@ -65,6 +67,14 @@ static const char *box_double_chars[] =
     { " ", "═", "║", "╔", "╗", "╚", "╝", "╠", "╣", "╦", "╩", "╬" };
 static const char *scripted_chars[] =
     { "\t", "", "", "", "", "", "", "", "", "", "", "" };
+
+static const char *ansi_reset			= "\x1b[0m";
+
+static const char *ansi_effect_bold		= "\x1b[1m";
+static const char *ansi_effect_dim		= "\x1b[2m";
+static const char *ansi_effect_italic		= "\x1b[3m";
+static const char *ansi_effect_underline	= "\x1b[4m";
+static const char *ansi_effect_strikethrough	= "\x1b[9m";
 
 typedef struct {
 	ztable_charspec_t cs_pad;
@@ -342,10 +352,16 @@ ztable_destroy(ztable_t *t)
 
 /* ========== */
 
+typedef enum {
+	ZT_CELL_HEADER,
+	ZT_CELL_DATA,
+	ZT_CELL_DECORATION,
+} ztable_celltype_t;
+
 static size_t
-ztable_format_cell(ztable_t *t, ztable_cell_t *cell, size_t colidx,
-    const ztable_stylespec_t *ss, const ztable_cellcharspec_t *cs,
-    char *buf, size_t bufsz)
+ztable_format_cell(ztable_t *t, ztable_cell_t *cell,
+    ztable_celltype_t celltype, size_t colidx, const ztable_stylespec_t *ss,
+    const ztable_cellcharspec_t *cs, char *buf, size_t bufsz)
 {
 	ztable_col_t *col = &t->t_cols[colidx];
 
@@ -397,9 +413,45 @@ ztable_format_cell(ztable_t *t, ztable_cell_t *cell, size_t colidx,
 	/* padding (left) */
 	for (size_t p = 0; p < lpad; p++)
 		bp += strlcpy(&buf[bp], ss->s_chars[cs->cs_pad], bufsz-bp);
+
 	/* content */
-	if (cell)
+	if (cell) {
+		/* effect */
+		ztable_colspec_effect_t effect =
+		    celltype == ZT_CELL_HEADER ? col->tc_spec.cs_header_effect :
+		    celltype == ZT_CELL_DATA ? col->tc_spec.cs_effect :
+		    ZT_EFFECT_DEFAULT;
+
+		switch (effect) {
+		case ZT_EFFECT_BOLD:
+			bp += strlcpy(&buf[bp], ansi_effect_bold, bufsz-bp);
+			break;
+		case ZT_EFFECT_DIM:
+			bp += strlcpy(&buf[bp], ansi_effect_dim, bufsz-bp);
+			break;
+		case ZT_EFFECT_ITALIC:
+			bp += strlcpy(&buf[bp], ansi_effect_italic, bufsz-bp);
+			break;
+		case ZT_EFFECT_UNDERLINE:
+			bp += strlcpy(&buf[bp],
+			    ansi_effect_underline, bufsz-bp);
+			break;
+		case ZT_EFFECT_STRIKETHROUGH:
+			bp += strlcpy(&buf[bp],
+			    ansi_effect_strikethrough, bufsz-bp);
+			break;
+		default:
+			break;
+		}
+
+		/* data */
 		bp += strlcpy(&buf[bp], cell->tcl_data, bufsz-bp);
+
+		/* effect reset */
+		if (effect != ZT_EFFECT_NONE)
+			bp += strlcpy(&buf[bp], ansi_effect_reset, bufsz-bp);
+	}
+
 	/* padding (right) */
 	for (size_t p = 0; p < rpad; p++)
 		bp += strlcpy(&buf[bp], ss->s_chars[cs->cs_pad], bufsz-bp);
@@ -461,8 +513,8 @@ ztable_print(ztable_t *t)
 	if (ss->s_headline) {
 		bp = 0;
 		for (size_t i = 0; i < t->t_ncols; i++)
-			bp += ztable_format_cell(t, NULL, i, ss, &headlinespec,
-			    &buf[bp], bufsz-bp);
+			bp += ztable_format_cell(t, NULL, ZT_CELL_DECORATION,
+			    i, ss, &headlinespec, &buf[bp], bufsz-bp);
 		printf("%s\n", buf);
 	}
 
@@ -470,15 +522,17 @@ ztable_print(ztable_t *t)
 		/* header row */
 		bp = 0;
 		for (size_t i = 0; i < t->t_ncols; i++)
-			bp += ztable_format_cell(t, &t->t_cols[i].tc_cell, i,
-			    ss, &headingspec, &buf[bp], bufsz-bp);
+			bp += ztable_format_cell(t, &t->t_cols[i].tc_cell,
+			    ZT_CELL_HEADER, i, ss, &headingspec,
+			    &buf[bp], bufsz-bp);
 		printf("%s\n", buf);
 
 		/* middle border line (separates header and data) */
 		if (ss->s_midline) {
 			bp = 0;
 			for (size_t i = 0; i < t->t_ncols; i++)
-				bp += ztable_format_cell(t, NULL, i, ss, &midlinespec,
+				bp += ztable_format_cell(t, NULL,
+				    ZT_CELL_DECORATION, i, ss, &midlinespec,
 				    &buf[bp], bufsz-bp);
 			printf("%s\n", buf);
 		}
@@ -489,8 +543,9 @@ ztable_print(ztable_t *t)
 		ztable_row_t *row = &t->t_rows[ri];
 		bp = 0;
 		for (size_t i = 0; i < row->tr_ncells; i++)
-			bp += ztable_format_cell(t, &row->tr_cells[i], i,
-			    ss, &dataspec, &buf[bp], bufsz-bp);
+			bp += ztable_format_cell(t, &row->tr_cells[i],
+			    ZT_CELL_DATA, i, ss, &dataspec,
+			    &buf[bp], bufsz-bp);
 		printf("%s\n", buf);
 	}
 
@@ -498,8 +553,8 @@ ztable_print(ztable_t *t)
 	if (ss->s_footline) {
 		bp = 0;
 		for (size_t i = 0; i < t->t_ncols; i++)
-			bp += ztable_format_cell(t, NULL, i,
-			    ss, &footlinespec, &buf[bp], bufsz-bp);
+			bp += ztable_format_cell(t, NULL, ZT_CELL_DECORATION,
+			    i, ss, &footlinespec, &buf[bp], bufsz-bp);
 		printf("%s\n", buf);
 	}
 }

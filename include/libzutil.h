@@ -313,8 +313,19 @@ typedef enum {
 	ZT_ALIGN_RIGHT,
 } ztable_colspec_align_t;
 
+typedef enum {
+	ZT_EFFECT_DEFAULT = 0,
+	ZT_EFFECT_BOLD,
+	ZT_EFFECT_DIM,
+	ZT_EFFECT_ITALIC,
+	ZT_EFFECT_UNDERLINE,
+	ZT_EFFECT_STRIKETHROUGH,
+} ztable_colspec_effect_t;
+
 typedef struct {
 	ztable_colspec_align_t	cs_align;
+	ztable_colspec_effect_t	cs_effect;
+	ztable_colspec_effect_t	cs_header_effect;
 } ztable_colspec_t;
 
 ztable_t *ztable_create(ztable_style_t style);
