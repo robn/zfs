@@ -322,10 +322,24 @@ typedef enum {
 	ZT_EFFECT_STRIKETHROUGH,
 } ztable_colspec_effect_t;
 
+typedef enum {
+	ZT_COLOR_DEFAULT = 0,
+	ZT_COLOR_BLACK,
+	ZT_COLOR_RED,
+	ZT_COLOR_GREEN,
+	ZT_COLOR_YELLOW,
+	ZT_COLOR_BLUE,
+	ZT_COLOR_MAGENTA,
+	ZT_COLOR_CYAN,
+	ZT_COLOR_GRAY,
+} ztable_colspec_color_t;
+
 typedef struct {
 	ztable_colspec_align_t	cs_align;
 	ztable_colspec_effect_t	cs_effect;
 	ztable_colspec_effect_t	cs_header_effect;
+	ztable_colspec_color_t	cs_color;
+	ztable_colspec_color_t	cs_header_color;
 } ztable_colspec_t;
 
 ztable_t *ztable_create(ztable_style_t style);

@@ -42,6 +42,8 @@ static const ztable_colspec_t default_colspec = {
 	.cs_align = ZT_ALIGN_LEFT,
 	.cs_effect = ZT_EFFECT_DEFAULT,
 	.cs_header_effect = ZT_EFFECT_DEFAULT,
+	.cs_color = ZT_COLOR_DEFAULT,
+	.cs_header_color = ZT_COLOR_DEFAULT,
 };
 
 typedef enum {
@@ -75,6 +77,15 @@ static const char *ansi_effect_dim		= "\x1b[2m";
 static const char *ansi_effect_italic		= "\x1b[3m";
 static const char *ansi_effect_underline	= "\x1b[4m";
 static const char *ansi_effect_strikethrough	= "\x1b[9m";
+
+static const char *ansi_color_black		= "\x1b[0;30m";
+static const char *ansi_color_red		= "\x1b[0;31m";
+static const char *ansi_color_green		= "\x1b[0;32m";
+static const char *ansi_color_yellow		= "\x1b[0;33m";
+static const char *ansi_color_blue		= "\x1b[0;34m";
+static const char *ansi_color_magenta		= "\x1b[0;35m";
+static const char *ansi_color_cyan		= "\x1b[0;36m";
+static const char *ansi_color_gray		= "\x1b[0;37m";
 
 typedef struct {
 	ztable_charspec_t cs_pad;
@@ -416,6 +427,40 @@ ztable_format_cell(ztable_t *t, ztable_cell_t *cell,
 
 	/* content */
 	if (cell) {
+		/* color */
+		ztable_colspec_color_t color =
+		    celltype == ZT_CELL_HEADER ? col->tc_spec.cs_header_color :
+		    celltype == ZT_CELL_DATA ? col->tc_spec.cs_color :
+		    ZT_COLOR_DEFAULT;
+
+		switch (color) {
+		case ZT_COLOR_BLACK:
+			bp += strlcpy(&buf[bp], ansi_color_black, bufsz-bp);
+			break;
+		case ZT_COLOR_RED:
+			bp += strlcpy(&buf[bp], ansi_color_red, bufsz-bp);
+			break;
+		case ZT_COLOR_GREEN:
+			bp += strlcpy(&buf[bp], ansi_color_green, bufsz-bp);
+			break;
+		case ZT_COLOR_YELLOW:
+			bp += strlcpy(&buf[bp], ansi_color_yellow, bufsz-bp);
+			break;
+		case ZT_COLOR_BLUE:
+			bp += strlcpy(&buf[bp], ansi_color_blue, bufsz-bp);
+			break;
+		case ZT_COLOR_MAGENTA:
+			bp += strlcpy(&buf[bp], ansi_color_magenta, bufsz-bp);
+			break;
+		case ZT_COLOR_CYAN:
+			bp += strlcpy(&buf[bp], ansi_color_cyan, bufsz-bp);
+			break;
+		case ZT_COLOR_GRAY:
+			bp += strlcpy(&buf[bp], ansi_color_gray, bufsz-bp);
+			break;
+		default:
+			break;
+		}
 		/* effect */
 		ztable_colspec_effect_t effect =
 		    celltype == ZT_CELL_HEADER ? col->tc_spec.cs_header_effect :
@@ -447,9 +492,9 @@ ztable_format_cell(ztable_t *t, ztable_cell_t *cell,
 		/* data */
 		bp += strlcpy(&buf[bp], cell->tcl_data, bufsz-bp);
 
-		/* effect reset */
-		if (effect != ZT_EFFECT_NONE)
-			bp += strlcpy(&buf[bp], ansi_effect_reset, bufsz-bp);
+		/* effect/color reset */
+		if (effect != ZT_EFFECT_DEFAULT || color != ZT_COLOR_DEFAULT)
+			bp += strlcpy(&buf[bp], ansi_reset, bufsz-bp);
 	}
 
 	/* padding (right) */
