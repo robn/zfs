@@ -512,21 +512,12 @@ safe_strdup(const char *str)
 static int
 usage_prop_cb(int prop, void *cb)
 {
-	FILE *fp = cb;
+	ztable_t *tab = cb;
 
-	(void) fprintf(fp, "\t%-22s ", zfs_prop_to_name(prop));
-
-	if (zfs_prop_readonly(prop))
-		(void) fprintf(fp, " NO    ");
-	else
-		(void) fprintf(fp, "YES    ");
-
-	if (zfs_prop_inheritable(prop))
-		(void) fprintf(fp, "  YES   ");
-	else
-		(void) fprintf(fp, "   NO   ");
-
-	(void) fprintf(fp, "%s\n", zfs_prop_values(prop) ?: "-");
+	ztable_add_cell(tab, zfs_prop_to_name(prop));
+	ztable_add_cell(tab, zfs_prop_readonly(prop) ? "NO" : "YES");
+	ztable_add_cell(tab, zfs_prop_inheritable(prop) ? "YES" : "NO");
+	ztable_add_cell(tab, zfs_prop_values(prop) ?: "-");
 
 	return (ZPROP_CONT);
 }
@@ -575,41 +566,33 @@ usage(boolean_t requested)
 		(void) fprintf(fp, "%s",
 		    gettext("\nThe following properties are supported:\n"));
 
-		(void) fprintf(fp, "\n\t%-21s %s  %s   %s\n\n",
-		    "PROPERTY", "EDIT", "INHERIT", "VALUES");
+		ztable_t *tab = ztable_create(ZT_STYLE_DEFAULT);
+		ztable_add_column(tab, "PROPERTY", NULL);
+		ztable_add_column(tab, "EDIT", NULL);
+		ztable_add_column(tab, "INHERIT", NULL);
+		ztable_add_column(tab, "VALUES", NULL);
 
 		/* Iterate over all properties */
-		(void) zprop_iter(usage_prop_cb, fp, B_FALSE, B_TRUE,
+		(void) zprop_iter(usage_prop_cb, tab, B_FALSE, B_TRUE,
 		    ZFS_TYPE_DATASET);
 
-		(void) fprintf(fp, "\t%-22s ", "userused@...");
-		(void) fprintf(fp, " NO       NO   <size>\n");
-		(void) fprintf(fp, "\t%-22s ", "groupused@...");
-		(void) fprintf(fp, " NO       NO   <size>\n");
-		(void) fprintf(fp, "\t%-22s ", "projectused@...");
-		(void) fprintf(fp, " NO       NO   <size>\n");
-		(void) fprintf(fp, "\t%-22s ", "userobjused@...");
-		(void) fprintf(fp, " NO       NO   <size>\n");
-		(void) fprintf(fp, "\t%-22s ", "groupobjused@...");
-		(void) fprintf(fp, " NO       NO   <size>\n");
-		(void) fprintf(fp, "\t%-22s ", "projectobjused@...");
-		(void) fprintf(fp, " NO       NO   <size>\n");
-		(void) fprintf(fp, "\t%-22s ", "userquota@...");
-		(void) fprintf(fp, "YES       NO   <size> | none\n");
-		(void) fprintf(fp, "\t%-22s ", "groupquota@...");
-		(void) fprintf(fp, "YES       NO   <size> | none\n");
-		(void) fprintf(fp, "\t%-22s ", "projectquota@...");
-		(void) fprintf(fp, "YES       NO   <size> | none\n");
-		(void) fprintf(fp, "\t%-22s ", "userobjquota@...");
-		(void) fprintf(fp, "YES       NO   <size> | none\n");
-		(void) fprintf(fp, "\t%-22s ", "groupobjquota@...");
-		(void) fprintf(fp, "YES       NO   <size> | none\n");
-		(void) fprintf(fp, "\t%-22s ", "projectobjquota@...");
-		(void) fprintf(fp, "YES       NO   <size> | none\n");
-		(void) fprintf(fp, "\t%-22s ", "written@<snap>");
-		(void) fprintf(fp, " NO       NO   <size>\n");
-		(void) fprintf(fp, "\t%-22s ", "written#<bookmark>");
-		(void) fprintf(fp, " NO       NO   <size>\n");
+		ztable_add_row(tab, (const void **)(const char *[]){ "userused@...", "NO", "NO", "<size>" }, 4);
+		ztable_add_row(tab, (const void **)(const char *[]){"groupused@...", "NO", "NO", "<size>" }, 4);
+		ztable_add_row(tab, (const void **)(const char *[]){"projectused@...", "NO", "NO", "<size>" }, 4);
+		ztable_add_row(tab, (const void **)(const char *[]){"userobjused@...", "NO", "NO", "<size>" }, 4);
+		ztable_add_row(tab, (const void **)(const char *[]){"groupobjused@...", "NO", "NO", "<size>" }, 4);
+		ztable_add_row(tab, (const void **)(const char *[]){"projectobjused@...", "NO", "NO", "<size>" }, 4);
+		ztable_add_row(tab, (const void **)(const char *[]){"userquota@...", "YES", "NO", "<size> | none" }, 4);
+		ztable_add_row(tab, (const void **)(const char *[]){"groupquota@...", "YES", "NO", "<size> | none" }, 4);
+		ztable_add_row(tab, (const void **)(const char *[]){"projectquota@...", "YES", "NO", "<size> | none" }, 4);
+		ztable_add_row(tab, (const void **)(const char *[]){"userobjquota@...", "YES", "NO", "<size> | none" }, 4);
+		ztable_add_row(tab, (const void **)(const char *[]){"groupobjquota@...", "YES", "NO", "<size> | none" }, 4);
+		ztable_add_row(tab, (const void **)(const char *[]){"projectobjquota@...", "YES", "NO", "<size> | none" }, 4);
+		ztable_add_row(tab, (const void **)(const char *[]){"written@<snap>", "NO", "NO", "<size>" }, 4);
+		ztable_add_row(tab, (const void **)(const char *[]){"written#<bookmark>", "NO", "NO", "<size>" }, 4);
+
+		ztable_print(tab, fp);
+		ztable_destroy(tab);
 
 		(void) fprintf(fp, gettext("\nSizes are specified in bytes "
 		    "with standard units such as K, M, G, etc.\n"));
