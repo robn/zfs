@@ -401,14 +401,19 @@ fallback:
 }
 
 void
-ztable_add_row(ztable_t *t, const void *data[])
+ztable_add_row(ztable_t *t, ...)
 {
 	if (t->t_nrows > 0)
 		/* forcibly close previous row */
 		t->t_rows[t->t_nrows-1].tr_ncells = t->t_ncols;
 
-	for (size_t i = 0; i < t->t_ncols; i++)
-		ztable_add_cell(t, data[i]);
+	va_list ap;
+	va_start(ap, t);
+
+	for (size_t i = 0; i < t->t_ncols; i++) {
+		const void *data = va_arg(ap, const void *);
+		ztable_add_cell(t, data);
+	}
 }
 
 void
