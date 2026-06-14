@@ -29,6 +29,7 @@
 
 #include <string.h>
 #include <pthread.h>
+#include <stdio.h>
 #include <sys/nvpair.h>
 #include <sys/fs/zfs.h>
 
@@ -361,7 +362,7 @@ void ztable_add_column(ztable_t *tab, const char *name,
     const ztable_colspec_t *colspec);
 void ztable_add_cell(ztable_t *tab, const void *data);
 void ztable_add_row(ztable_t *tab, const void *data[]);
-void ztable_print(ztable_t *tab);
+void ztable_print(ztable_t *tab, FILE *fp);
 void ztable_destroy(ztable_t *tab);
 
 #ifdef	__cplusplus

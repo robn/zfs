@@ -587,10 +587,13 @@ ztable_format_cell(ztable_t *t, ztable_cell_t *cell,
 }
 
 void
-ztable_print(ztable_t *t)
+ztable_print(ztable_t *t, FILE *fp)
 {
 	if (t->t_ncols == 0)
 		return;
+
+	if (fp == NULL)
+		fp = stdout;
 
 	const ztable_stylespec_t *ss = &t->t_style;
 
@@ -631,7 +634,7 @@ ztable_print(ztable_t *t)
 		for (size_t i = 0; i < t->t_ncols; i++)
 			bp += ztable_format_cell(t, NULL, ZT_CELL_DECORATION,
 			    i, &headlinespec, &buf[bp], bufsz-bp);
-		printf("%s\n", buf);
+		fprintf(fp, "%s\n", buf);
 	}
 
 	if (ss->s_header) {
@@ -641,7 +644,7 @@ ztable_print(ztable_t *t)
 			bp += ztable_format_cell(t, &t->t_cols[i].tc_cell,
 			    ZT_CELL_HEADER, i, &headingspec,
 			    &buf[bp], bufsz-bp);
-		printf("%s\n", buf);
+		fprintf(fp, "%s\n", buf);
 
 		/* middle border line (separates header and data) */
 		if (ss->s_midline) {
@@ -650,7 +653,7 @@ ztable_print(ztable_t *t)
 				bp += ztable_format_cell(t, NULL,
 				    ZT_CELL_DECORATION, i, &midlinespec,
 				    &buf[bp], bufsz-bp);
-			printf("%s\n", buf);
+			fprintf(fp, "%s\n", buf);
 		}
 	}
 
@@ -661,7 +664,7 @@ ztable_print(ztable_t *t)
 		for (size_t i = 0; i < row->tr_ncells; i++)
 			bp += ztable_format_cell(t, &row->tr_cells[i],
 			    ZT_CELL_DATA, i, &dataspec, &buf[bp], bufsz-bp);
-		printf("%s\n", buf);
+		fprintf(fp, "%s\n", buf);
 	}
 
 	/* footer border line */
@@ -670,6 +673,6 @@ ztable_print(ztable_t *t)
 		for (size_t i = 0; i < t->t_ncols; i++)
 			bp += ztable_format_cell(t, NULL, ZT_CELL_DECORATION,
 			    i, &footlinespec, &buf[bp], bufsz-bp);
-		printf("%s\n", buf);
+		fprintf(fp, "%s\n", buf);
 	}
 }
