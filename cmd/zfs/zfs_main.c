@@ -514,10 +514,10 @@ usage_prop_cb(int prop, void *cb)
 {
 	ztable_t *tab = cb;
 
-	ztable_add_cell(tab, zfs_prop_to_name(prop));
-	ztable_add_cell(tab, zfs_prop_readonly(prop) ? "NO" : "YES");
-	ztable_add_cell(tab, zfs_prop_inheritable(prop) ? "YES" : "NO");
-	ztable_add_cell(tab, zfs_prop_values(prop) ?: "-");
+	ztable_add_row(tab, zfs_prop_to_name(prop),
+	    zfs_prop_readonly(prop) ? "NO" : "YES",
+	    zfs_prop_inheritable(prop) ? "YES" : "NO",
+	    zfs_prop_values(prop) ?: "-");
 
 	return (ZPROP_CONT);
 }
@@ -576,20 +576,20 @@ usage(boolean_t requested)
 		(void) zprop_iter(usage_prop_cb, tab, B_FALSE, B_TRUE,
 		    ZFS_TYPE_DATASET);
 
-		ztable_add_row(tab, (const void **)(const char *[]){ "userused@...", "NO", "NO", "<size>" }, 4);
-		ztable_add_row(tab, (const void **)(const char *[]){"groupused@...", "NO", "NO", "<size>" }, 4);
-		ztable_add_row(tab, (const void **)(const char *[]){"projectused@...", "NO", "NO", "<size>" }, 4);
-		ztable_add_row(tab, (const void **)(const char *[]){"userobjused@...", "NO", "NO", "<size>" }, 4);
-		ztable_add_row(tab, (const void **)(const char *[]){"groupobjused@...", "NO", "NO", "<size>" }, 4);
-		ztable_add_row(tab, (const void **)(const char *[]){"projectobjused@...", "NO", "NO", "<size>" }, 4);
-		ztable_add_row(tab, (const void **)(const char *[]){"userquota@...", "YES", "NO", "<size> | none" }, 4);
-		ztable_add_row(tab, (const void **)(const char *[]){"groupquota@...", "YES", "NO", "<size> | none" }, 4);
-		ztable_add_row(tab, (const void **)(const char *[]){"projectquota@...", "YES", "NO", "<size> | none" }, 4);
-		ztable_add_row(tab, (const void **)(const char *[]){"userobjquota@...", "YES", "NO", "<size> | none" }, 4);
-		ztable_add_row(tab, (const void **)(const char *[]){"groupobjquota@...", "YES", "NO", "<size> | none" }, 4);
-		ztable_add_row(tab, (const void **)(const char *[]){"projectobjquota@...", "YES", "NO", "<size> | none" }, 4);
-		ztable_add_row(tab, (const void **)(const char *[]){"written@<snap>", "NO", "NO", "<size>" }, 4);
-		ztable_add_row(tab, (const void **)(const char *[]){"written#<bookmark>", "NO", "NO", "<size>" }, 4);
+		ztable_add_row(tab, "userused@...", "NO", "NO", "<size>");
+		ztable_add_row(tab, "groupused@...", "NO", "NO", "<size>");
+		ztable_add_row(tab, "projectused@...", "NO", "NO", "<size>");
+		ztable_add_row(tab, "userobjused@...", "NO", "NO", "<size>");
+		ztable_add_row(tab, "groupobjused@...", "NO", "NO", "<size>");
+		ztable_add_row(tab, "projectobjused@...", "NO", "NO", "<size>");
+		ztable_add_row(tab, "userquota@...", "YES", "NO", "<size> | none");
+		ztable_add_row(tab, "groupquota@...", "YES", "NO", "<size> | none");
+		ztable_add_row(tab, "projectquota@...", "YES", "NO", "<size> | none");
+		ztable_add_row(tab, "userobjquota@...", "YES", "NO", "<size> | none");
+		ztable_add_row(tab, "groupobjquota@...", "YES", "NO", "<size> | none");
+		ztable_add_row(tab, "projectobjquota@...", "YES", "NO", "<size> | none");
+		ztable_add_row(tab, "written@<snap>", "NO", "NO", "<size>");
+		ztable_add_row(tab, "written#<bookmark>", "NO", "NO", "<size>");
 
 		ztable_print(tab, fp);
 		ztable_destroy(tab);
@@ -5868,12 +5868,12 @@ deleg_perm_comment(zfs_deleg_note_t note)
 	switch (note) {
 		/* SUBCOMMANDS */
 	case ZFS_DELEG_NOTE_ALLOW:
-		str = gettext("Must also have the permission that is being"
-		    "\n\t\t\t\tallowed");
+		str = gettext("Must also have the permission that is being "
+		    "allowed");
 		break;
 	case ZFS_DELEG_NOTE_CLONE:
-		str = gettext("Must also have the 'create' ability and 'mount'"
-		    "\n\t\t\t\tability in the origin file system");
+		str = gettext("Must also have the 'create' ability and "
+		    "'mount' ability in the origin file system");
 		break;
 	case ZFS_DELEG_NOTE_CREATE:
 		str = gettext("Must also have the 'mount' ability");
@@ -5882,9 +5882,9 @@ deleg_perm_comment(zfs_deleg_note_t note)
 		str = gettext("Must also have the 'mount' ability");
 		break;
 	case ZFS_DELEG_NOTE_DIFF:
-		str = gettext("Allows lookup of paths within a dataset;"
-		    "\n\t\t\t\tgiven an object number. Ordinary users need this"
-		    "\n\t\t\t\tin order to use zfs diff");
+		str = gettext("Allows lookup of paths within a dataset; "
+		    "given an object number. Ordinary users need this "
+		    "in order to use zfs diff");
 		break;
 	case ZFS_DELEG_NOTE_HOLD:
 		str = gettext("Allows adding a user hold to a snapshot");
@@ -5893,20 +5893,20 @@ deleg_perm_comment(zfs_deleg_note_t note)
 		str = gettext("Allows mount/umount of ZFS datasets");
 		break;
 	case ZFS_DELEG_NOTE_PROMOTE:
-		str = gettext("Must also have the 'mount'\n\t\t\t\tand"
-		    " 'promote' ability in the origin file system");
+		str = gettext("Must also have the 'mount' and "
+		    "'promote' ability in the origin file system");
 		break;
 	case ZFS_DELEG_NOTE_RECEIVE:
-		str = gettext("Must also have the 'mount' and 'create'"
+		str = gettext("Must also have the 'mount' and 'create' "
 		    " ability");
 		break;
 	case ZFS_DELEG_NOTE_RELEASE:
-		str = gettext("Allows releasing a user hold which\n\t\t\t\t"
+		str = gettext("Allows releasing a user hold which "
 		    "might destroy the snapshot");
 		break;
 	case ZFS_DELEG_NOTE_RENAME:
-		str = gettext("Must also have the 'mount' and 'create'"
-		    "\n\t\t\t\tability in the new parent");
+		str = gettext("Must also have the 'mount' and 'create' "
+		    "ability in the new parent");
 		break;
 	case ZFS_DELEG_NOTE_ROLLBACK:
 		str = gettext("");
@@ -5915,16 +5915,16 @@ deleg_perm_comment(zfs_deleg_note_t note)
 		str = gettext("Allow sending datasets");
 		break;
 	case ZFS_DELEG_NOTE_SEND_RAW:
-		str = gettext("Allow sending datasets, but only in 'raw'"
-		    "\n\t\t\t\treplication mode");
+		str = gettext("Allow sending datasets, but only in 'raw' "
+		    "replication mode");
 		break;
 	case ZFS_DELEG_NOTE_SEND_ENCRYPTED:
-		str = gettext("Allow sending only encrypted datasets, and"
-		    "\n\t\t\t\tonly in 'raw' replication mode");
+		str = gettext("Allow sending only encrypted datasets, and "
+		    "only in 'raw' replication mode");
 		break;
 	case ZFS_DELEG_NOTE_SHARE:
-		str = gettext("Allows sharing file systems over NFS or SMB"
-		    "\n\t\t\t\tprotocols");
+		str = gettext("Allows sharing file systems over NFS or SMB "
+		    "protocols");
 		break;
 	case ZFS_DELEG_NOTE_SNAPSHOT:
 		str = gettext("");
@@ -5960,7 +5960,7 @@ deleg_perm_comment(zfs_deleg_note_t note)
 		str = gettext("Allows accessing any userobjquota@... property");
 		break;
 	case ZFS_DELEG_NOTE_GROUPOBJQUOTA:
-		str = gettext("Allows accessing any \n\t\t\t\t"
+		str = gettext("Allows accessing any "
 		    "groupobjquota@... property");
 		break;
 	case ZFS_DELEG_NOTE_GROUPOBJUSED:
@@ -5973,14 +5973,14 @@ deleg_perm_comment(zfs_deleg_note_t note)
 		str = gettext("Allows accessing any projectquota@... property");
 		break;
 	case ZFS_DELEG_NOTE_PROJECTOBJQUOTA:
-		str = gettext("Allows accessing any \n\t\t\t\t"
+		str = gettext("Allows accessing any "
 		    "projectobjquota@... property");
 		break;
 	case ZFS_DELEG_NOTE_PROJECTUSED:
 		str = gettext("Allows reading any projectused@... property");
 		break;
 	case ZFS_DELEG_NOTE_PROJECTOBJUSED:
-		str = gettext("Allows accessing any \n\t\t\t\t"
+		str = gettext("Allows accessing any "
 		    "projectobjused@... property");
 		break;
 		/* other */
@@ -6038,7 +6038,6 @@ allow_usage(boolean_t un, boolean_t requested, const char *msg)
 	size_t count = 0;
 	FILE *fp = requested ? stdout : stderr;
 	zprop_desc_t *pdtbl = zfs_prop_get_table();
-	const char *fmt = gettext("%-16s %-14s\t%s\n");
 
 	(void) fprintf(fp, gettext("Usage: %s\n"), get_usage(un ? HELP_UNALLOW :
 	    HELP_ALLOW));
@@ -6051,14 +6050,16 @@ allow_usage(boolean_t un, boolean_t requested, const char *msg)
 
 	(void) fprintf(fp, gettext("\nThe following permissions are "
 	    "supported:\n\n"));
-	(void) fprintf(fp, fmt, gettext("NAME"), gettext("TYPE"),
-	    gettext("NOTES"));
+
+	ztable_t *tab = ztable_create(ZT_STYLE_DEFAULT);
+	ztable_add_column(tab, gettext("NAME"), NULL);
+	ztable_add_column(tab, gettext("TYPE"), NULL);
+	ztable_add_column(tab, gettext("NOTES"), NULL);
+
 	for (i = 0; i < ZFS_NUM_DELEG_NOTES; i++) {
-		const char *perm_name = zfs_deleg_perm_tbl[i].z_perm;
 		zfs_deleg_note_t perm_note = zfs_deleg_perm_tbl[i].z_note;
-		const char *perm_type = deleg_perm_type(perm_note);
-		const char *perm_comment = deleg_perm_comment(perm_note);
-		(void) fprintf(fp, fmt, perm_name, perm_type, perm_comment);
+		ztable_add_row(tab, zfs_deleg_perm_tbl[i].z_perm,
+		    deleg_perm_type(perm_note), deleg_perm_comment(perm_note));
 	}
 
 	for (i = 0; i < ZFS_NUM_PROPS; i++) {
@@ -6076,7 +6077,10 @@ allow_usage(boolean_t un, boolean_t requested, const char *msg)
 	qsort(props, count, sizeof (char *), prop_cmp);
 
 	for (i = 0; i < count; i++)
-		(void) fprintf(fp, fmt, props[i], gettext("property"), "");
+		ztable_add_row(tab, props[i], gettext("property"), NULL);
+
+	ztable_print(tab, fp);
+	ztable_destroy(tab);
 
 	if (msg != NULL)
 		(void) fprintf(fp, gettext("\nzfs: error: %s"), msg);
