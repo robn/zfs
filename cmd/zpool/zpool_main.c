@@ -586,19 +586,11 @@ get_usage(zpool_help_t idx)
 static int
 print_pool_prop_cb(int prop, void *cb)
 {
-	FILE *fp = cb;
+	ztable_t *tab = cb;
 
-	(void) fprintf(fp, "\t%-19s  ", zpool_prop_to_name(prop));
-
-	if (zpool_prop_readonly(prop))
-		(void) fprintf(fp, "  NO   ");
-	else
-		(void) fprintf(fp, " YES   ");
-
-	if (zpool_prop_values(prop) == NULL)
-		(void) fprintf(fp, "-\n");
-	else
-		(void) fprintf(fp, "%s\n", zpool_prop_values(prop));
+	ztable_add_row(tab, zpool_prop_to_name(prop),
+	    zpool_prop_readonly(prop) ? "NO" : "YES",
+	    zpool_prop_values(prop) ?: "-");
 
 	return (ZPROP_CONT);
 }
@@ -609,19 +601,11 @@ print_pool_prop_cb(int prop, void *cb)
 static int
 print_vdev_prop_cb(int prop, void *cb)
 {
-	FILE *fp = cb;
+	ztable_t *tab = cb;
 
-	(void) fprintf(fp, "\t%-19s  ", vdev_prop_to_name(prop));
-
-	if (vdev_prop_readonly(prop))
-		(void) fprintf(fp, "  NO   ");
-	else
-		(void) fprintf(fp, " YES   ");
-
-	if (vdev_prop_values(prop) == NULL)
-		(void) fprintf(fp, "-\n");
-	else
-		(void) fprintf(fp, "%s\n", vdev_prop_values(prop));
+	ztable_add_row(tab, vdev_prop_to_name(prop),
+	    vdev_prop_readonly(prop) ? "NO" : "YES",
+	    vdev_prop_values(prop) ?: "-");
 
 	return (ZPROP_CONT);
 }
@@ -739,24 +723,30 @@ usage(boolean_t requested)
 		(void) fprintf(fp, "%s",
 		    gettext("\nthe following properties are supported:\n"));
 
-		(void) fprintf(fp, "\n\t%-19s  %s   %s\n\n",
-		    "PROPERTY", "EDIT", "VALUES");
+		ztable_t *tab = ztable_create(ZT_STYLE_DEFAULT);
+		ztable_add_column(tab, "PROPERTY", NULL);
+		ztable_add_column(tab, "EDIT", NULL);
+		ztable_add_column(tab, "VALUES", NULL);
 
 		/* Iterate over all properties */
 		if (current_prop_type == ZFS_TYPE_POOL) {
-			(void) zprop_iter(print_pool_prop_cb, fp, B_FALSE,
+			(void) zprop_iter(print_pool_prop_cb, tab, B_FALSE,
 			    B_TRUE, current_prop_type);
 
-			(void) fprintf(fp, "\t%-19s   ", "feature@...");
-			(void) fprintf(fp, "YES   "
-			    "disabled | enabled | active\n");
+			ztable_add_row(tab, "feature@...", "YES",
+			    "disabled | enabled | active");
+		} else if (current_prop_type == ZFS_TYPE_VDEV) {
+			(void) zprop_iter(print_vdev_prop_cb, tab, B_FALSE,
+			    B_TRUE, current_prop_type);
+		}
 
+		ztable_print(tab, fp);
+		ztable_destroy(tab);
+
+		if (current_prop_type == ZFS_TYPE_POOL) {
 			(void) fprintf(fp, gettext("\nThe feature@ properties "
 			    "must be appended with a feature name.\n"
 			    "See zpool-features(7).\n"));
-		} else if (current_prop_type == ZFS_TYPE_VDEV) {
-			(void) zprop_iter(print_vdev_prop_cb, fp, B_FALSE,
-			    B_TRUE, current_prop_type);
 		}
 	}
 
