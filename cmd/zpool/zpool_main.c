@@ -6793,6 +6793,7 @@ typedef struct list_cbdata {
 	nvlist_t	*cb_jsobj;
 	boolean_t	cb_json_as_int;
 	boolean_t	cb_json_pool_key_guid;
+	ztable_t	*cb_tab;
 } list_cbdata_t;
 
 
@@ -6805,15 +6806,93 @@ static void
 print_line(list_cbdata_t *cb, const char *vdev_name)
 {
 	zprop_list_t *pl = cb->cb_proplist;
-	char headerbuf[ZPOOL_MAXPROPLEN];
-	const char *header;
-	boolean_t first = B_TRUE;
-	boolean_t right_justify;
-	size_t width = 0;
 
-	boolean_t print_header = (vdev_name == NULL);
+	if (vdev_name)
+		ztable_add_column(cb->cb_tab, vdev_name, NULL);
 
 	for (; pl != NULL; pl = pl->pl_next) {
+		zprop_type_t proptype = zpool_prop_get_type(pl->pl_prop);
+
+		ztable_colspec_t colspec = {
+			.cs_type = ZT_TYPE_STRING,
+			.cs_header_effect = cb->cb_scripted ?
+			    ZT_EFFECT_DEFAULT : ZT_EFFECT_BOLD,
+		};
+
+		if (proptype == PROP_TYPE_NUMBER) {
+			colspec.cs_type = ZT_TYPE_UINT64;
+			if (!cb->cb_literal) {
+				switch (pl->pl_prop) {
+				case ZPOOL_PROP_SIZE:
+				case ZPOOL_PROP_NORMAL_SIZE:
+				case ZPOOL_PROP_SPECIAL_SIZE:
+				case ZPOOL_PROP_DEDUP_SIZE:
+				case ZPOOL_PROP_LOG_SIZE:
+				case ZPOOL_PROP_ELOG_SIZE:
+				case ZPOOL_PROP_SELOG_SIZE:
+				case ZPOOL_PROP_ALLOCATED:
+				case ZPOOL_PROP_NORMAL_ALLOCATED:
+				case ZPOOL_PROP_SPECIAL_ALLOCATED:
+				case ZPOOL_PROP_DEDUP_ALLOCATED:
+				case ZPOOL_PROP_LOG_ALLOCATED:
+				case ZPOOL_PROP_ELOG_ALLOCATED:
+				case ZPOOL_PROP_SELOG_ALLOCATED:
+				case ZPOOL_PROP_AVAILABLE:
+				case ZPOOL_PROP_NORMAL_AVAILABLE:
+				case ZPOOL_PROP_SPECIAL_AVAILABLE:
+				case ZPOOL_PROP_DEDUP_AVAILABLE:
+				case ZPOOL_PROP_LOG_AVAILABLE:
+				case ZPOOL_PROP_ELOG_AVAILABLE:
+				case ZPOOL_PROP_SELOG_AVAILABLE:
+				case ZPOOL_PROP_FREE:
+				case ZPOOL_PROP_NORMAL_FREE:
+				case ZPOOL_PROP_SPECIAL_FREE:
+				case ZPOOL_PROP_DEDUP_FREE:
+				case ZPOOL_PROP_LOG_FREE:
+				case ZPOOL_PROP_ELOG_FREE:
+				case ZPOOL_PROP_SELOG_FREE:
+				case ZPOOL_PROP_USABLE:
+				case ZPOOL_PROP_NORMAL_USABLE:
+				case ZPOOL_PROP_SPECIAL_USABLE:
+				case ZPOOL_PROP_DEDUP_USABLE:
+				case ZPOOL_PROP_LOG_USABLE:
+				case ZPOOL_PROP_ELOG_USABLE:
+				case ZPOOL_PROP_SELOG_USABLE:
+				case ZPOOL_PROP_USED:
+				case ZPOOL_PROP_NORMAL_USED:
+				case ZPOOL_PROP_SPECIAL_USED:
+				case ZPOOL_PROP_DEDUP_USED:
+				case ZPOOL_PROP_LOG_USED:
+				case ZPOOL_PROP_ELOG_USED:
+				case ZPOOL_PROP_SELOG_USED:
+				case ZPOOL_PROP_FREEING:
+				case ZPOOL_PROP_LEAKED:
+				case ZPOOL_PROP_ASHIFT:
+				case ZPOOL_PROP_MAXBLOCKSIZE:
+				case ZPOOL_PROP_MAXDNODESIZE:
+				case ZPOOL_PROP_BCLONESAVED:
+				case ZPOOL_PROP_BCLONEUSED:
+				case ZPOOL_PROP_DEDUP_TABLE_SIZE:
+				case ZPOOL_PROP_DEDUPUSED:
+				case ZPOOL_PROP_DEDUPSAVED:
+				case ZPOOL_PROP_DEDUPCACHED:
+					colspec.cs_format = ZT_FORMAT_NUMBER;
+					break;
+				case ZPOOL_PROP_EXPANDSZ:
+				case ZPOOL_PROP_NORMAL_EXPANDSZ:
+				case ZPOOL_PROP_SPECIAL_EXPANDSZ:
+				case ZPOOL_PROP_DEDUP_EXPANDSZ:
+				case ZPOOL_PROP_LOG_EXPANDSZ:
+				case ZPOOL_PROP_ELOG_EXPANDSZ:
+				case ZPOOL_PROP_SELOG_EXPANDSZ:
+				case ZPOOL_PROP_CHECKPOINT:
+					colspec.cs_format = ZT_FORMAT_BYTES;
+					break;
+				}
+			}
+		}
+
+#if 0
 		width = pl->pl_width;
 		if (first && cb->cb_verbose) {
 			/*
@@ -6866,9 +6945,18 @@ print_line(list_cbdata_t *cb, const char *vdev_name)
 
 		if (first)
 			first = B_FALSE;
-	}
+#endif
+		const char *header;
+		if (pl->pl_prop == ZPROP_USERPROP)
+			header = pl->pl_user_prop;
+		else {
+			header = zpool_prop_column_name(pl->pl_prop);
+			colspec.cs_align = zpool_prop_align_right(pl->pl_prop) ?
+			    ZT_ALIGN_RIGHT : ZT_ALIGN_LEFT;
+		}
 
-	(void) fputc('\n', stdout);
+		ztable_add_column(cb->cb_tab, header, &colspec);
+	}
 }
 
 /*
@@ -6879,11 +6967,8 @@ static void
 collect_pool(zpool_handle_t *zhp, list_cbdata_t *cb)
 {
 	zprop_list_t *pl = cb->cb_proplist;
-	boolean_t first = B_TRUE;
 	char property[ZPOOL_MAXPROPLEN];
 	const char *propstr;
-	boolean_t right_justify;
-	size_t width;
 	zprop_source_t sourcetype = ZPROP_SRC_NONE;
 	nvlist_t *item, *d, *props;
 	item = d = props = NULL;
@@ -6900,7 +6985,7 @@ collect_pool(zpool_handle_t *zhp, list_cbdata_t *cb)
 	}
 
 	for (; pl != NULL; pl = pl->pl_next) {
-
+#if 0
 		width = pl->pl_width;
 		if (first && cb->cb_verbose) {
 			/*
@@ -6909,17 +6994,26 @@ collect_pool(zpool_handle_t *zhp, list_cbdata_t *cb)
 			 */
 			width = cb->cb_namewidth;
 		}
+#endif
 
-		if (!cb->cb_json && !first) {
-			if (cb->cb_scripted)
-				(void) fputc('\t', stdout);
+		zprop_type_t proptype = zpool_prop_get_type(pl->pl_prop);
+		switch (proptype) {
+		case PROP_TYPE_NUMBER: {
+			uint64_t v =
+			    zpool_get_prop_int(zhp, pl->pl_prop, &sourcetype);
+			ztable_add_cell(cb->cb_tab, &v);
+			break;
+		}
+		case PROP_TYPE_STRING:
+		case PROP_TYPE_INDEX:
+			if (zpool_get_prop(zhp, pl->pl_prop, property,
+			    sizeof (property), &sourcetype, 0) == 0)
+				ztable_add_cell(cb->cb_tab, property);
 			else
-				(void) fputs("  ", stdout);
-		} else {
-			first = B_FALSE;
+				ztable_add_cell(cb->cb_tab, NULL);
+			break;
 		}
 
-		right_justify = B_FALSE;
 		if (pl->pl_prop != ZPROP_USERPROP) {
 			if (zpool_get_prop(zhp, pl->pl_prop, property,
 			    sizeof (property), &sourcetype,
@@ -6928,7 +7022,6 @@ collect_pool(zpool_handle_t *zhp, list_cbdata_t *cb)
 			else
 				propstr = property;
 
-			right_justify = zpool_prop_align_right(pl->pl_prop);
 		} else if ((zpool_prop_feature(pl->pl_user_prop) ||
 		    zpool_prop_unsupported(pl->pl_user_prop)) &&
 		    zpool_prop_get_feature(zhp, pl->pl_user_prop, property,
@@ -6955,6 +7048,7 @@ collect_pool(zpool_handle_t *zhp, list_cbdata_t *cb)
 			    prop_name, propstr,
 			    sourcetype, NULL, NULL, props, cb->cb_json_as_int);
 		} else {
+#if 0
 			/*
 			 * If this is being called in scripted mode, or if this
 			 * is the last column and it is left-justified, don't
@@ -6967,6 +7061,7 @@ collect_pool(zpool_handle_t *zhp, list_cbdata_t *cb)
 				(void) printf("%*s", (int)width, propstr);
 			else
 				(void) printf("%-*s", (int)width, propstr);
+#endif
 		}
 	}
 
@@ -6986,8 +7081,7 @@ collect_pool(zpool_handle_t *zhp, list_cbdata_t *cb)
 		}
 		fnvlist_free(props);
 		fnvlist_free(item);
-	} else
-		(void) fputc('\n', stdout);
+	}
 }
 
 static void
@@ -7587,8 +7681,10 @@ zpool_do_list(int argc, char **argv)
 				print_timestamp(timestamp_fmt);
 		}
 
-		if (!cb.cb_scripted && (first || cb.cb_verbose) &&
-		    !cb.cb_json) {
+		cb.cb_tab = ztable_create(cb.cb_scripted ?
+		    ZT_STYLE_SCRIPTED : ZT_STYLE_DEFAULT);
+
+		if ((first || cb.cb_verbose) && !cb.cb_json) {
 			print_line(&cb, NULL);
 			first = B_FALSE;
 		}
@@ -7598,6 +7694,10 @@ zpool_do_list(int argc, char **argv)
 			zcmd_print_json(cb.cb_jsobj);
 		else if (ret != 0 && cb.cb_json)
 			nvlist_free(cb.cb_jsobj);
+		else if (cb.cb_tab) {
+			ztable_print(cb.cb_tab, NULL);
+			ztable_destroy(cb.cb_tab);
+		}
 
 		if (interval == 0)
 			break;
