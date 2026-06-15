@@ -168,6 +168,10 @@ const struct inode_operations zpl_ops_root = {
 static struct vfsmount *
 zpl_snapdir_automount(struct path *path)
 {
+	/* Invalidated dentry that still has our dops set, do nothing. */
+	if (!path->dentry->d_inode)
+		return (ERR_PTR(-SET_ERROR(EISDIR)));
+
 	int error;
 
 	error = -zfsctl_snapshot_mount(path);
