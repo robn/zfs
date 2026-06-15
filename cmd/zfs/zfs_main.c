@@ -6800,34 +6800,28 @@ typedef struct holds_cbdata {
 	boolean_t	cb_recursive;
 	const char	*cb_snapname;
 	nvlist_t	**cb_nvlp;
-	size_t		cb_max_namelen;
-	size_t		cb_max_taglen;
 } holds_cbdata_t;
 
-#define	STRFTIME_FMT_STR "%a %b %e %H:%M %Y"
-#define	DATETIME_BUF_LEN (32)
 /*
  *
  */
 static void
-print_holds(boolean_t scripted, int nwidth, int tagwidth, nvlist_t *nvl,
-    boolean_t parsable)
+print_holds(boolean_t scripted, nvlist_t *nvl, boolean_t parsable)
 {
-	int i;
 	nvpair_t *nvp = NULL;
-	const char *const hdr_cols[] = { "NAME", "TAG", "TIMESTAMP" };
-	const char *col;
 
-	if (!scripted) {
-		for (i = 0; i < 3; i++) {
-			col = gettext(hdr_cols[i]);
-			if (i < 2)
-				(void) printf("%-*s  ", i ? tagwidth : nwidth,
-				    col);
-			else
-				(void) printf("%s\n", col);
-		}
-	}
+	ztable_t *tab = ztable_create(scripted ?
+	    ZT_STYLE_SCRIPTED : ZT_STYLE_DEFAULT);
+
+	ztable_add_column(tab, gettext("NAME"), NULL);
+	ztable_add_column(tab, gettext("TAG"), NULL);
+
+	ztable_colspec_t colspec = {
+		.cs_type = ZT_TYPE_UINT64,
+	};
+	if (!parsable)
+		colspec.cs_format = ZT_FORMAT_TIME;
+	ztable_add_column(tab, gettext("TIMESTAMP"), &colspec);
 
 	while ((nvp = nvlist_next_nvpair(nvl, nvp)) != NULL) {
 		const char *zname = nvpair_name(nvp);
@@ -6835,39 +6829,16 @@ print_holds(boolean_t scripted, int nwidth, int tagwidth, nvlist_t *nvl,
 		nvpair_t *nvp2 = NULL;
 		(void) nvpair_value_nvlist(nvp, &nvl2);
 		while ((nvp2 = nvlist_next_nvpair(nvl2, nvp2)) != NULL) {
-			char tsbuf[DATETIME_BUF_LEN];
 			const char *tagname = nvpair_name(nvp2);
 			uint64_t val = 0;
-			time_t time;
-			struct tm t;
-
 			(void) nvpair_value_uint64(nvp2, &val);
-			time = (time_t)val;
-			(void) localtime_r(&time, &t);
-			(void) strftime(tsbuf, DATETIME_BUF_LEN,
-			    gettext(STRFTIME_FMT_STR), &t);
 
-			if (scripted) {
-				if (parsable) {
-					(void) printf("%s\t%s\t%lld\n", zname,
-					    tagname, (long long)time);
-				} else {
-					(void) printf("%s\t%s\t%s\n", zname,
-					    tagname, tsbuf);
-				}
-			} else {
-				if (parsable) {
-					(void) printf("%-*s  %-*s  %lld\n",
-					    nwidth, zname, tagwidth,
-					    tagname, (long long)time);
-				} else {
-					(void) printf("%-*s  %-*s  %s\n",
-					    nwidth, zname, tagwidth,
-					    tagname, tsbuf);
-				}
-			}
+			ztable_add_row(tab, zname, tagname, &val);
 		}
 	}
+
+	ztable_print(tab, NULL);
+	ztable_destroy(tab);
 }
 
 /*
@@ -6879,9 +6850,7 @@ holds_callback(zfs_handle_t *zhp, void *data)
 	holds_cbdata_t *cbp = data;
 	nvlist_t *top_nvl = *cbp->cb_nvlp;
 	nvlist_t *nvl = NULL;
-	nvpair_t *nvp = NULL;
 	const char *zname = zfs_get_name(zhp);
-	size_t znamelen = strlen(zname);
 
 	if (cbp->cb_recursive) {
 		const char *snapname;
@@ -6896,16 +6865,6 @@ holds_callback(zfs_handle_t *zhp, void *data)
 
 	if (zfs_get_holds(zhp, &nvl) != 0)
 		return (-1);
-
-	if (znamelen > cbp->cb_max_namelen)
-		cbp->cb_max_namelen  = znamelen;
-
-	while ((nvp = nvlist_next_nvpair(nvl, nvp)) != NULL) {
-		const char *tag = nvpair_name(nvp);
-		size_t taglen = strlen(tag);
-		if (taglen > cbp->cb_max_taglen)
-			cbp->cb_max_taglen  = taglen;
-	}
 
 	return (nvlist_add_nvlist(top_nvl, zname, nvl));
 }
@@ -6998,8 +6957,7 @@ zfs_do_holds(int argc, char **argv)
 	/*
 	 *  2. print holds data
 	 */
-	print_holds(scripted, cb.cb_max_namelen, cb.cb_max_taglen, nvl,
-	    parsable);
+	print_holds(scripted, nvl, parsable);
 
 	if (nvlist_empty(nvl))
 		(void) fprintf(stderr, gettext("no datasets available\n"));
