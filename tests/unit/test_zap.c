@@ -88,6 +88,21 @@ mock_zap_create_norm_fatzap(int normflags)
 #define	mock_zap_create_microzap()	mock_zap_create_norm_microzap(0)
 #define	mock_zap_create_fatzap()	mock_zap_create_norm_fatzap(0)
 
+/* Create a fatzap configured for uint64 keys. */
+static dnode_t *
+mock_zap_create_fatzap_uint64(void) {
+	/*
+	 * Only fatzap is supported; mzap_create_impl() immediately upgrades
+	 * when non-zero flags are provided.
+	 */
+	mock_dnode_t *mdn = mock_dnode_create(512, DMU_OTN_ZAP_DATA);
+	dnode_t *dn = (dnode_t *)mdn;
+	dmu_tx_t *tx = (dmu_tx_t *)mock_tx_create();
+	mzap_create_impl(dn, 0, ZAP_FLAG_HASH64 | ZAP_FLAG_UINT64_KEY, tx);
+	mock_tx_destroy((mock_dmu_tx_t *)tx);
+	return (dn);
+}
+
 static bool
 mock_zap_is_microzap(dnode_t *dn)
 {
@@ -673,11 +688,8 @@ test_zap_uint64_keys(const MunitParameter params[], void *data)
 {
 	(void) params, (void) data;
 
-	mock_dnode_t *mdn = mock_dnode_create(512, DMU_OTN_ZAP_DATA);
-	dnode_t *dn = (dnode_t *)mdn;
+	dnode_t *dn = mock_zap_create_fatzap_uint64();
 	dmu_tx_t *tx = (dmu_tx_t *)mock_tx_create();
-	mzap_create_impl(dn, 0, ZAP_FLAG_HASH64 | ZAP_FLAG_UINT64_KEY, tx);
-	unit_true(mock_zap_is_fatzap(dn));
 
 	/* A two-word binary key, as used by the dedup and clone tables. */
 	uint64_t key[2] = { unit_rand_uint64(), unit_rand_uint64() };
@@ -724,6 +736,7 @@ test_zap_uint64_keys(const MunitParameter params[], void *data)
 	    &out), ENOENT);
 
 	mock_tx_destroy((mock_dmu_tx_t *)tx);
+	unit_true(mock_zap_is_fatzap(dn));
 	mock_zap_destroy(dn);
 
 	return (MUNIT_OK);
