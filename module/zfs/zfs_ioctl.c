@@ -2787,7 +2787,8 @@ zfs_ioc_snapshot_list_batch(const char *fsname, nvlist_t *innvl,
 	char **names;
 	char *name_storage;
 	uint64_t *createtxgs = NULL, *guids = NULL, *creations = NULL;
-	uint64_t *userrefs = NULL;
+	uint64_t *userrefs = NULL, *numclones = NULL;
+	uint8_t *inconsistent = NULL, *redacted = NULL;
 	nvlist_t *props;
 	uint64_t cursor = 0, min_txg = 0, max_txg = 0, max_results;
 	uint_t batch_size;
@@ -2797,6 +2798,8 @@ zfs_ioc_snapshot_list_batch(const char *fsname, nvlist_t *innvl,
 	boolean_t eof = B_FALSE;
 	boolean_t want_createtxg = B_FALSE, want_creation = B_FALSE;
 	boolean_t want_guid = B_FALSE, want_userrefs = B_FALSE;
+	boolean_t want_numclones = B_FALSE, want_inconsistent = B_FALSE;
+	boolean_t want_redacted = B_FALSE;
 	dmu_objset_type_t head_type;
 	uint8_t head_flags;
 	objset_t *os = NULL;
@@ -2828,6 +2831,15 @@ zfs_ioc_snapshot_list_batch(const char *fsname, nvlist_t *innvl,
 		case ZFS_PROP_USERREFS:
 			want_userrefs = B_TRUE;
 			break;
+		case ZFS_PROP_NUMCLONES:
+			want_numclones = B_TRUE;
+			break;
+		case ZFS_PROP_INCONSISTENT:
+			want_inconsistent = B_TRUE;
+			break;
+		case ZFS_PROP_REDACTED:
+			want_redacted = B_TRUE;
+			break;
 		default:
 			return (SET_ERROR(ZFS_ERR_IOC_ARG_UNAVAIL));
 		}
@@ -2854,6 +2866,18 @@ zfs_ioc_snapshot_list_batch(const char *fsname, nvlist_t *innvl,
 	}
 	if (want_userrefs) {
 		userrefs = kmem_alloc(sizeof (userrefs[0]) * batch_size,
+		    KM_SLEEP);
+	}
+	if (want_numclones) {
+		numclones = kmem_alloc(sizeof (numclones[0]) * batch_size,
+		    KM_SLEEP);
+	}
+	if (want_inconsistent) {
+		inconsistent = kmem_alloc(sizeof (inconsistent[0]) * batch_size,
+		    KM_SLEEP);
+	}
+	if (want_redacted) {
+		redacted = kmem_alloc(sizeof (redacted[0]) * batch_size,
 		    KM_SLEEP);
 	}
 
@@ -2887,7 +2911,7 @@ zfs_ioc_snapshot_list_batch(const char *fsname, nvlist_t *innvl,
 			break;
 		}
 		error = dsl_dataset_snapshot_stats(dmu_objset_pool(os), obj,
-		    want_userrefs, &stats);
+		    want_userrefs, want_redacted, &stats);
 		/*
 		 * Preserve public iterator partial-list results after a
 		 * post-lookup ENOENT. Reporting EOF lets libzfs consume
@@ -2914,6 +2938,12 @@ zfs_ioc_snapshot_list_batch(const char *fsname, nvlist_t *innvl,
 				creations[count] = stats.dss_creation_time;
 			if (want_userrefs)
 				userrefs[count] = stats.dss_userrefs;
+			if (want_numclones)
+				numclones[count] = stats.dss_num_clones;
+			if (want_inconsistent)
+				inconsistent[count] = stats.dss_inconsistent;
+			if (want_redacted)
+				redacted[count] = stats.dss_redacted;
 			count++;
 		}
 
@@ -2957,6 +2987,20 @@ zfs_ioc_snapshot_list_batch(const char *fsname, nvlist_t *innvl,
 				    SNAP_ITER_BATCH_USERREF_COUNTS, userrefs,
 				    count);
 			}
+			if (want_numclones) {
+				fnvlist_add_uint64_array(outnvl,
+				    SNAP_ITER_BATCH_NUMCLONES, numclones,
+				    count);
+			}
+			if (want_inconsistent) {
+				fnvlist_add_uint8_array(outnvl,
+				    SNAP_ITER_BATCH_INCONSISTENT, inconsistent,
+				    count);
+			}
+			if (want_redacted) {
+				fnvlist_add_uint8_array(outnvl,
+				    SNAP_ITER_BATCH_REDACTED, redacted, count);
+			}
 		}
 	}
 
@@ -2976,6 +3020,15 @@ out:
 	if (want_userrefs) {
 		kmem_free(userrefs, sizeof (userrefs[0]) * batch_size);
 	}
+	if (want_numclones) {
+		kmem_free(numclones, sizeof (numclones[0]) * batch_size);
+	}
+	if (want_inconsistent) {
+		kmem_free(inconsistent,
+		    sizeof (inconsistent[0]) * batch_size);
+	}
+	if (want_redacted)
+		kmem_free(redacted, sizeof (redacted[0]) * batch_size);
 
 	return (error);
 }
