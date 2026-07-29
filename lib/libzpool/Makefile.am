@@ -2,7 +2,7 @@
 include $(srcdir)/%D%/include/Makefile.am
 
 libzpool_la_CFLAGS  = $(AM_CFLAGS) $(KERNEL_CFLAGS) $(LIBRARY_CFLAGS)
-libzpool_la_CFLAGS += $(ZLIB_CFLAGS)
+libzpool_la_CFLAGS += $(LIBCRYPTO_CFLAGS) $(ZLIB_CFLAGS)
 
 libzpool_la_CPPFLAGS  = $(AM_CPPFLAGS) $(LIBZPOOL_CPPFLAGS)
 libzpool_la_CPPFLAGS += -DLIB_ZPOOL_BUILD
@@ -18,7 +18,8 @@ dist_libzpool_la_SOURCES = \
 	%D%/vdev_label_os.c \
 	%D%/zfs_file_os.c \
 	%D%/zfs_racct.c \
-	%D%/zfs_debug.c
+	%D%/zfs_debug.c \
+	%D%/zio_crypt_os_openssl.c
 
 ZCP_SOURCES = \
 	module/lua/lapi.c \
@@ -193,7 +194,6 @@ nodist_libzpool_la_SOURCES = \
 	module/zfs/zio_checksum.c \
 	module/zfs/zio_compress.c \
 	module/zfs/zio_crypt.c \
-	module/zfs/zio_crypt_os_icp.c \
 	module/zfs/zio_inject.c \
 	module/zfs/zle.c \
 	module/zfs/zrlock.c \
@@ -219,7 +219,7 @@ libzpool_la_LIBADD = \
 	libzstd.la \
 	libzutil.la
 
-libzpool_la_LIBADD += $(LIBCLOCK_GETTIME) $(ZLIB_LIBS) -lm
+libzpool_la_LIBADD += $(LIBCLOCK_GETTIME) $(LIBCRYPTO_LIBS) $(ZLIB_LIBS) -lm
 
 libzpool_la_LDFLAGS = -version-info 7:0:0
 

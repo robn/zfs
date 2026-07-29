@@ -18,7 +18,14 @@
 #ifndef	_SYS_ZIO_CRYPT_OS_H
 #define	_SYS_ZIO_CRYPT_OS_H
 
-/* libzpool always uses the ICP backend. */
-#include <sys/zio_crypt_os_icp.h>
+#include <sys/crypto/api.h>
+
+typedef struct zio_crypt_session {
+	void		*zs_dummy;
+} zio_crypt_session_t;
+
+typedef struct zio_crypt_hmac {
+	void		*zh_ctx;
+} zio_crypt_hmac_t;
 
 #endif
