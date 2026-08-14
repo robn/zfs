@@ -235,6 +235,9 @@ secpolicy_vnode_setids_setgids(const cred_t *cr, gid_t gid)
 int
 secpolicy_zinject(const cred_t *cr)
 {
+	/* zinject is only in the global zone */
+	if (crgetzoneid(cr) != GLOBAL_ZONEID)
+		return (EACCES);
 	return (priv_policy(cr, CAP_SYS_ADMIN, B_FALSE, EACCES));
 }
 
