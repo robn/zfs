@@ -200,6 +200,10 @@ _SYS_NVPAIR_H int nvlist_add_hrtime(nvlist_t *, const char *, hrtime_t);
 _SYS_NVPAIR_H int nvlist_add_double(nvlist_t *, const char *, double);
 #endif
 
+_SYS_NVPAIR_H int nvlist_move_nvlist(nvlist_t *, const char *, nvlist_t *);
+_SYS_NVPAIR_H int nvlist_move_nvlist_array(nvlist_t *, const char *,
+    const nvlist_t **, uint_t);
+
 _SYS_NVPAIR_H int nvlist_remove(nvlist_t *, const char *, data_type_t);
 _SYS_NVPAIR_H int nvlist_remove_all(nvlist_t *, const char *);
 _SYS_NVPAIR_H int nvlist_remove_nvpair(nvlist_t *, nvpair_t *);
@@ -351,6 +355,10 @@ _SYS_NVPAIR_H void fnvlist_add_string_array(nvlist_t *, const char *,
     const char * const *, uint_t);
 _SYS_NVPAIR_H void fnvlist_add_nvlist_array(nvlist_t *, const char *,
     const nvlist_t * const *, uint_t);
+
+_SYS_NVPAIR_H void fnvlist_move_nvlist(nvlist_t *, const char *, nvlist_t *);
+_SYS_NVPAIR_H void fnvlist_move_nvlist_array(nvlist_t *, const char *,
+    const nvlist_t **, uint_t);
 
 _SYS_NVPAIR_H void fnvlist_remove(nvlist_t *, const char *);
 _SYS_NVPAIR_H void fnvlist_remove_nvpair(nvlist_t *, nvpair_t *);
