@@ -1168,18 +1168,12 @@ nvlist_copy_embedded(nvlist_t *nvl, nvlist_t *onvl, nvlist_t *emb_nvl)
 	return (err);
 }
 
-/*
- * nvlist_add_common - Add new <name,value> pair to nvlist
- */
+/* Common validation and nvpair alloc for nvlist_add_* and nvlist_move_* */
 static int
-nvlist_add_common(nvlist_t *nvl, const char *name,
-    data_type_t type, uint_t nelem, const void *data)
+nvlist_add_move_validate(nvlist_t *nvl, const char *name,
+    data_type_t type, uint_t nelem, const void *data, int *value_szp)
 {
-	nvpair_t *nvp;
-	uint_t i;
-
-	int nvp_sz, name_sz, value_sz;
-	int err = 0;
+	int value_sz;
 
 	if (name == NULL || nvl == NULL || nvl->nvl_priv == 0)
 		return (EINVAL);
@@ -1197,6 +1191,75 @@ nvlist_add_common(nvlist_t *nvl, const char *name,
 
 	if (i_validate_nvpair_value(type, nelem, data) != 0)
 		return (EINVAL);
+
+	*value_szp = value_sz;
+	return (0);
+}
+
+static int
+nvlist_add_move_prepare(nvlist_t *nvl, const char *name,
+    data_type_t type, uint_t nelem, int value_sz, nvpair_t **nvpp)
+{
+	nvpair_t *nvp;
+	int nvp_sz, name_sz;
+
+	/* calculate sizes of the nvpair elements and the nvpair itself */
+	name_sz = strlen(name) + 1;
+	if (name_sz >= 1ULL << (sizeof (nvp->nvp_name_sz) * NBBY - 1))
+		return (EINVAL);
+
+	nvp_sz = NVP_SIZE_CALC(name_sz, value_sz);
+
+	if ((nvp = nvp_buf_alloc(nvl, nvp_sz)) == NULL)
+		return (ENOMEM);
+
+	ASSERT(nvp->nvp_size == nvp_sz);
+	nvp->nvp_name_sz = name_sz;
+	nvp->nvp_value_elem = nelem;
+	nvp->nvp_type = type;
+	memcpy(NVP_NAME(nvp), name, name_sz);
+
+	*nvpp = nvp;
+	return (0);
+}
+
+static int
+nvlist_add_move_finish(nvlist_t *nvl, const char *name, data_type_t type,
+    nvpair_t *nvp)
+{
+	/* if unique name, remove before add */
+	if (nvl->nvl_nvflag & NV_UNIQUE_NAME)
+		(void) nvlist_remove_all(nvl, name);
+	else if (nvl->nvl_nvflag & NV_UNIQUE_NAME_TYPE)
+		(void) nvlist_remove(nvl, name, type);
+
+	int err = nvt_add_nvpair(nvl, nvp);
+	if (err != 0) {
+		nvpair_free(nvp);
+		nvp_buf_free(nvl, nvp);
+		return (err);
+	}
+	nvp_buf_link(nvl, nvp);
+
+	return (0);
+}
+
+/*
+ * nvlist_add_common - Add new <name,value> pair to nvlist
+ */
+static int
+nvlist_add_common(nvlist_t *nvl, const char *name,
+    data_type_t type, uint_t nelem, const void *data)
+{
+	nvpair_t *nvp;
+	int value_sz;
+	int err = 0;
+	uint_t i;
+
+	/* Basic input validation */
+	if ((err = nvlist_add_move_validate(nvl, name, type, nelem,
+	    data, &value_sz)) != 0)
+		return (err);
 
 	/*
 	 * If we're adding an nvlist or nvlist array, ensure that we are not
@@ -1220,21 +1283,10 @@ nvlist_add_common(nvlist_t *nvl, const char *name,
 		break;
 	}
 
-	/* calculate sizes of the nvpair elements and the nvpair itself */
-	name_sz = strlen(name) + 1;
-	if (name_sz >= 1ULL << (sizeof (nvp->nvp_name_sz) * NBBY - 1))
-		return (EINVAL);
-
-	nvp_sz = NVP_SIZE_CALC(name_sz, value_sz);
-
-	if ((nvp = nvp_buf_alloc(nvl, nvp_sz)) == NULL)
-		return (ENOMEM);
-
-	ASSERT(nvp->nvp_size == nvp_sz);
-	nvp->nvp_name_sz = name_sz;
-	nvp->nvp_value_elem = nelem;
-	nvp->nvp_type = type;
-	memcpy(NVP_NAME(nvp), name, name_sz);
+	/* Final validation, then allocation and init nvpair */
+	if ((err = nvlist_add_move_prepare(nvl, name, type, nelem,
+	    value_sz, &nvp)) != 0)
+		return (err);
 
 	switch (type) {
 	case DATA_TYPE_BOOLEAN:
@@ -1289,21 +1341,7 @@ nvlist_add_common(nvlist_t *nvl, const char *name,
 		memcpy(NVP_VALUE(nvp), data, value_sz);
 	}
 
-	/* if unique name, remove before add */
-	if (nvl->nvl_nvflag & NV_UNIQUE_NAME)
-		(void) nvlist_remove_all(nvl, name);
-	else if (nvl->nvl_nvflag & NV_UNIQUE_NAME_TYPE)
-		(void) nvlist_remove(nvl, name, type);
-
-	err = nvt_add_nvpair(nvl, nvp);
-	if (err != 0) {
-		nvpair_free(nvp);
-		nvp_buf_free(nvl, nvp);
-		return (err);
-	}
-	nvp_buf_link(nvl, nvp);
-
-	return (0);
+	return (nvlist_add_move_finish(nvl, name, type, nvp));
 }
 
 int
@@ -1480,6 +1518,152 @@ nvlist_add_nvlist_array(nvlist_t *nvl, const char *name,
     const nvlist_t * const *a, uint_t n)
 {
 	return (nvlist_add_common(nvl, name, DATA_TYPE_NVLIST_ARRAY, n, a));
+}
+
+static void
+nvlist_move_embedded(nvlist_t *onvl, nvlist_t *emb_nvl)
+{
+	/*
+	 * Take the priv from the original nvl, and initialise the embedded
+	 * nvl with the original flag and priv.
+	 */
+	nvpriv_t *priv = (nvpriv_t *)(uintptr_t)onvl->nvl_priv;
+	nvlist_init(emb_nvl, onvl->nvl_nvflag, priv);
+
+	/*
+	 * priv is now embedded (ie owned by the parent, not the caller).
+	 * Caller is expected to have checked this first (see
+	 * nvlist_move_common()).
+	 */
+	ASSERT0(priv->nvp_stat & NV_STAT_EMBEDDED);
+	priv->nvp_stat = NV_STAT_EMBEDDED;
+
+	/* Free the now-empty husk of of the original nvl. */
+	nv_mem_free(priv, onvl, NV_ALIGN(sizeof (nvlist_t)));
+}
+
+/*
+ * nvlist_move_common - Add new <name,value> pair to nvlist, taking ownership
+ * of the value if appropriate.
+ */
+static int
+nvlist_move_common(nvlist_t *nvl, const char *name,
+    data_type_t type, uint_t nelem, void *data)
+{
+	nvpair_t *nvp;
+	int value_sz;
+	int err = 0;
+	uint_t i;
+
+	/* Basic input validation */
+	if ((err = nvlist_add_move_validate(nvl, name, type, nelem,
+	    data, &value_sz)) != 0)
+		return (err);
+
+	/*
+	 * Ensure we are not tryint to move the input nvlist to itself, and
+	 * that all nvlists to move have are not already embedded (and so owned
+	 * by some other nvlist).
+	 */
+	switch (type) {
+	case DATA_TYPE_NVLIST: {
+		nvlist_t *onvl = data;
+		if (onvl == nvl || onvl == NULL)
+			return (EINVAL);
+		nvpriv_t *priv = (nvpriv_t *)(uintptr_t)onvl->nvl_priv;
+		if (priv->nvp_stat & NV_STAT_EMBEDDED)
+			return (EINVAL);
+		break;
+	}
+	case DATA_TYPE_NVLIST_ARRAY: {
+		nvlist_t **onvlp = (nvlist_t **)data;
+		for (i = 0; i < nelem; i++) {
+			if (onvlp[i] == nvl || onvlp[i] == NULL)
+				return (EINVAL);
+			nvpriv_t *priv =
+			    (nvpriv_t *)(uintptr_t)onvlp[i]->nvl_priv;
+			if (priv->nvp_stat & NV_STAT_EMBEDDED)
+				return (EINVAL);
+		}
+		break;
+	}
+	default:
+		__builtin_unreachable();
+	}
+
+	/* Final validation, then allocation and init nvpair */
+	if ((err = nvlist_add_move_prepare(nvl, name, type, nelem,
+	    value_sz, &nvp)) != 0)
+		return (err);
+
+	/*
+	 * Commit the nvpair to the nvlist. Unlike nvlist_add_common(), we do
+	 * this before we actually the contents to the nvpair. This is because
+	 * nvlist_add_move_finish() calls nvt_add_nvpair(), which may need to
+	 * resize the hashtable, which can fail with ENOMEM.
+	 *
+	 * When this happens, nvlist_add_move_finish() destroy nvp and its
+	 * contents. If we had done the move already, then the callers original
+	 * nvlists have will be destroyed with it.
+	 *
+	 * The alternative would be to delay destruction of the original
+	 * nvlists until after nvp has been committed successfully, so we have
+	 * something to move the privs back to. This is hard to arrange
+	 * because the privs are destroyed along with the embedded nvlists, so
+	 * we'd have to flag that and wire it right through somehow.
+	 *
+	 * None of this is a problem. It does leave some time where the empty
+	 * space for the nvlists we're moving is on the target nvlist, just
+	 * with empty/random contents. This library is not expected to be
+	 * thread-safe though, so anything observing this in-between state
+	 * is already buggy.
+	 *
+	 * It is a bit weird, that's all.
+	 */
+	if ((err = nvlist_add_move_finish(nvl, name, type, nvp)) != 0)
+		return (err);
+
+	/*
+	 * Move the nvlist contents to their new embedded nvlists, and destroy
+	 * them. From here we can't fail.
+	 */
+	switch (type) {
+	case DATA_TYPE_NVLIST: {
+		nvlist_t *nnvl = EMBEDDED_NVL(nvp);
+		nvlist_t *onvl = (nvlist_t *)data;
+		nvlist_move_embedded(onvl, nnvl);
+		break;
+	}
+	case DATA_TYPE_NVLIST_ARRAY: {
+		nvlist_t **onvlp = (nvlist_t **)data;
+		nvlist_t **nvlp = EMBEDDED_NVL_ARRAY(nvp);
+		nvlist_t *embedded = (nvlist_t *)
+		    ((uintptr_t)nvlp + nelem * sizeof (uint64_t));
+
+		for (i = 0; i < nelem; i++) {
+			nvlist_move_embedded(onvlp[i], embedded);
+			nvlp[i] = embedded++;
+		}
+		break;
+	}
+	default:
+		__builtin_unreachable();
+	}
+
+	return (0);
+}
+
+int
+nvlist_move_nvlist(nvlist_t *nvl, const char *name, nvlist_t *val)
+{
+	return (nvlist_move_common(nvl, name, DATA_TYPE_NVLIST, 1, val));
+}
+
+int
+nvlist_move_nvlist_array(nvlist_t *nvl, const char *name,
+    const nvlist_t **a, uint_t n)
+{
+	return (nvlist_move_common(nvl, name, DATA_TYPE_NVLIST_ARRAY, n, a));
 }
 
 /* reading name-value pairs */

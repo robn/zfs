@@ -287,6 +287,19 @@ fnvlist_add_nvlist_array(nvlist_t *nvl, const char *name,
 }
 
 void
+fnvlist_move_nvlist(nvlist_t *nvl, const char *name, nvlist_t *val)
+{
+	VERIFY0(nvlist_move_nvlist(nvl, name, val));
+}
+
+void
+fnvlist_move_nvlist_array(nvlist_t *nvl, const char *name,
+    const nvlist_t **val, uint_t n)
+{
+	VERIFY0(nvlist_move_nvlist_array(nvl, name, val, n));
+}
+
+void
 fnvlist_remove(nvlist_t *nvl, const char *name)
 {
 	VERIFY0(nvlist_remove_all(nvl, name));
