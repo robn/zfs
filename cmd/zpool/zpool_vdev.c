@@ -1865,12 +1865,9 @@ construct_spec(nvlist_t *props, int argc, char **argv)
 						goto spec_out;
 					}
 				}
-				verify(nvlist_add_nvlist_array(nv,
+				verify(nvlist_move_nvlist_array(nv,
 				    ZPOOL_CONFIG_CHILDREN,
 				    (const nvlist_t **)child, children) == 0);
-
-				for (c = 0; c < children; c++)
-					nvlist_free(child[c]);
 				free(child);
 			}
 		} else {
@@ -1932,16 +1929,24 @@ construct_spec(nvlist_t *props, int argc, char **argv)
 	verify(nvlist_alloc(&nvroot, NV_UNIQUE_NAME, 0) == 0);
 	verify(nvlist_add_string(nvroot, ZPOOL_CONFIG_TYPE,
 	    VDEV_TYPE_ROOT) == 0);
-	verify(nvlist_add_nvlist_array(nvroot, ZPOOL_CONFIG_CHILDREN,
+	verify(nvlist_move_nvlist_array(nvroot, ZPOOL_CONFIG_CHILDREN,
 	    (const nvlist_t **)top, toplevels) == 0);
 	if (nspares != 0)
-		verify(nvlist_add_nvlist_array(nvroot, ZPOOL_CONFIG_SPARES,
+		verify(nvlist_move_nvlist_array(nvroot, ZPOOL_CONFIG_SPARES,
 		    (const nvlist_t **)spares, nspares) == 0);
 	if (nl2cache != 0)
-		verify(nvlist_add_nvlist_array(nvroot, ZPOOL_CONFIG_L2CACHE,
+		verify(nvlist_move_nvlist_array(nvroot, ZPOOL_CONFIG_L2CACHE,
 		    (const nvlist_t **)l2cache, nl2cache) == 0);
 
+	free(spares);
+	free(l2cache);
+	free(top);
+
+	return (nvroot);
+
 spec_out:
+	/* spec was invalid, cleanup and eject. */
+
 	for (t = 0; t < toplevels; t++)
 		nvlist_free(top[t]);
 	for (t = 0; t < nspares; t++)
@@ -1953,7 +1958,7 @@ spec_out:
 	free(l2cache);
 	free(top);
 
-	return (nvroot);
+	return (NULL);
 }
 
 nvlist_t *
