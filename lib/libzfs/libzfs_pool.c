@@ -5120,11 +5120,12 @@ zpool_get_history(zpool_handle_t *zhp, nvlist_t **nvhisp, uint64_t *off,
 
 	if (!err) {
 		*nvhisp = fnvlist_alloc();
-		fnvlist_add_nvlist_array(*nvhisp, ZPOOL_HIST_RECORD,
+		fnvlist_move_nvlist_array(*nvhisp, ZPOOL_HIST_RECORD,
 		    (const nvlist_t **)records, numrecords);
+	} else {
+		for (i = 0; i < numrecords; i++)
+			nvlist_free(records[i]);
 	}
-	for (i = 0; i < numrecords; i++)
-		nvlist_free(records[i]);
 	free(records);
 
 	return (err);
