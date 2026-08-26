@@ -1971,8 +1971,7 @@ zfs_json_schema(int maj_v, int min_v)
 	fnvlist_add_string(ov, "command", cmd);
 	fnvlist_add_uint32(ov, "vers_major", maj_v);
 	fnvlist_add_uint32(ov, "vers_minor", min_v);
-	fnvlist_add_nvlist(sch, "output_version", ov);
-	fnvlist_free(ov);
+	fnvlist_move_nvlist(sch, "output_version", ov);
 	return (sch);
 }
 
@@ -2179,10 +2178,8 @@ get_callback(zfs_handle_t *zhp, void *data)
 		if (!nvlist_empty(props)) {
 			item = fnvlist_alloc();
 			fill_dataset_info(item, zhp, cbp->cb_json_as_int);
-			fnvlist_add_nvlist(item, "properties", props);
-			fnvlist_add_nvlist(d, zfs_get_name(zhp), item);
-			fnvlist_free(props);
-			fnvlist_free(item);
+			fnvlist_move_nvlist(item, "properties", props);
+			fnvlist_move_nvlist(d, zfs_get_name(zhp), item);
 		} else {
 			fnvlist_free(props);
 		}
@@ -2201,7 +2198,6 @@ zfs_do_get(int argc, char **argv)
 	int ret = 0;
 	int limit = 0;
 	zprop_list_t fake_name = { 0 };
-	nvlist_t *data;
 
 	/*
 	 * Set up default columns and sources.
@@ -2238,9 +2234,8 @@ zfs_do_get(int argc, char **argv)
 		case 'j':
 			cb.cb_json = B_TRUE;
 			cb.cb_jsobj = zfs_json_schema(0, 1);
-			data = fnvlist_alloc();
-			fnvlist_add_nvlist(cb.cb_jsobj, "datasets", data);
-			fnvlist_free(data);
+			fnvlist_move_nvlist(cb.cb_jsobj, "datasets",
+			    fnvlist_alloc());
 			break;
 		case ZFS_OPTION_JSON_NUMS_AS_INT:
 			cb.cb_json_as_int = B_TRUE;
@@ -3839,10 +3834,8 @@ collect_dataset(zfs_handle_t *zhp, list_cbdata_t *cb)
 		}
 	}
 	if (cb->cb_json) {
-		fnvlist_add_nvlist(item, "properties", props);
-		fnvlist_add_nvlist(d, zfs_get_name(zhp), item);
-		fnvlist_free(props);
-		fnvlist_free(item);
+		fnvlist_move_nvlist(item, "properties", props);
+		fnvlist_move_nvlist(d, zfs_get_name(zhp), item);
 	} else
 		(void) putchar('\n');
 }
@@ -3880,7 +3873,6 @@ zfs_do_list(int argc, char **argv)
 	int ret = 0;
 	zfs_sort_column_t *sortcol = NULL;
 	int flags = ZFS_ITER_PROP_LISTSNAPS | ZFS_ITER_ARGS_CAN_BE_PATHS;
-	nvlist_t *data = NULL;
 
 	struct option long_options[] = {
 		{"json", no_argument, NULL, 'j'},
@@ -3908,9 +3900,8 @@ zfs_do_list(int argc, char **argv)
 		case 'j':
 			cb.cb_json = B_TRUE;
 			cb.cb_jsobj = zfs_json_schema(0, 1);
-			data = fnvlist_alloc();
-			fnvlist_add_nvlist(cb.cb_jsobj, "datasets", data);
-			fnvlist_free(data);
+			fnvlist_move_nvlist(cb.cb_jsobj, "datasets",
+			    fnvlist_alloc());
 			break;
 		case ZFS_OPTION_JSON_NUMS_AS_INT:
 			cb.cb_json_as_int = B_TRUE;
@@ -6868,7 +6859,7 @@ holds_callback(zfs_handle_t *zhp, void *data)
 			cbp->cb_max_taglen  = taglen;
 	}
 
-	return (nvlist_add_nvlist(top_nvl, zname, nvl));
+	return (nvlist_move_nvlist(top_nvl, zname, nvl));
 }
 
 /*
@@ -7582,9 +7573,8 @@ share_mount(int op, int argc, char **argv)
 				    entry.mnt_special);
 				fnvlist_add_string(item, "mountpoint",
 				    entry.mnt_mountp);
-				fnvlist_add_nvlist(data, entry.mnt_special,
+				fnvlist_move_nvlist(data, entry.mnt_special,
 				    item);
-				fnvlist_free(item);
 			} else {
 				(void) printf("%-30s  %s\n", entry.mnt_special,
 				    entry.mnt_mountp);
@@ -7593,12 +7583,13 @@ share_mount(int op, int argc, char **argv)
 
 		(void) fclose(mnttab);
 		if (json) {
-			fnvlist_add_nvlist(jsobj, "datasets", data);
-			if (nvlist_empty(data))
+			if (nvlist_empty(data)) {
 				fnvlist_free(jsobj);
-			else
+				fnvlist_free(data);
+			} else {
+				fnvlist_move_nvlist(jsobj, "datasets", data);
 				zcmd_print_json(jsobj);
-			fnvlist_free(data);
+			}
 		}
 	} else {
 		zfs_handle_t *zhp;
@@ -9379,9 +9370,8 @@ zfs_do_version(int argc, char **argv)
 	if (json) {
 		zfs_ver = zfs_version_nvlist();
 		if (zfs_ver) {
-			fnvlist_add_nvlist(jsobj, "zfs_version", zfs_ver);
+			fnvlist_move_nvlist(jsobj, "zfs_version", zfs_ver);
 			zcmd_print_json(jsobj);
-			fnvlist_free(zfs_ver);
 			return (0);
 		} else
 			return (-1);
