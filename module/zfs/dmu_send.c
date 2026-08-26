@@ -2564,8 +2564,7 @@ dmu_send_impl(struct dmu_send_params *dspp)
 			goto out;
 		}
 
-		fnvlist_add_nvlist(nvl, "crypt_keydata", keynvl);
-		fnvlist_free(keynvl);
+		fnvlist_move_nvlist(nvl, "crypt_keydata", keynvl);
 	}
 
 	if (!nvlist_empty(nvl)) {

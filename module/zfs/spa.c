@@ -361,8 +361,7 @@ spa_prop_add_list(nvlist_t *nvl, zpool_prop_t prop, const char *strval,
 	else
 		fnvlist_add_uint64(propval, ZPROP_VALUE, intval);
 
-	fnvlist_add_nvlist(nvl, propname, propval);
-	nvlist_free(propval);
+	fnvlist_move_nvlist(nvl, propname, propval);
 }
 
 static int
@@ -458,8 +457,7 @@ spa_prop_add_user(nvlist_t *nvl, const char *propname, char *strval,
 	VERIFY0(nvlist_alloc(&propval, NV_UNIQUE_NAME, KM_SLEEP));
 	VERIFY0(nvlist_add_uint64(propval, ZPROP_SOURCE, src));
 	VERIFY0(nvlist_add_string(propval, ZPROP_VALUE, strval));
-	VERIFY0(nvlist_add_nvlist(nvl, propname, propval));
-	nvlist_free(propval);
+	VERIFY0(nvlist_move_nvlist(nvl, propname, propval));
 }
 
 /*
@@ -2851,13 +2849,13 @@ spa_check_for_missing_logs(spa_t *spa)
 		if (idx > 0) {
 			fnvlist_add_nvlist_array(nv, ZPOOL_CONFIG_CHILDREN,
 			    (const nvlist_t * const *)child, idx);
-			fnvlist_add_nvlist(spa->spa_load_info,
+			fnvlist_move_nvlist(spa->spa_load_info,
 			    ZPOOL_CONFIG_MISSING_DEVICES, nv);
 
 			for (uint64_t i = 0; i < idx; i++)
 				nvlist_free(child[i]);
-		}
-		nvlist_free(nv);
+		} else
+			nvlist_free(nv);
 		kmem_free(child, rvd->vdev_children * sizeof (char **));
 
 		if (idx > 0) {
@@ -4939,16 +4937,16 @@ spa_ld_select_uberblock(spa_t *spa, spa_import_type_t type)
 			}
 		}
 
-		if (!nvlist_empty(unsup_feat)) {
-			fnvlist_add_nvlist(spa->spa_load_info,
+		if (nvlist_empty(unsup_feat)) {
+			nvlist_free(unsup_feat);
+		} else {
+			fnvlist_move_nvlist(spa->spa_load_info,
 			    ZPOOL_CONFIG_UNSUP_FEAT, unsup_feat);
 			nvlist_free(unsup_feat);
 			spa_load_failed(spa, "some features are unsupported");
 			return (spa_vdev_err(rvd, VDEV_AUX_UNSUP_FEAT,
 			    ENOTSUP));
 		}
-
-		nvlist_free(unsup_feat);
 	}
 
 	if (type != SPA_IMPORT_ASSEMBLE && spa->spa_config_splitting) {
@@ -5262,16 +5260,14 @@ spa_ld_check_features(spa_t *spa, boolean_t *missing_feat_writep)
 			}
 		}
 
-		fnvlist_add_nvlist(spa->spa_load_info,
+		fnvlist_move_nvlist(spa->spa_load_info,
 		    ZPOOL_CONFIG_ENABLED_FEAT, enabled_feat);
 
-		if (!nvlist_empty(unsup_feat)) {
+		if (nvlist_empty(unsup_feat))
+			fnvlist_free(unsup_feat);
+		else
 			fnvlist_add_nvlist(spa->spa_load_info,
 			    ZPOOL_CONFIG_UNSUP_FEAT, unsup_feat);
-		}
-
-		fnvlist_free(enabled_feat);
-		fnvlist_free(unsup_feat);
 
 		if (!missing_feat_read) {
 			fnvlist_add_boolean(spa->spa_load_info,
@@ -6495,11 +6491,10 @@ spa_load_best(spa_t *spa, spa_load_state_t state, uint64_t max_request,
 		return (rewind_error);
 	} else {
 		/* Store the rewind info as part of the initial load info */
-		fnvlist_add_nvlist(loadinfo, ZPOOL_CONFIG_REWIND_INFO,
+		fnvlist_move_nvlist(loadinfo, ZPOOL_CONFIG_REWIND_INFO,
 		    spa->spa_load_info);
 
 		/* Restore the initial load info */
-		fnvlist_free(spa->spa_load_info);
 		spa->spa_load_info = loadinfo;
 
 		spa_import_progress_remove(spa_guid(spa));

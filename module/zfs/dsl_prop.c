@@ -1181,8 +1181,7 @@ dsl_prop_get_all_impl(objset_t *mos, uint64_t propobj,
 		}
 
 		VERIFY0(nvlist_add_string(propval, ZPROP_SOURCE, source));
-		VERIFY0(nvlist_add_nvlist(nv, propname, propval));
-		nvlist_free(propval);
+		VERIFY0(nvlist_move_nvlist(nv, propname, propval));
 	}
 	zap_cursor_fini(&zc);
 	zap_attribute_free(za);
@@ -1333,8 +1332,7 @@ dsl_prop_nvlist_add_uint64(nvlist_t *nv, zfs_prop_t prop, uint64_t value)
 	    value == default_value) {
 		VERIFY0(nvlist_add_string(propval, ZPROP_SOURCE, ""));
 	}
-	VERIFY0(nvlist_add_nvlist(nv, propname, propval));
-	nvlist_free(propval);
+	VERIFY0(nvlist_move_nvlist(nv, propname, propval));
 }
 
 void
@@ -1350,8 +1348,7 @@ dsl_prop_nvlist_add_string(nvlist_t *nv, zfs_prop_t prop, const char *value)
 
 	VERIFY0(nvlist_alloc(&propval, NV_UNIQUE_NAME, KM_SLEEP));
 	VERIFY0(nvlist_add_string(propval, ZPROP_VALUE, value));
-	VERIFY0(nvlist_add_nvlist(nv, propname, propval));
-	nvlist_free(propval);
+	VERIFY0(nvlist_move_nvlist(nv, propname, propval));
 }
 
 #if defined(_KERNEL)

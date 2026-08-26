@@ -2369,13 +2369,13 @@ get_clones_stat(dsl_dataset_t *ds, nvlist_t *nv)
 	nvlist_t *val = fnvlist_alloc();
 
 	if (get_clones_stat_impl(ds, val) == 0) {
-		fnvlist_add_nvlist(propval, ZPROP_VALUE, val);
-		fnvlist_add_nvlist(nv, zfs_prop_to_name(ZFS_PROP_CLONES),
+		fnvlist_move_nvlist(propval, ZPROP_VALUE, val);
+		fnvlist_move_nvlist(nv, zfs_prop_to_name(ZFS_PROP_CLONES),
 		    propval);
+	} else {
+		nvlist_free(val);
+		nvlist_free(propval);
 	}
-
-	nvlist_free(val);
-	nvlist_free(propval);
 }
 
 static char *
@@ -2828,9 +2828,8 @@ dsl_dataset_stats(dsl_dataset_t *ds, nvlist_t *nv)
 
 	nvlist_t *propval = fnvlist_alloc();
 	dsl_get_redact_snaps(ds, propval);
-	fnvlist_add_nvlist(nv, zfs_prop_to_name(ZFS_PROP_REDACT_SNAPS),
+	fnvlist_move_nvlist(nv, zfs_prop_to_name(ZFS_PROP_REDACT_SNAPS),
 	    propval);
-	nvlist_free(propval);
 
 	dsl_prop_nvlist_add_uint64(nv, ZFS_PROP_AVAILABLE,
 	    dsl_get_available(ds));

@@ -151,7 +151,7 @@ spa_generate_rootconf(const char *name)
 	 * Replace the existing vdev_tree with the new root vdev in
 	 * this pool's configuration (remove the old, add the new).
 	 */
-	fnvlist_add_nvlist(config, ZPOOL_CONFIG_VDEV_TREE, nvroot);
+	fnvlist_move_nvlist(config, ZPOOL_CONFIG_VDEV_TREE, nvroot);
 
 	/*
 	 * Drop vdev config elements that should not be present at pool level.
@@ -165,7 +165,6 @@ spa_generate_rootconf(const char *name)
 	for (i = 0; i < nchildren; i++)
 		fnvlist_free(tops[i]);
 	kmem_free(tops, nchildren * sizeof (void *));
-	fnvlist_free(nvroot);
 	return (config);
 }
 

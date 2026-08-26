@@ -179,8 +179,7 @@ dsl_dataset_user_hold_sync_one_impl(nvlist_t *tmpholds, dsl_dataset_t *ds,
 		if (nvlist_lookup_nvlist(tmpholds, name, &tags) != 0) {
 			tags = fnvlist_alloc();
 			fnvlist_add_boolean(tags, htag);
-			fnvlist_add_nvlist(tmpholds, name, tags);
-			fnvlist_free(tags);
+			fnvlist_move_nvlist(tmpholds, name, tags);
 		} else {
 			fnvlist_add_boolean(tags, htag);
 		}
@@ -422,11 +421,11 @@ dsl_dataset_user_release_check_one(dsl_dataset_user_release_arg_t *ddura,
 		fnvlist_add_boolean(ddura->ddura_todelete, snapname);
 	}
 
-	if (numholds != 0) {
-		fnvlist_add_nvlist(ddura->ddura_chkholds, snapname,
+	if (numholds == 0) 
+		fnvlist_free(holds_found);
+	else
+		fnvlist_move_nvlist(ddura->ddura_chkholds, snapname,
 		    holds_found);
-	}
-	fnvlist_free(holds_found);
 
 	return (0);
 }

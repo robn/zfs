@@ -6154,8 +6154,7 @@ vdev_prop_add_list(nvlist_t *nvl, const char *propname, const char *strval,
 	else
 		fnvlist_add_uint64(propval, ZPROP_VALUE, intval);
 
-	fnvlist_add_nvlist(nvl, propname, propval);
-	nvlist_free(propval);
+	fnvlist_move_nvlist(nvl, propname, propval);
 }
 
 static void

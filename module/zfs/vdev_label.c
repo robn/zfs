@@ -385,9 +385,8 @@ vdev_config_generate_stats(vdev_t *vd, nvlist_t *nv)
 	    vs->vs_dio_verify_errors);
 
 	/* Add extended stats nvlist to main nvlist */
-	fnvlist_add_nvlist(nv, ZPOOL_CONFIG_VDEV_STATS_EX, nvx);
+	fnvlist_move_nvlist(nv, ZPOOL_CONFIG_VDEV_STATS_EX, nvx);
 
-	fnvlist_free(nvx);
 	kmem_free(vs, sizeof (*vs));
 	kmem_free(vsx, sizeof (*vsx));
 }
@@ -461,11 +460,9 @@ root_vdev_actions_getprogress(vdev_t *vd, nvlist_t *nvl)
 
 		mutex_exit(&spa->spa_condense_stats_lock);
 
-		fnvlist_add_nvlist(cnv, condense_type_keys[type], tnv);
-		fnvlist_free(tnv);
+		fnvlist_move_nvlist(cnv, condense_type_keys[type], tnv);
 	}
-	fnvlist_add_nvlist(nvl, ZPOOL_CONFIG_CONDENSE_STATS, cnv);
-	fnvlist_free(cnv);
+	fnvlist_move_nvlist(nvl, ZPOOL_CONFIG_CONDENSE_STATS, cnv);
 }
 
 static void

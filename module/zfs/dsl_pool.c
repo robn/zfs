@@ -1309,8 +1309,7 @@ dsl_pool_clean_tmp_userrefs(dsl_pool_t *dp)
 		if (nvlist_lookup_nvlist(holds, za->za_name, &tags) != 0) {
 			tags = fnvlist_alloc();
 			fnvlist_add_boolean(tags, htag);
-			fnvlist_add_nvlist(holds, za->za_name, tags);
-			fnvlist_free(tags);
+			fnvlist_move_nvlist(holds, za->za_name, tags);
 		} else {
 			fnvlist_add_boolean(tags, htag);
 		}

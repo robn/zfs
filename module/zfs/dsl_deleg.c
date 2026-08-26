@@ -349,15 +349,13 @@ dsl_deleg_get(const char *ddname, nvlist_t **nvp)
 				fnvlist_add_boolean(perms_nvp, za->za_name);
 			}
 			zap_cursor_fini(zc);
-			fnvlist_add_nvlist(sp_nvp, baseza->za_name, perms_nvp);
-			fnvlist_free(perms_nvp);
+			fnvlist_move_nvlist(sp_nvp, baseza->za_name, perms_nvp);
 		}
 
 		zap_cursor_fini(basezc);
 
 		dsl_dir_name(dd, source);
-		fnvlist_add_nvlist(*nvp, source, sp_nvp);
-		nvlist_free(sp_nvp);
+		fnvlist_move_nvlist(*nvp, source, sp_nvp);
 	}
 
 	kmem_free(source, ZFS_MAX_DATASET_NAME_LEN);
