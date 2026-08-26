@@ -307,11 +307,10 @@ lzc_create(const char *fsname, enum lzc_dataset_type type, nvlist_t *props,
 		hidden_args = fnvlist_alloc();
 		fnvlist_add_uint8_array(hidden_args, "wkeydata", wkeydata,
 		    wkeylen);
-		fnvlist_add_nvlist(args, ZPOOL_HIDDEN_ARGS, hidden_args);
+		fnvlist_move_nvlist(args, ZPOOL_HIDDEN_ARGS, hidden_args);
 	}
 
 	error = lzc_ioctl(ZFS_IOC_CREATE, fsname, args, NULL);
-	nvlist_free(hidden_args);
 	nvlist_free(args);
 	return (error);
 }
@@ -1163,9 +1162,8 @@ recv_impl(const char *snapname, nvlist_t *recvdprops, nvlist_t *localprops,
 			nvlist_t *hidden_args = fnvlist_alloc();
 			fnvlist_add_uint8_array(hidden_args, "wkeydata",
 			    wkeydata, wkeylen);
-			fnvlist_add_nvlist(innvl, ZPOOL_HIDDEN_ARGS,
+			fnvlist_move_nvlist(innvl, ZPOOL_HIDDEN_ARGS,
 			    hidden_args);
-			nvlist_free(hidden_args);
 		}
 
 		if (origin != NULL && strlen(origin))
@@ -1816,11 +1814,10 @@ lzc_load_key(const char *fsname, boolean_t noop, uint8_t *wkeydata,
 	ioc_args = fnvlist_alloc();
 	hidden_args = fnvlist_alloc();
 	fnvlist_add_uint8_array(hidden_args, "wkeydata", wkeydata, wkeylen);
-	fnvlist_add_nvlist(ioc_args, ZPOOL_HIDDEN_ARGS, hidden_args);
+	fnvlist_move_nvlist(ioc_args, ZPOOL_HIDDEN_ARGS, hidden_args);
 	if (noop)
 		fnvlist_add_boolean(ioc_args, "noop");
 	error = lzc_ioctl(ZFS_IOC_LOAD_KEY, fsname, ioc_args, NULL);
-	nvlist_free(hidden_args);
 	nvlist_free(ioc_args);
 
 	return (error);
@@ -1846,14 +1843,13 @@ lzc_change_key(const char *fsname, uint64_t crypt_cmd, nvlist_t *props,
 		hidden_args = fnvlist_alloc();
 		fnvlist_add_uint8_array(hidden_args, "wkeydata", wkeydata,
 		    wkeylen);
-		fnvlist_add_nvlist(ioc_args, ZPOOL_HIDDEN_ARGS, hidden_args);
+		fnvlist_move_nvlist(ioc_args, ZPOOL_HIDDEN_ARGS, hidden_args);
 	}
 
 	if (props != NULL)
 		fnvlist_add_nvlist(ioc_args, "props", props);
 
 	error = lzc_ioctl(ZFS_IOC_CHANGE_KEY, fsname, ioc_args, NULL);
-	nvlist_free(hidden_args);
 	nvlist_free(ioc_args);
 
 	return (error);
