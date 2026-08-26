@@ -1116,8 +1116,7 @@ zpool_json_schema(int maj_v, int min_v)
 	fnvlist_add_string(ov, "command", cmd);
 	fnvlist_add_uint32(ov, "vers_major", maj_v);
 	fnvlist_add_uint32(ov, "vers_minor", min_v);
-	fnvlist_add_nvlist(sch, "output_version", ov);
-	fnvlist_free(ov);
+	fnvlist_move_nvlist(sch, "output_version", ov);
 	return (sch);
 }
 
@@ -6961,7 +6960,7 @@ collect_pool(zpool_handle_t *zhp, list_cbdata_t *cb)
 	}
 
 	if (cb->cb_json) {
-		fnvlist_add_nvlist(item, "properties", props);
+		fnvlist_move_nvlist(item, "properties", props);
 		if (cb->cb_json_pool_key_guid) {
 			char pool_guid[256];
 			uint64_t guid = fnvlist_lookup_uint64(
@@ -6969,13 +6968,11 @@ collect_pool(zpool_handle_t *zhp, list_cbdata_t *cb)
 			    ZPOOL_CONFIG_POOL_GUID);
 			(void) snprintf(pool_guid, 256, "%llu",
 			    (u_longlong_t)guid);
-			fnvlist_add_nvlist(d, pool_guid, item);
+			fnvlist_move_nvlist(d, pool_guid, item);
 		} else {
-			fnvlist_add_nvlist(d, zpool_get_name(zhp),
+			fnvlist_move_nvlist(d, zpool_get_name(zhp),
 			    item);
 		}
-		fnvlist_free(props);
-		fnvlist_free(item);
 	} else
 		(void) fputc('\n', stdout);
 }
@@ -7217,8 +7214,7 @@ collect_list_stats(zpool_handle_t *zhp, const char *name, nvlist_t *nv,
 		}
 
 		if (cb->cb_json) {
-			fnvlist_add_nvlist(ent, "properties", props);
-			fnvlist_free(props);
+			fnvlist_move_nvlist(ent, "properties", props);
 		} else
 			(void) fputc('\n', stdout);
 	}
@@ -7226,8 +7222,7 @@ collect_list_stats(zpool_handle_t *zhp, const char *name, nvlist_t *nv,
 	if (nvlist_lookup_nvlist_array(nv, ZPOOL_CONFIG_CHILDREN,
 	    &child, &children) != 0) {
 		if (cb->cb_json) {
-			fnvlist_add_nvlist(item, name, ent);
-			fnvlist_free(ent);
+			fnvlist_move_nvlist(item, name, ent);
 		}
 		return;
 	}
@@ -7265,9 +7260,10 @@ collect_list_stats(zpool_handle_t *zhp, const char *name, nvlist_t *nv,
 	}
 
 	if (cb->cb_json) {
-		if (!nvlist_empty(ch))
-			fnvlist_add_nvlist(ent, "vdevs", ch);
-		fnvlist_free(ch);
+		if (nvlist_empty(ch))
+			fnvlist_free(ch);
+		else
+			fnvlist_move_nvlist(ent, "vdevs", ch);
 	}
 
 	/* list the classes: 'logs', 'dedup', and 'special' */
@@ -7304,9 +7300,10 @@ collect_list_stats(zpool_handle_t *zhp, const char *name, nvlist_t *nv,
 			free(vname);
 		}
 		if (cb->cb_json) {
-			if (!nvlist_empty(obj))
-				fnvlist_add_nvlist(item, class_name[n], obj);
-			fnvlist_free(obj);
+			if (nvlist_empty(obj))
+				fnvlist_free(obj);
+			else
+				fnvlist_move_nvlist(item, class_name[n], obj);
 		}
 	}
 
@@ -7325,9 +7322,10 @@ collect_list_stats(zpool_handle_t *zhp, const char *name, nvlist_t *nv,
 			free(vname);
 		}
 		if (cb->cb_json) {
-			if (!nvlist_empty(l2c))
-				fnvlist_add_nvlist(item, "l2cache", l2c);
-			fnvlist_free(l2c);
+			if (nvlist_empty(l2c))
+				fnvlist_free(l2c);
+			else
+				fnvlist_move_nvlist(item, "l2cache", l2c);
 		}
 	}
 
@@ -7346,16 +7344,15 @@ collect_list_stats(zpool_handle_t *zhp, const char *name, nvlist_t *nv,
 			free(vname);
 		}
 		if (cb->cb_json) {
-			if (!nvlist_empty(sp))
-				fnvlist_add_nvlist(item, "spares", sp);
-			fnvlist_free(sp);
+			if (nvlist_empty(sp))
+				fnvlist_free(sp);
+			else
+				fnvlist_move_nvlist(item, "spares", sp);
 		}
 	}
 
-	if (name != NULL && cb->cb_json) {
-		fnvlist_add_nvlist(item, name, ent);
-		fnvlist_free(ent);
-	}
+	if (name != NULL && cb->cb_json)
+		fnvlist_move_nvlist(item, name, ent);
 }
 
 /*
@@ -7394,13 +7391,12 @@ list_callback(zpool_handle_t *zhp, void *data)
 		}
 		collect_list_stats(zhp, NULL, nvroot, cbp, 0, B_FALSE, nvdevs);
 		if (cbp->cb_json) {
-			fnvlist_add_nvlist(p, "vdevs", nvdevs);
+			fnvlist_move_nvlist(p, "vdevs", nvdevs);
 			if (cbp->cb_json_pool_key_guid)
 				fnvlist_add_nvlist(d, pool_guid, p);
 			else
 				fnvlist_add_nvlist(d, pool_name, p);
 			fnvlist_add_nvlist(cbp->cb_jsobj, "pools", d);
-			fnvlist_free(nvdevs);
 		}
 	}
 
@@ -7462,7 +7458,6 @@ zpool_do_list(int argc, char **argv)
 	unsigned long count = 0;
 	zpool_list_t *list;
 	boolean_t first = B_TRUE;
-	nvlist_t *data = NULL;
 	current_prop_type = ZFS_TYPE_POOL;
 
 	struct option long_options[] = {
@@ -7554,9 +7549,8 @@ zpool_do_list(int argc, char **argv)
 
 		if (cb.cb_json) {
 			cb.cb_jsobj = zpool_json_schema(0, 1);
-			data = fnvlist_alloc();
-			fnvlist_add_nvlist(cb.cb_jsobj, "pools", data);
-			fnvlist_free(data);
+			fnvlist_move_nvlist(cb.cb_jsobj, "pools",
+			    fnvlist_alloc());
 		}
 
 		cb.cb_namewidth = 0;
@@ -9763,12 +9757,12 @@ vdev_stats_nvlist(zpool_handle_t *zhp, status_cbdata_t *cb, nvlist_t *nv,
 	}
 
 	if (ch != NULL) {
-		if (!nvlist_empty(ch))
-			fnvlist_add_nvlist(vds, "vdevs", ch);
-		fnvlist_free(ch);
+		if (nvlist_empty(ch))
+			fnvlist_free(ch);
+		else
+			fnvlist_move_nvlist(vds, "vdevs", ch);
 	}
-	fnvlist_add_nvlist(item, vname, vds);
-	fnvlist_free(vds);
+	fnvlist_move_nvlist(item, vname, vds);
 	free(vname);
 }
 
@@ -9823,9 +9817,10 @@ class_vdevs_nvlist(zpool_handle_t *zhp, status_cbdata_t *cb, nvlist_t *nv,
 		free(name);
 	}
 	if (!cb->cb_flat_vdevs) {
-		if (!nvlist_empty(class_obj))
-			fnvlist_add_nvlist(item, class, class_obj);
-		fnvlist_free(class_obj);
+		if (nvlist_empty(class_obj))
+			fnvlist_free(class_obj);
+		else
+			fnvlist_move_nvlist(item, class, class_obj);
 	}
 }
 
@@ -9852,9 +9847,10 @@ l2cache_nvlist(zpool_handle_t *zhp, status_cbdata_t *cb, nvlist_t *nv,
 		}
 	}
 	if (!cb->cb_flat_vdevs) {
-		if (!nvlist_empty(l2c))
-			fnvlist_add_nvlist(item, "l2cache", l2c);
-		fnvlist_free(l2c);
+		if (nvlist_empty(l2c))
+			fnvlist_free(l2c);
+		else
+			fnvlist_move_nvlist(item, "l2cache", l2c);
 	}
 }
 
@@ -9881,9 +9877,10 @@ spares_nvlist(zpool_handle_t *zhp, status_cbdata_t *cb, nvlist_t *nv,
 		}
 	}
 	if (!cb->cb_flat_vdevs) {
-		if (!nvlist_empty(sp))
-			fnvlist_add_nvlist(item, "spares", sp);
-		fnvlist_free(sp);
+		if (nvlist_empty(sp))
+			fnvlist_free(sp);
+		else
+			fnvlist_move_nvlist(item, "spares", sp);
 	}
 }
 
@@ -9983,11 +9980,9 @@ dedup_stats_nvlist(zpool_handle_t *zhp, status_cbdata_t *cb, nvlist_t *item)
 		nice_num_str_nvlist(dedup, "obj_count", ddo->ddo_count,
 		    cb->cb_literal, cb->cb_json_as_int, ZFS_NICENUM_1024);
 		if (ddo->ddo_count == 0) {
-			fnvlist_add_nvlist(dedup, ZPOOL_CONFIG_DDT_OBJ_STATS,
+			fnvlist_move_nvlist(dedup, ZPOOL_CONFIG_DDT_OBJ_STATS,
 			    ddt_obj);
-			fnvlist_add_nvlist(item, "dedup_stats", dedup);
-			fnvlist_free(ddt_obj);
-			fnvlist_free(dedup);
+			fnvlist_move_nvlist(item, "dedup_stats", dedup);
 			return;
 		} else {
 			nice_num_str_nvlist(dedup, "dspace", ddo->ddo_dspace,
@@ -10016,8 +10011,7 @@ dedup_stats_nvlist(zpool_handle_t *zhp, status_cbdata_t *cb, nvlist_t *item)
 				fnvlist_add_string(total, "blocks", "0");
 			else
 				ddt_stats_nvlist(dds, cb, total);
-			fnvlist_add_nvlist(ddt_stat, "total", total);
-			fnvlist_free(total);
+			fnvlist_move_nvlist(ddt_stat, "total", total);
 		}
 		if (nvlist_lookup_uint64_array(config,
 		    ZPOOL_CONFIG_DDT_HISTOGRAM, (uint64_t **)&ddh, &c) == 0) {
@@ -10030,28 +10024,29 @@ dedup_stats_nvlist(zpool_handle_t *zhp, status_cbdata_t *cb, nvlist_t *item)
 					ddt_stats_nvlist(&ddh->ddh_stat[h], cb,
 					    entry);
 					(void) snprintf(buf, 16, "%d", h);
-					fnvlist_add_nvlist(hist, buf, entry);
-					fnvlist_free(entry);
+					fnvlist_move_nvlist(hist, buf, entry);
 				}
 			}
-			if (!nvlist_empty(hist))
-				fnvlist_add_nvlist(ddt_stat, "histogram", hist);
-			fnvlist_free(hist);
+			if (nvlist_empty(hist))
+				fnvlist_free(hist);
+			else
+				fnvlist_move_nvlist(ddt_stat, "histogram", hist);
 		}
 
-		if (!nvlist_empty(ddt_obj)) {
-			fnvlist_add_nvlist(dedup, ZPOOL_CONFIG_DDT_OBJ_STATS,
+		if (nvlist_empty(ddt_obj))
+			fnvlist_free(ddt_obj);
+		else
+			fnvlist_move_nvlist(dedup, ZPOOL_CONFIG_DDT_OBJ_STATS,
 			    ddt_obj);
-		}
-		fnvlist_free(ddt_obj);
-		if (!nvlist_empty(ddt_stat)) {
-			fnvlist_add_nvlist(dedup, ZPOOL_CONFIG_DDT_STATS,
+		if (nvlist_empty(ddt_stat))
+			fnvlist_free(ddt_stat);
+		else
+			fnvlist_move_nvlist(dedup, ZPOOL_CONFIG_DDT_STATS,
 			    ddt_stat);
-		}
-		fnvlist_free(ddt_stat);
-		if (!nvlist_empty(dedup))
-			fnvlist_add_nvlist(item, "dedup_stats", dedup);
-		fnvlist_free(dedup);
+		if (nvlist_empty(dedup))
+			fnvlist_free(dedup);
+		else
+			fnvlist_move_nvlist(item, "dedup_stats", dedup);
 	}
 }
 
@@ -10089,8 +10084,7 @@ raidz_expand_status_nvlist(zpool_handle_t *zhp, status_cbdata_t *cb,
 		nice_num_str_nvlist(nv, "waiting_for_resilver",
 		    pres->pres_waiting_for_resilver, B_TRUE,
 		    cb->cb_json_as_int, ZFS_NICENUM_1024);
-		fnvlist_add_nvlist(item, ZPOOL_CONFIG_RAIDZ_EXPAND_STATS, nv);
-		fnvlist_free(nv);
+		fnvlist_move_nvlist(item, ZPOOL_CONFIG_RAIDZ_EXPAND_STATS, nv);
 		free(name);
 	}
 }
@@ -10112,8 +10106,7 @@ checkpoint_status_nvlist(nvlist_t *nvroot, status_cbdata_t *cb,
 		nice_num_str_nvlist(nv, "space",
 		    pcs->pcs_space, cb->cb_literal, cb->cb_json_as_int,
 		    ZFS_NICENUM_BYTES);
-		fnvlist_add_nvlist(item, ZPOOL_CONFIG_CHECKPOINT_STATS, nv);
-		fnvlist_free(nv);
+		fnvlist_move_nvlist(item, ZPOOL_CONFIG_CHECKPOINT_STATS, nv);
 	}
 }
 
@@ -10156,9 +10149,8 @@ removal_status_nvlist(zpool_handle_t *zhp, status_cbdata_t *cb,
 			nice_num_str_nvlist(nv, "mapping_memory",
 			    prs->prs_mapping_memory, cb->cb_literal,
 			    cb->cb_json_as_int, ZFS_NICENUM_BYTES);
-			fnvlist_add_nvlist(item,
+			fnvlist_move_nvlist(item,
 			    ZPOOL_CONFIG_REMOVAL_STATS, nv);
-			fnvlist_free(nv);
 			free(vdev_name);
 		}
 	}
@@ -10200,14 +10192,13 @@ condense_status_nvlist(nvlist_t *nvroot, status_cbdata_t *cb, nvlist_t *item)
 
 		fnvlist_add_string(nv, "unit", condense_unit(type));
 
-		fnvlist_add_nvlist(onv, type, nv);
-		fnvlist_free(nv);
+		fnvlist_move_nvlist(onv, type, nv);
 	}
 
 	if (fnvlist_num_pairs(onv))
-		fnvlist_add_nvlist(item, "condense", onv);
-
-	fnvlist_free(onv);
+		fnvlist_move_nvlist(item, "condense", onv);
+	else
+		fnvlist_free(onv);
 }
 
 
@@ -10353,19 +10344,21 @@ scan_status_nvlist(zpool_handle_t *zhp, status_cbdata_t *cb,
 					    vrs->vrs_pass_bytes_skipped,
 					    cb->cb_literal, cb->cb_json_as_int,
 					    ZFS_NICENUM_BYTES);
-					fnvlist_add_nvlist(rebuild, name, nv);
+					fnvlist_move_nvlist(rebuild, name, nv);
 					free(name);
 				}
 			}
 		}
-		if (!nvlist_empty(rebuild))
-			fnvlist_add_nvlist(scan, "rebuild_stats", rebuild);
-		fnvlist_free(rebuild);
+		if (nvlist_empty(rebuild))
+			fnvlist_free(rebuild);
+		else
+			fnvlist_move_nvlist(scan, "rebuild_stats", rebuild);
 	}
 
-	if (!nvlist_empty(scan))
-		fnvlist_add_nvlist(item, ZPOOL_CONFIG_SCAN_STATS, scan);
-	fnvlist_free(scan);
+	if (nvlist_empty(scan))
+		fnvlist_free(scan);
+	else
+		fnvlist_move_nvlist(item, ZPOOL_CONFIG_SCAN_STATS, scan);
 }
 
 /*
@@ -11295,11 +11288,9 @@ status_callback_json(zpool_handle_t *zhp, void *data)
 			l2cache_nvlist(zhp, cbp, nvroot, vds);
 			spares_nvlist(zhp, cbp, nvroot, vds);
 
-			fnvlist_add_nvlist(item, "vdevs", vds);
-			fnvlist_free(vds);
+			fnvlist_move_nvlist(item, "vdevs", vds);
 		} else {
-			fnvlist_add_nvlist(item, "vdevs", vds);
-			fnvlist_free(vds);
+			fnvlist_move_nvlist(item, "vdevs", vds);
 
 			class_vdevs_nvlist(zhp, cbp, nvroot,
 			    VDEV_ALLOC_BIAS_DEDUP, item);
@@ -11314,12 +11305,11 @@ status_callback_json(zpool_handle_t *zhp, void *data)
 		errors_nvlist(zhp, cbp, item);
 	}
 	if (cbp->cb_json_pool_key_guid) {
-		fnvlist_add_nvlist(d, pool_guid, item);
+		fnvlist_move_nvlist(d, pool_guid, item);
 	} else {
-		fnvlist_add_nvlist(d, zpool_get_name(zhp),
+		fnvlist_move_nvlist(d, zpool_get_name(zhp),
 		    item);
 	}
-	fnvlist_free(item);
 	return (0);
 }
 
@@ -11542,7 +11532,6 @@ zpool_do_status(int argc, char **argv)
 	float interval = 0;
 	unsigned long count = 0;
 	status_cbdata_t cb = { 0 };
-	nvlist_t *data;
 	char *cmd = NULL;
 
 	struct option long_options[] = {
@@ -11684,9 +11673,8 @@ zpool_do_status(int argc, char **argv)
 	for (;;) {
 		if (cb.cb_json) {
 			cb.cb_jsobj = zpool_json_schema(0, 1);
-			data = fnvlist_alloc();
-			fnvlist_add_nvlist(cb.cb_jsobj, "pools", data);
-			fnvlist_free(data);
+			fnvlist_move_nvlist(cb.cb_jsobj, "pools",
+			    fnvlist_alloc());
 		}
 
 		if (timestamp_fmt != NODATE) {
@@ -12959,16 +12947,16 @@ get_callback_vdev(zpool_handle_t *zhp, char *vdevname, void *data)
 	}
 
 	if (cbp->cb_json) {
-		if (!nvlist_empty(props)) {
+		if (nvlist_empty(props)) {
+			fnvlist_free(props);
+		} else {
 			item = fnvlist_alloc();
 			fill_vdev_info(item, zhp, vdevname, B_TRUE,
 			    cbp->cb_json_as_int);
-			fnvlist_add_nvlist(item, "properties", props);
-			fnvlist_add_nvlist(d, vdevname, item);
+			fnvlist_move_nvlist(item, "properties", props);
+			fnvlist_move_nvlist(d, vdevname, item);
 			fnvlist_add_nvlist(cbp->cb_jsobj, "vdevs", d);
-			fnvlist_free(item);
 		}
-		fnvlist_free(props);
 	}
 
 	return (0);
@@ -13020,8 +13008,7 @@ get_callback(zpool_handle_t *zhp, void *data)
 		if (cbp->cb_json) {
 			nvlist_t *pool = fnvlist_alloc();
 			fill_pool_info(pool, zhp, B_FALSE, cbp->cb_json_as_int);
-			fnvlist_add_nvlist(cbp->cb_jsobj, "pool", pool);
-			fnvlist_free(pool);
+			fnvlist_move_nvlist(cbp->cb_jsobj, "pool", pool);
 		}
 
 		if (strcmp(cbp->cb_vdevs.cb_names[0], "all-vdevs") == 0) {
@@ -13100,11 +13087,13 @@ get_callback(zpool_handle_t *zhp, void *data)
 		}
 
 		if (cbp->cb_json) {
-			if (!nvlist_empty(props)) {
+			if (nvlist_empty(props)) {
+				fnvlist_free(props);
+			} else {
 				item = fnvlist_alloc();
 				fill_pool_info(item, zhp, B_TRUE,
 				    cbp->cb_json_as_int);
-				fnvlist_add_nvlist(item, "properties", props);
+				fnvlist_move_nvlist(item, "properties", props);
 				if (cbp->cb_json_pool_key_guid) {
 					char buf[256];
 					uint64_t guid = fnvlist_lookup_uint64(
@@ -13112,15 +13101,13 @@ get_callback(zpool_handle_t *zhp, void *data)
 					    ZPOOL_CONFIG_POOL_GUID);
 					(void) snprintf(buf, 256, "%llu",
 					    (u_longlong_t)guid);
-					fnvlist_add_nvlist(d, buf, item);
+					fnvlist_move_nvlist(d, buf, item);
 				} else {
 					const char *name = zpool_get_name(zhp);
-					fnvlist_add_nvlist(d, name, item);
+					fnvlist_move_nvlist(d, name, item);
 				}
 				fnvlist_add_nvlist(cbp->cb_jsobj, "pools", d);
-				fnvlist_free(item);
 			}
-			fnvlist_free(props);
 		}
 	}
 
@@ -13339,10 +13326,9 @@ found:
 
 	if (cb.cb_json) {
 		if (cb.cb_type == ZFS_TYPE_VDEV)
-			fnvlist_add_nvlist(cb.cb_jsobj, "vdevs", data);
+			fnvlist_move_nvlist(cb.cb_jsobj, "vdevs", data);
 		else
-			fnvlist_add_nvlist(cb.cb_jsobj, "pools", data);
-		fnvlist_free(data);
+			fnvlist_move_nvlist(cb.cb_jsobj, "pools", data);
 	}
 
 	ret = for_each_pool(argc, argv, B_TRUE, &cb.cb_proplist, cb.cb_type,
@@ -14129,9 +14115,8 @@ zpool_do_version(int argc, char **argv)
 	if (json) {
 		zfs_ver = zfs_version_nvlist();
 		if (zfs_ver) {
-			fnvlist_add_nvlist(jsobj, "zfs_version", zfs_ver);
+			fnvlist_move_nvlist(jsobj, "zfs_version", zfs_ver);
 			zcmd_print_json(jsobj);
-			fnvlist_free(zfs_ver);
 			return (0);
 		} else
 			return (-1);
