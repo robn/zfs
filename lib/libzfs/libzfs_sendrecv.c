@@ -348,15 +348,12 @@ send_iterate_snap(zfs_handle_t *zhp, void *arg)
 
 	nvlist_t *nv = fnvlist_alloc();
 	send_iterate_prop(zhp, sd->backup, nv);
-	fnvlist_add_nvlist(sd->snapprops, snapname, nv);
-	fnvlist_free(nv);
+	fnvlist_move_nvlist(sd->snapprops, snapname, nv);
 
 	if (sd->holds) {
 		nvlist_t *holds;
-		if (lzc_get_holds(zhp->zfs_name, &holds) == 0) {
-			fnvlist_add_nvlist(sd->snapholds, snapname, holds);
-			fnvlist_free(holds);
-		}
+		if (lzc_get_holds(zhp->zfs_name, &holds) == 0)
+			fnvlist_move_nvlist(sd->snapholds, snapname, holds);
 	}
 
 	zfs_close(zhp);
@@ -568,7 +565,7 @@ send_iterate_fs(zfs_handle_t *zhp, void *arg)
 	if (sd->props || sd->backup || sd->recursive) {
 		nv = fnvlist_alloc();
 		send_iterate_prop(zhp, sd->backup, nv);
-		fnvlist_add_nvlist(nvfs, "props", nv);
+		fnvlist_move_nvlist(nvfs, "props", nv);
 	}
 	if (zfs_prop_get_int(zhp, ZFS_PROP_ENCRYPTION) != ZIO_CRYPT_OFF) {
 		boolean_t encroot;
@@ -644,14 +641,10 @@ send_iterate_fs(zfs_handle_t *zhp, void *arg)
 			(void) send_iterate_snap(snap, sd);
 	}
 
-	fnvlist_add_nvlist(nvfs, "snaps", sd->parent_snaps);
-	fnvlist_free(sd->parent_snaps);
-	fnvlist_add_nvlist(nvfs, "snapprops", sd->snapprops);
-	fnvlist_free(sd->snapprops);
-	if (sd->holds) {
-		fnvlist_add_nvlist(nvfs, "snapholds", sd->snapholds);
-		fnvlist_free(sd->snapholds);
-	}
+	fnvlist_move_nvlist(nvfs, "snaps", sd->parent_snaps);
+	fnvlist_move_nvlist(nvfs, "snapprops", sd->snapprops);
+	if (sd->holds)
+		fnvlist_move_nvlist(nvfs, "snapholds", sd->snapholds);
 
 	/* Do not allow the size of the properties list to exceed the limit */
 	if ((fnvlist_size(nvfs) + fnvlist_size(sd->fss)) >
@@ -668,7 +661,8 @@ send_iterate_fs(zfs_handle_t *zhp, void *arg)
 	/* Add this fs to nvlist. */
 	(void) snprintf(guidstring, sizeof (guidstring),
 	    "0x%llx", (longlong_t)guid);
-	fnvlist_add_nvlist(sd->fss, guidstring, nvfs);
+	fnvlist_move_nvlist(sd->fss, guidstring, nvfs);
+	nvfs = NULL;
 
 	/* Iterate over children. */
 	if (sd->recursive)
@@ -680,7 +674,6 @@ out:
 	sd->fromsnap_txg = fromsnap_txg_save;
 	sd->tosnap_txg = tosnap_txg_save;
 
-	fnvlist_free(nv);
 	fnvlist_free(nvfs);
 
 	zfs_close(zhp);
@@ -854,8 +847,7 @@ dump_ioctl(zfs_handle_t *zhp, const char *fromsnap, uint64_t fromsnap_obj,
 
 		if (debugnv != NULL) {
 			fnvlist_add_uint64(thisdbg, "error", error);
-			fnvlist_add_nvlist(debugnv, zhp->zfs_name, thisdbg);
-			fnvlist_free(thisdbg);
+			fnvlist_move_nvlist(debugnv, zhp->zfs_name, thisdbg);
 		}
 
 		switch (error) {
@@ -898,10 +890,8 @@ dump_ioctl(zfs_handle_t *zhp, const char *fromsnap, uint64_t fromsnap_obj,
 		}
 	}
 
-	if (debugnv != NULL) {
-		fnvlist_add_nvlist(debugnv, zhp->zfs_name, thisdbg);
-		fnvlist_free(thisdbg);
-	}
+	if (debugnv != NULL)
+		fnvlist_move_nvlist(debugnv, zhp->zfs_name, thisdbg);
 
 	return (0);
 }

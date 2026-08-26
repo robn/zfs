@@ -5069,16 +5069,11 @@ zpool_get_errlog_process_file(zpool_handle_t *zhp,
 	zfs_range_tree_vacate(range_tree, NULL, NULL);
 	zfs_range_tree_destroy(range_tree);
 
-	fnvlist_add_nvlist_array(nv, ZPOOL_ERR_RANGES, (const nvlist_t **) nva,
+	fnvlist_move_nvlist_array(nv, ZPOOL_ERR_RANGES, (const nvlist_t **) nva,
 	    count);
 
-	for (uint64_t i = 0; i < count; i++)
-		nvlist_free(nva[i]);
-	free(nva);
-
 end:
-	fnvlist_add_nvlist(*nverrlistp, "ejk", nv);
-	nvlist_free(nv);
+	fnvlist_move_nvlist(*nverrlistp, "ejk", nv);
 }
 
 /*
@@ -6170,7 +6165,7 @@ zpool_get_vdev_prop(zpool_handle_t *zhp, const char *vdevname, vdev_prop_t prop,
 		return (no_memory(zhp->zpool_hdl));
 	}
 
-	fnvlist_add_nvlist(reqnvl, ZPOOL_VDEV_PROPS_GET_PROPS, reqprops);
+	fnvlist_move_nvlist(reqnvl, ZPOOL_VDEV_PROPS_GET_PROPS, reqprops);
 
 	ret = lzc_get_vdev_prop(zhp->zpool_name, reqnvl, &retprops);
 
@@ -6186,7 +6181,6 @@ zpool_get_vdev_prop(zpool_handle_t *zhp, const char *vdevname, vdev_prop_t prop,
 	}
 
 	nvlist_free(reqnvl);
-	nvlist_free(reqprops);
 	nvlist_free(retprops);
 
 	return (ret);
@@ -6274,11 +6268,10 @@ zpool_set_vdev_prop(zpool_handle_t *zhp, const char *vdevname,
 	nvlist_free(props);
 	props = realprops;
 
-	fnvlist_add_nvlist(nvl, ZPOOL_VDEV_PROPS_SET_PROPS, props);
+	fnvlist_move_nvlist(nvl, ZPOOL_VDEV_PROPS_SET_PROPS, props);
 
 	ret = lzc_set_vdev_prop(zhp->zpool_name, nvl, &outnvl);
 
-	nvlist_free(props);
 	nvlist_free(nvl);
 	nvlist_free(outnvl);
 
