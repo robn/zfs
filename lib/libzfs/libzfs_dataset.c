@@ -4935,8 +4935,7 @@ zfs_release_one(zfs_handle_t *zhp, void *arg)
 	} else {
 		nvlist_t *torelease = fnvlist_alloc();
 		fnvlist_add_boolean(torelease, ha->tag);
-		fnvlist_add_nvlist(ha->nvl, name, torelease);
-		fnvlist_free(torelease);
+		fnvlist_move_nvlist(ha->nvl, name, torelease);
 	}
 
 	if (ha->recursive)
