@@ -395,8 +395,7 @@ zcp_lua_to_nvlist_impl(lua_State *state, int index, nvlist_t *nvl,
 		if (value_nvl == NULL)
 			return (SET_ERROR(EINVAL));
 
-		fnvlist_add_nvlist(nvl, key, value_nvl);
-		fnvlist_free(value_nvl);
+		fnvlist_move_nvlist(nvl, key, value_nvl);
 		break;
 	}
 	default:

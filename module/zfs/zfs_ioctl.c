@@ -1807,11 +1807,10 @@ zfs_ioc_pool_create(zfs_cmd_t *zc)
 	    &errinfo);
 	if (errinfo != NULL) {
 		nvlist_t *outnv = fnvlist_alloc();
-		fnvlist_add_nvlist(outnv,
+		fnvlist_move_nvlist(outnv,
 		    ZPOOL_CONFIG_CREATE_INFO, errinfo);
 		(void) put_nvlist(zc, outnv);
 		nvlist_free(outnv);
-		nvlist_free(errinfo);
 	}
 
 	/*
@@ -4875,10 +4874,10 @@ zfs_ioc_pool_initialize(const char *poolname, nvlist_t *innvl, nvlist_t *outnvl)
 	    value, value_provided, vdev_errlist);
 
 	if (fnvlist_size(vdev_errlist) > 0) {
-		fnvlist_add_nvlist(outnvl, ZPOOL_INITIALIZE_VDEVS,
+		fnvlist_move_nvlist(outnvl, ZPOOL_INITIALIZE_VDEVS,
 		    vdev_errlist);
-	}
-	fnvlist_free(vdev_errlist);
+	} else
+		fnvlist_free(vdev_errlist);
 
 	spa_close(spa, FTAG);
 	return (total_errors > 0 ? SET_ERROR(EINVAL) : 0);
@@ -4961,9 +4960,9 @@ zfs_ioc_pool_trim(const char *poolname, nvlist_t *innvl, nvlist_t *outnvl)
 	    rate, !!zfs_trim_metaslab_skip, secure, vdev_errlist);
 
 	if (fnvlist_size(vdev_errlist) > 0)
-		fnvlist_add_nvlist(outnvl, ZPOOL_TRIM_VDEVS, vdev_errlist);
-
-	fnvlist_free(vdev_errlist);
+		fnvlist_move_nvlist(outnvl, ZPOOL_TRIM_VDEVS, vdev_errlist);
+	else
+		fnvlist_free(vdev_errlist);
 
 	spa_close(spa, FTAG);
 	return (total_errors > 0 ? SET_ERROR(EINVAL) : 0);
@@ -6298,10 +6297,9 @@ zfs_ioc_recv_new(const char *fsname, nvlist_t *innvl, nvlist_t *outnvl)
 
 	fnvlist_add_uint64(outnvl, "read_bytes", read_bytes);
 	fnvlist_add_uint64(outnvl, "error_flags", errflags);
-	fnvlist_add_nvlist(outnvl, "errors", errors);
+	fnvlist_move_nvlist(outnvl, "errors", errors);
 
 out:
-	nvlist_free(errors);
 	nvlist_free(recvprops);
 	nvlist_free(localprops);
 	nvlist_free(hidden_args);

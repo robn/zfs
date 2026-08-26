@@ -769,9 +769,8 @@ dsl_bookmark_fetch_props(dsl_pool_t *dp, zfs_bookmark_phys_t *bmark_phys,
 				fnvlist_add_uint64_array(nvl, ZPROP_VALUE,
 				    rl->rl_phys->rlp_snaps,
 				    rl->rl_phys->rlp_num_snaps);
-				fnvlist_add_nvlist(out_props, "redact_snaps",
+				fnvlist_move_nvlist(out_props, "redact_snaps",
 				    nvl);
-				nvlist_free(nvl);
 			}
 			if (nvlist_exists(props, "redact_complete")) {
 				nvlist_t *nvl;
@@ -779,9 +778,8 @@ dsl_bookmark_fetch_props(dsl_pool_t *dp, zfs_bookmark_phys_t *bmark_phys,
 				fnvlist_add_boolean_value(nvl, ZPROP_VALUE,
 				    rl->rl_phys->rlp_last_blkid == UINT64_MAX &&
 				    rl->rl_phys->rlp_last_object == UINT64_MAX);
-				fnvlist_add_nvlist(out_props, "redact_complete",
+				fnvlist_move_nvlist(out_props, "redact_complete",
 				    nvl);
-				nvlist_free(nvl);
 			}
 			dsl_redaction_list_rele(rl, FTAG);
 		}
@@ -804,8 +802,7 @@ dsl_get_bookmarks_impl(dsl_dataset_t *ds, nvlist_t *props, nvlist_t *outnvl)
 
 		dsl_bookmark_fetch_props(dp, &dbn->dbn_phys, props, out_props);
 
-		fnvlist_add_nvlist(outnvl, dbn->dbn_name, out_props);
-		fnvlist_free(out_props);
+		fnvlist_move_nvlist(outnvl, dbn->dbn_name, out_props);
 	}
 	return (0);
 }
