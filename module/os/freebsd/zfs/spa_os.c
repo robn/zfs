@@ -144,8 +144,8 @@ spa_generate_rootconf(const char *name)
 	fnvlist_add_string(nvroot, ZPOOL_CONFIG_TYPE, VDEV_TYPE_ROOT);
 	fnvlist_add_uint64(nvroot, ZPOOL_CONFIG_ID, 0ULL);
 	fnvlist_add_uint64(nvroot, ZPOOL_CONFIG_GUID, pgid);
-	fnvlist_add_nvlist_array(nvroot, ZPOOL_CONFIG_CHILDREN,
-	    (const nvlist_t * const *)tops, nchildren);
+	fnvlist_move_nvlist_array(nvroot, ZPOOL_CONFIG_CHILDREN,
+	    (const nvlist_t **)tops, nchildren);
 
 	/*
 	 * Replace the existing vdev_tree with the new root vdev in
@@ -162,8 +162,6 @@ spa_generate_rootconf(const char *name)
 	for (i = 0; i < count; i++)
 		fnvlist_free(configs[i]);
 	kmem_free(configs, count * sizeof (void *));
-	for (i = 0; i < nchildren; i++)
-		fnvlist_free(tops[i]);
 	kmem_free(tops, nchildren * sizeof (void *));
 	return (config);
 }
