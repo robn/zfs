@@ -726,11 +726,8 @@ vdev_config_generate(spa_t *spa, vdev_t *vd, boolean_t getstats,
 			    getstats, flags);
 		}
 
-		fnvlist_add_nvlist_array(nv, ZPOOL_CONFIG_CHILDREN,
-		    (const nvlist_t * const *)child, vd->vdev_children);
-
-		for (c = 0; c < vd->vdev_children; c++)
-			nvlist_free(child[c]);
+		fnvlist_move_nvlist_array(nv, ZPOOL_CONFIG_CHILDREN,
+		    (const nvlist_t **)child, vd->vdev_children);
 
 		kmem_free(child, vd->vdev_children * sizeof (nvlist_t *));
 
