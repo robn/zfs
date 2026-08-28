@@ -17,6 +17,12 @@ AC_DEFUN([ZFS_AC_CONFIG_ALWAYS_SYSTEM], [
 			ac_system="FreeBSD"
 			ac_system_l="freebsd"
 			;;
+		*haiku*)
+			AC_DEFINE([SYSTEM_HAIKU], [1],
+				[True if ZFS is to be compiled for a Haiku system])
+			ac_system="Haiku"
+			ac_system_l="haiku"
+			;;
 		*)
 			ac_system="unknown"
 			ac_system_l="unknown"
@@ -28,4 +34,5 @@ AC_DEFUN([ZFS_AC_CONFIG_ALWAYS_SYSTEM], [
 
 	AM_CONDITIONAL([BUILD_LINUX], [test "x$ac_system" = "xLinux"])
 	AM_CONDITIONAL([BUILD_FREEBSD], [test "x$ac_system" = "xFreeBSD"])
+	AM_CONDITIONAL([BUILD_HAIKU], [test "x$ac_system" = "xHaiku"])
 ])
