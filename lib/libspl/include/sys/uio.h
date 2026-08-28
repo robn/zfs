@@ -1,3 +1,8 @@
+/*
+ * HAIKU PORTING NOTES:
+ * - added __HAIKU__ to custom impl gate
+ */
+
 // SPDX-License-Identifier: CDDL-1.0
 /*
  * This file and its contents are supplied under the terms of the
@@ -41,7 +46,7 @@
 #include <stdint.h>
 typedef struct iovec iovec_t;
 
-#if defined(__linux__) || defined(__APPLE__)
+#if defined(__linux__) || defined(__APPLE__) || defined(__HAIKU__)
 typedef enum zfs_uio_rw {
 	UIO_READ =	0,
 	UIO_WRITE =	1,

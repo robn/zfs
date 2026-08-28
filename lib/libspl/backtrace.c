@@ -1,3 +1,9 @@
+/*
+ * HAIKU PORTING NOTES:
+ * - we have HAVE_BACKTRACE defined, but I don't think it actually linked
+ *   from the config log. Bug in the configure script, need to check it. For
+ *   now, chucked a platform gate on it.
+ */
 // SPDX-License-Identifier: CDDL-1.0
 /*
  * This file and its contents are supplied under the terms of the
@@ -21,6 +27,10 @@
 
 #ifdef HAVE_VALGRIND_VALGRIND_H
 #include <valgrind/valgrind.h>
+#endif
+
+#ifdef __HAIKU__
+#undef HAVE_BACKTRACE
 #endif
 
 #if !defined(HAVE_LIBUNWIND) && defined(HAVE_BACKTRACE)

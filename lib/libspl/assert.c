@@ -1,3 +1,12 @@
+/*
+ * HAIKU PORTING NOTES:
+ * - added stdio.h for STDERR_FILENO, always should have been there
+ * - added unistd.h for getpid(), it's in POSIX but might not be the
+ *   best thing here.
+ * - I found some things but then I got tired
+ * - JHC why did I ifdef through here
+ */
+
 // SPDX-License-Identifier: CDDL-1.0
 /*
  * This file and its contents are supplied under the terms of the
@@ -19,6 +28,8 @@
 
 #include <assert.h>
 #include <pthread.h>
+#include <stdio.h>
+#include <unistd.h>
 #include <sys/backtrace.h>
 
 #if defined(__linux__)
@@ -41,6 +52,19 @@
 #define	libspl_getprogname()	getprogname()
 #define	libspl_getthreadname(buf, len)	\
 	pthread_getname_np(pthread_self(), buf, len);
+#elif defined(__HAIKU__)
+
+/*
+ * I got bored of looking. There's definite signs though; see
+ * os/support/Debug.h, find_thread(), the thread_id type, etc.
+ */
+#define	libspl_gettid()		(0)
+#define	libspl_getprogname()	("[YOUR PROGRAM HERE]")
+
+/* has the GNU pthread_getname_np() in pthread.h -> gnu/pthread.h */
+#define	libspl_getthreadname(buf, len)	\
+	pthread_getname_np(pthread_self(), buf, len);
+
 #endif
 
 #if defined(__APPLE__)

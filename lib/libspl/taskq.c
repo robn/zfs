@@ -1,3 +1,9 @@
+/*
+ * HAIKU PORTING NOTES:
+ * - include unistd.h to get sysconf() and _SC_*. I think we're getting it
+ *   at distance through sys/param.h
+ */
+
 // SPDX-License-Identifier: CDDL-1.0
 /*
  * This file and its contents are supplied under the terms of the
@@ -28,6 +34,7 @@
 #include <sys/debug.h>
 #include <sys/string.h>
 #include <errno.h>
+#include <unistd.h>
 #include <pthread.h>
 
 static pthread_key_t taskq_tsd;

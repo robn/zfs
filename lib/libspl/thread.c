@@ -1,3 +1,7 @@
+/*
+ * HAIKU PORTING NOTES:
+ * - including sys/sysmacros.h for MAX and P2ROUNDUP
+ */
 // SPDX-License-Identifier: CDDL-1.0
 /*
  * This file and its contents are supplied under the terms of the
