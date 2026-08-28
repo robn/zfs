@@ -1,3 +1,9 @@
+/*
+ * HAIKU PORTING NOTES:
+ * - we have HAVE_BACKTRACE defined, but I don't think it actually linked
+ *   from the config log. Bug in the configure script, need to check it. For
+ *   now, chucked a platform gate on it.
+ */
 // SPDX-License-Identifier: CDDL-1.0
 /*
  * This file and its contents are supplied under the terms of the
@@ -274,7 +280,7 @@ libspl_backtrace(int fd)
 		spl_bt_write(fd, "\n");
 	} while (unw_step(&cp) > 0);
 }
-#elif defined(HAVE_BACKTRACE)
+#elif defined(HAVE_BACKTRACE) && !defined(__HAIKU__)
 #include <execinfo.h>
 
 void

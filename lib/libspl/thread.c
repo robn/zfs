@@ -1,3 +1,7 @@
+/*
+ * HAIKU PORTING NOTES:
+ * - including sys/sysmacros.h for MAX and P2ROUNDUP
+ */
 // SPDX-License-Identifier: CDDL-1.0
 /*
  * This file and its contents are supplied under the terms of the
@@ -20,6 +24,7 @@
 #include <pthread.h>
 #include <string.h>
 #include <sys/thread.h>
+#include <sys/sysmacros.h>
 
 /* this only exists to have its address taken */
 void p0(void) {}

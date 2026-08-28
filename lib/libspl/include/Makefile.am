@@ -109,6 +109,17 @@ libspl_ia32_HEADERS = \
 	%D%/os/freebsd/sys/ia32/asm_linkage.h
 endif
 
+if BUILD_HAIKU
+libspl_sys_HEADERS += \
+	%D%/os/haiku/sys/byteorder.h \
+	%D%/os/haiku/sys/errno.h \
+	%D%/os/haiku/sys/param.h \
+	%D%/os/haiku/sys/vfs.h
+
+libspl_ia32_HEADERS = \
+	%D%/os/haiku/sys/ia32/asm_linkage.h
+endif
+
 
 libspl_sys_dktpdir = $(libspl_sysdir)/dktp
 libspl_sys_dktp_HEADERS = \
