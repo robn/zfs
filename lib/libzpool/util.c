@@ -1,3 +1,9 @@
+/*
+ * HAIKU PORTING NOTES:
+ * - we don't have strsep. I think its in libbsd, but I reckon we should
+ *   just carry a subst.
+ */
+
 // SPDX-License-Identifier: CDDL-1.0
 /*
  * This file and its contents are supplied under the terms of the
@@ -192,7 +198,15 @@ handle_tunable_option(const char *_arg, boolean_t quiet)
 	char *k, *v;
 
 	v = arg;
+#ifdef __HAIKU__
+	k = strchr(v, '=');
+	if (k) {
+		*v++ = '\0';
+		k = arg;
+	}
+#else
 	k = strsep(&v, "=");
+#endif
 
 	tunable_mode_t mode;
 

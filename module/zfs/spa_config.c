@@ -1,3 +1,8 @@
+/*
+ * HAIKU PORTING NOTES:
+ * - adding sys/fcntl.h for O_LARGEFILE
+ */
+
 // SPDX-License-Identifier: CDDL-1.0
 /*
  * This file and its contents are supplied under the terms of the
@@ -31,6 +36,7 @@
 #include <sys/zfeature.h>
 #include <sys/zfs_file.h>
 #include <sys/zfs_context.h>
+#include <sys/fcntl.h>
 #ifdef _KERNEL
 #include <sys/zone.h>
 #endif

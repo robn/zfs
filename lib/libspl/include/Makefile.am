@@ -112,8 +112,11 @@ endif
 if BUILD_HAIKU
 libspl_sys_HEADERS += \
 	%D%/os/haiku/sys/byteorder.h \
+	%D%/os/haiku/sys/fcntl.h \
 	%D%/os/haiku/sys/errno.h \
 	%D%/os/haiku/sys/param.h \
+	%D%/os/haiku/sys/mnttab.h \
+	%D%/os/haiku/sys/stat.h \
 	%D%/os/haiku/sys/vfs.h
 
 libspl_ia32_HEADERS = \

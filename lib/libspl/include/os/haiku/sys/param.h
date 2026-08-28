@@ -48,6 +48,9 @@
 extern size_t spl_pagesize(void);
 #define	PAGESIZE	(spl_pagesize())
 
+/* Present here on on Linux and FreeBSD */
+#define	ptob(x)		((x) * PAGESIZE)
+
 #if 0
 // ifdef'd out, see porting notes
 
@@ -68,10 +71,33 @@ extern size_t spl_pagesize(void);
 #define	P2ROUNDUP(x, align)	((((x) - 1) | ((align) - 1)) + 1)
 #endif
 
+/* In platform sysmacros and/or ccompile. Maybe just in the generic. */
+#define	ISP2(x)			(((x) & ((x) - 1)) == 0)
+
 /*
  * In ccompile on FreeBSD. Haiku has the BSD-ish nitems() in sys/param.h,
  * and B_COUNT_OF() in os/support/SupportDefs.h. Hand rolled for the moment.
  */
 #define	ARRAY_SIZE(a) (sizeof (a) / sizeof (a[0]))
+
+/*
+ * These are in ccompile on FreeBSD, and I guess in libc on Linux? I suspect
+ * we'd do better to switch over to the regular versions across the board.
+ */
+#define	open64 open
+#define	stat64 stat
+#define	fstat64 fstat
+#define	pwrite64 pwrite
+#define	pread64 pread
+#define	readdir64 readdir
+#define	dirent64 dirent
+
+/* In platform-specific sysmacros, same for both. */
+#define	howmany(x, y)	(((x)+((y)-1))/(y))
+#define	roundup(x, y)	((((x)+((y)-1))/(y))*(y))
+
+/* Linux sysmacros */
+#define	DEV_BSIZE	512
+#define	DEV_BSHIFT	9
 
 #endif

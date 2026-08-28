@@ -57,6 +57,12 @@ libspl_la_SOURCES += \
 	%D%/os/freebsd/zone.c
 endif
 
+if BUILD_HAIKU
+libspl_la_SOURCES += \
+	%D%/os/haiku/getexecname.c \
+	%D%/os/haiku/gethostid.c
+endif
+
 libspl_la_LIBADD = \
 	libspl_assert.la
 

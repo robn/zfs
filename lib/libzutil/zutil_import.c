@@ -1,3 +1,10 @@
+/*
+ * HAIKU PORTING NOTES:
+ * - struct dirent doesn't have d_type. POSIX allows this, so we need a
+ *   configure test. for now, just a platform gate. if its important, we
+ *   might have to do stuff with eg S_ISFOO.
+ */
+
 // SPDX-License-Identifier: CDDL-1.0
 /*
  * This file and its contents are supplied under the terms of the
@@ -1386,6 +1393,7 @@ zpool_find_import_scan_dir(libpc_handle_t *hdl, pthread_mutex_t *lock,
 		if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
 			continue;
 
+#ifndef __HAIKU__
 		switch (dp->d_type) {
 		case DT_UNKNOWN:
 		case DT_BLK:
@@ -1398,6 +1406,7 @@ zpool_find_import_scan_dir(libpc_handle_t *hdl, pthread_mutex_t *lock,
 		default:
 			continue;
 		}
+#endif
 
 		zpool_find_import_scan_add_slice(hdl, lock, cache, path, name,
 		    order);
