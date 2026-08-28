@@ -29,6 +29,12 @@ libzutil_la_SOURCES += \
 	%D%/os/freebsd/zutil_import_os.c
 endif
 
+if BUILD_HAIKU
+libzutil_la_SOURCES += \
+	%D%/os/haiku/zutil_device_path_os.c \
+	%D%/os/haiku/zutil_import_os.c
+endif
+
 libzutil_la_LIBADD = \
 	libavl.la \
 	libnvpair.la \

@@ -29,4 +29,19 @@
 #define	ECKSUM		B_TO_POSIX_ERROR(B_BAD_DATA)
 #define	ENOTACTIVE	ECANCELED
 
+/* FreeBSD has this in ccompile. I feel like EINTR makes more sense though. */
+#define	ERESTART	EAGAIN
+
+/* MMP errors; no great choice but "state not recoverable" isn't the worst. */
+#define	EREMOTEIO	ENOTRECOVERABLE
+
+/* Following FreeBSD in ccompile */
+#define	ECHRNG		ENXIO
+
+/*
+ * Only for the zcp error string mapping so meh for now. One of the B_DEV_*
+ * ones might suffice, if we even bother to keep it.
+ */
+#define	ENOTBLK		ENODEV
+
 #endif /* _LIBSPL_SYS_ERRNO_H */

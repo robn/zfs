@@ -1,3 +1,9 @@
+/*
+ * HAIKU PORTING NOTES:
+ * - hacked in setuid defines to satisfy the unknown OS error, but we all
+ *   know that mountset is gonna get rid of that.
+ */
+
 // SPDX-License-Identifier: CDDL-1.0
 /*
  * This file and its contents are supplied under the terms of the
@@ -70,6 +76,10 @@
 #elif defined(__FreeBSD__)
 #define	MNTOPT_SETUID	"setuid"	/* Set uid allowed */
 #define	MNTOPT_NOSETUID	"nosetuid"	/* Set uid not allowed */
+#elif defined(__HAIKU__)
+/* Meaningless, just copied from above. */
+#define	MNTOPT_SETUID	"setuid"
+#define	MNTOPT_NOSETUID	"nosetuid"
 #else
 #error "unknown OS"
 #endif
