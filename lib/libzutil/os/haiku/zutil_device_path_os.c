@@ -1,6 +1,7 @@
 /*
  * HAIKU PORTING NOTES:
  * - for now, just no-ops following the FreeBSD line
+ * - stub for zfs_dev_is_whole_disk
  */
 
 #include <libzutil.h>
@@ -15,4 +16,11 @@ int
 zfs_append_partition(char *path, size_t max_len)
 {
 	return (strnlen(path, max_len));
+}
+
+boolean_t
+zfs_dev_is_whole_disk(const char *dev_name)
+{
+	(void) dev_name;
+	return (B_TRUE);
 }
