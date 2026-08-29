@@ -66,6 +66,11 @@ AM_LDFLAGS += -Wl,-x -Wl,--fatal-warnings -Wl,--warn-shared-textrel
 AM_LDFLAGS += -lm
 endif
 
+if BUILD_HAIKU
+# workaround for libtirpc, which requires `listen` but doesn't depend on libnetwork
+AM_LDFLAGS += -lnetwork
+endif
+
 
 # If a target includes kernel code, generate warnings for large stack frames
 KERNEL_CFLAGS       = $(FRAME_LARGER_THAN)
