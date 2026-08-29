@@ -31,6 +31,7 @@ endif
 
 if BUILD_HAIKU
 libzutil_la_SOURCES += \
+	%D%/os/haiku/zutil_setproctitle.c \
 	%D%/os/haiku/zutil_device_path_os.c \
 	%D%/os/haiku/zutil_import_os.c
 endif
