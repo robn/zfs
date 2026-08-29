@@ -1,3 +1,8 @@
+/*
+ * HAIKU PORTING NOTES:
+ * - adding sys/mount.h for MS_CRYPT
+ */
+
 // SPDX-License-Identifier: CDDL-1.0
 /*
  * This file and its contents are supplied under the terms of the
@@ -27,6 +32,7 @@
 #include <unistd.h>
 #include <zone.h>
 #include <sys/avl.h>
+#include <sys/mount.h>
 
 #include <libzfs.h>
 

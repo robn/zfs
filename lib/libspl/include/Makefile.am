@@ -116,6 +116,7 @@ libspl_sys_HEADERS += \
 	%D%/os/haiku/sys/errno.h \
 	%D%/os/haiku/sys/param.h \
 	%D%/os/haiku/sys/mnttab.h \
+	%D%/os/haiku/sys/mount.h \
 	%D%/os/haiku/sys/stat.h \
 	%D%/os/haiku/sys/vfs.h
 

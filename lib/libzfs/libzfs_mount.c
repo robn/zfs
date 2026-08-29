@@ -1,3 +1,9 @@
+/*
+ * HAIKU PORTING NOTES:
+ * - added sys/fcntl.h for O_LARGEFILE
+ * - added sys/param.h for statfs64 (but only because I put it there)
+ */
+
 // SPDX-License-Identifier: CDDL-1.0
 /*
  * This file and its contents are supplied under the terms of the
@@ -60,8 +66,10 @@
 #include <zone.h>
 #include <sys/mntent.h>
 #include <sys/mount.h>
+#include <sys/fcntl.h>
 #include <sys/stat.h>
 #include <sys/vfs.h>
+#include <sys/param.h>
 #include <sys/dsl_crypt.h>
 
 #include <libzfs.h>

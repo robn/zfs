@@ -10,6 +10,7 @@
  *   those are commented out below until I'm sure, and then will be removed.
  *   I guess those callers will need to include sys/sysmacros.h directly.
  * - there weren't any callers, just the PAGESIZE/limits thing below
+ * - man, statfs
  */
 
 #ifndef _LIBSPL_SYS_PARAM_H
@@ -92,6 +93,20 @@ extern size_t spl_pagesize(void);
 #define	readdir64 readdir
 #define	dirent64 dirent
 
+/*
+ * Haiku has statvfs, but not statfs. It's used for f_type, which isn't in
+ * statvfs, so we'll need another way. These belong here even less then the
+ * above, but I'm running with it for now.
+ */
+struct statfs64 {
+	uint32_t f_type;
+};
+static inline int statfs64(const char *path, struct statfs64 *st) {
+	(void) path;
+	st->f_type = 0;
+	return (0);
+}
+
 /* In platform-specific sysmacros, same for both. */
 #define	howmany(x, y)	(((x)+((y)-1))/(y))
 #define	roundup(x, y)	((((x)+((y)-1))/(y))*(y))
@@ -99,5 +114,11 @@ extern size_t spl_pagesize(void);
 /* Linux sysmacros */
 #define	DEV_BSIZE	512
 #define	DEV_BSHIFT	9
+
+/*
+ * This is in sys/misc and sys/param on FreeBSD, how weird. Also I dunno
+ * what the real answer is anyway, but I'm curious if these are stored?
+ */
+#define	MAXUID		UINT32_MAX
 
 #endif
