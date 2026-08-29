@@ -1,3 +1,10 @@
+/*
+ * HAIKU PORTING NOTES:
+ * - added a haiku gate to get BIG_PIPE_SIZE. these is obviously wrong, at
+ *   minimum the conditonal in max_pipe_buffer() should be inverted to match,
+ *   but really all that pipe nonsense should be lifted to os-specific things
+ */
+
 // SPDX-License-Identifier: CDDL-1.0
 /*
  * This file and its contents are supplied under the terms of the
@@ -84,7 +91,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/zfs_ioctl.h>
-#if __FreeBSD__
+#if defined(__FreeBSD__) || defined(__HAIKU__)
 #define	BIG_PIPE_SIZE (64 * 1024) /* From sys/pipe.h */
 #endif
 

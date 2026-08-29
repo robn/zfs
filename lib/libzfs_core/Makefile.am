@@ -27,6 +27,11 @@ nodist_libzfs_core_la_SOURCES = \
 	module/os/freebsd/zfs/zfs_ioctl_compat.c
 endif
 
+if BUILD_HAIKU
+libzfs_core_la_SOURCES += \
+	%D%/os/haiku/libzfs_core_ioctl.c
+endif
+
 libzfs_core_la_LIBADD = \
 	libnvpair.la \
 	libspl.la
