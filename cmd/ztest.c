@@ -1,3 +1,9 @@
+/*
+ * HAIKU PORTING NOTES:
+ * - weird mmap() crash was a whole afternoon gone and I wasn't sad about it!
+ *   see ztest_mmap() below for at least 5% of the explanation.
+ */
+
 // SPDX-License-Identifier: CDDL-1.0
 /*
  * This file and its contents are supplied under the terms of the
@@ -8999,13 +9005,49 @@ shared_data_size(ztest_shared_hdr_t *hdr)
 	return (size);
 }
 
+#ifdef __HAIKU__
+/*
+ * haiku will reject mmap() for a MAP_SHARED mapping that extends past the end
+ * of the file. there's a whole complicated mess around this, but mostly its
+ * because MAP_SHARED uses the file backing, while MAP_PRIVATE uses a new
+ * anonymous backing of the right length. the file backing obviously can't back
+ * more than the file itself allows, and this is enforced by assert in
+ * VMCache::SetMinimalCommitment.
+ *
+ * all this is to say, this a bug/quirk deep in haiku's vm subsystem, and the
+ * MAP_SHARED protection is papering over it. I'm still deciding what to do
+ * about it; I don't want to file a bug report exactly because the behaviour
+ * isn't _wrong_ by POSIX (it doesn't say anything about what mapping beyond
+ * the end means at mmap() time; EINVAL is a perfectly acceptable result), but
+ * afaict there are no other implementations of mmap() (contemporary or
+ * historical) that chose this path (even cygwin did a whole infrastructure to
+ * get these semantics, which Windows' equivalent didn't have). its an
+ * interesting bug, but hardly critical, and I think perhaps I'd rather send a
+ * patch.
+ *
+ * for now, I'm just working around it here by truncating to the map size
+ * before mapping.
+ */
+static void *
+ztest_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
+{
+	struct stat st;
+	VERIFY0(fstat(fd, &st));
+	if ((length+offset) > st.st_size)
+		VERIFY0(ftruncate(fd, length+offset));
+	return (mmap(addr, length, prot, flags, fd, offset));
+}
+#else
+#define ztest_mmap mmap
+#endif
+
 static void
 setup_hdr(void)
 {
 	int size;
 	ztest_shared_hdr_t *hdr;
 
-	hdr = (void *)mmap(0, P2ROUNDUP(sizeof (*hdr), getpagesize()),
+	hdr = (void *)ztest_mmap(0, P2ROUNDUP(sizeof (*hdr), getpagesize()),
 	    PROT_READ | PROT_WRITE, MAP_SHARED, ztest_fd_data, 0);
 	ASSERT3P(hdr, !=, MAP_FAILED);
 
@@ -9033,14 +9075,14 @@ setup_data(void)
 	ztest_shared_hdr_t *hdr;
 	uint8_t *buf;
 
-	hdr = (void *)mmap(0, P2ROUNDUP(sizeof (*hdr), getpagesize()),
+	hdr = (void *)ztest_mmap(0, P2ROUNDUP(sizeof (*hdr), getpagesize()),
 	    PROT_READ, MAP_SHARED, ztest_fd_data, 0);
 	ASSERT3P(hdr, !=, MAP_FAILED);
 
 	size = shared_data_size(hdr);
 
 	(void) munmap((caddr_t)hdr, P2ROUNDUP(sizeof (*hdr), getpagesize()));
-	hdr = ztest_shared_hdr = (void *)mmap(0, P2ROUNDUP(size, getpagesize()),
+	hdr = ztest_shared_hdr = (void *)ztest_mmap(0, P2ROUNDUP(size, getpagesize()),
 	    PROT_READ | PROT_WRITE, MAP_SHARED, ztest_fd_data, 0);
 	ASSERT3P(hdr, !=, MAP_FAILED);
 	buf = (uint8_t *)hdr;
