@@ -1,7 +1,10 @@
 /*
  * HAIKU PORTING NOTES:
  * - for now, just no-ops following the FreeBSD line
+ * - very basic zpool_open_func for zdb mostly
  */
+
+#include <fcntl.h>
 
 #include <sys/avl.h>
 
@@ -32,8 +35,28 @@ zpool_dev_probe_ok_fd(int fd)
 void
 zpool_open_func(void *arg)
 {
-	(void) arg;
-	return;
+	rdsk_node_t *rn = arg;
+
+	int fd = open(rn->rn_name, O_RDONLY|O_CLOEXEC);
+	if (fd == -1)
+		return;
+
+	/* XXX lots of checks and such */
+
+	nvlist_t *config;
+	int num_labels;
+	if (zpool_read_label(fd, &config, &num_labels) != 0) {
+		close(fd);
+		return;
+	}
+
+	if (num_labels == 0) {
+		nvlist_free(config);
+		return;
+	}
+
+	rn->rn_config = config;
+	rn->rn_num_labels = num_labels;
 }
 
 const char * const *
@@ -49,6 +72,13 @@ zpool_find_import_blkid(libpc_handle_t *hdl, pthread_mutex_t *lock,
 {
 	(void) hdl, (void) lock, (void) slice_cache;
 	return (ENOSYS);
+}
+
+int
+zfs_dev_flush(int fd)
+{
+	(void) fd;
+	return (0);
 }
 
 void
