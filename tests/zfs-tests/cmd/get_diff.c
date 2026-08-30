@@ -1,3 +1,9 @@
+/*
+ * HAIKU PORTING NOTES:
+ * - sys/fcntl.h for O_LARGEFILE, but I don't actually think it needs that
+ *   flag at all
+ */
+
 // SPDX-License-Identifier: CDDL-1.0
 /*
  * This file and its contents are supplied under the terms of the
@@ -16,6 +22,7 @@
 
 #include <stdio.h>
 #include <fcntl.h>
+#include <sys/fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
