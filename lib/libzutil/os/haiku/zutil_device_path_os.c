@@ -18,9 +18,22 @@ zfs_append_partition(char *path, size_t max_len)
 	return (strnlen(path, max_len));
 }
 
+const char *
+zfs_strip_path(const char *path)
+{
+	return (path);
+}
+
 boolean_t
 zfs_dev_is_whole_disk(const char *dev_name)
 {
 	(void) dev_name;
 	return (B_TRUE);
+}
+
+char *
+zfs_get_underlying_path(const char *dev_name)
+{
+	(void) dev_name;
+	return (NULL);
 }
