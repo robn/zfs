@@ -43,6 +43,11 @@ zstream_LDADD = \
 	libzpool.la \
 	libnvpair.la
 
+if BUILD_HAIKU
+# -lgnu for sched_getaffinity
+zstream_LDADD += -lgnu
+endif
+
 cmd-zstream-install-exec-hook:
 	cd $(DESTDIR)$(sbindir) && $(LN_S) -f zstream zstreamdump
 
