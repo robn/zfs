@@ -1,3 +1,8 @@
+/*
+ * HAIKU PORTING NOTES:
+ * - removed project stuff via gate, too ioctlish for now
+ */
+
 // SPDX-License-Identifier: CDDL-1.0
 /*
  * This file and its contents are supplied under the terms of the
@@ -13,6 +18,8 @@
 /*
  * Copyright (c) 2017, Intle Corporation. All rights reserved.
  */
+
+#ifndef __HAIKU__
 
 #include <errno.h>
 #include <getopt.h>
@@ -310,3 +317,5 @@ zfs_project_handle(const char *name, zfs_project_control_t *zpc)
 
 	return (ret);
 }
+
+#endif

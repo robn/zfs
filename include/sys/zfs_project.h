@@ -1,3 +1,8 @@
+/*
+ * HAIKU PORTING NOTES:
+ * - removed project stuff via gate, too ioctlish for now
+ */
+
 // SPDX-License-Identifier: CDDL-1.0
 /*
  * This file and its contents are supplied under the terms of the
@@ -25,6 +30,7 @@
 
 #include <sys/vfs.h>
 
+#ifndef __HAIKU__
 #ifdef FS_IOC_FSGETXATTR
 typedef struct fsxattr zfsxattr_t;
 
@@ -47,6 +53,7 @@ typedef struct zfsxattr zfsxattr_t;
 
 #define	ZFS_IOC_FSGETXATTR	_IOR('X', 31, zfsxattr_t)
 #define	ZFS_IOC_FSSETXATTR	_IOW('X', 32, zfsxattr_t)
+#endif
 #endif
 
 #define	ZFS_DEFAULT_PROJID	(0ULL)
