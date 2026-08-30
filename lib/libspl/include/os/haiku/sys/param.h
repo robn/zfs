@@ -88,6 +88,7 @@ extern size_t spl_pagesize(void);
 #define	open64 open
 #define	stat64 stat
 #define	fstat64 fstat
+#define	lstat64 lstat
 #define	pwrite64 pwrite
 #define	pread64 pread
 #define	readdir64 readdir
@@ -120,5 +121,12 @@ static inline int statfs64(const char *path, struct statfs64 *st) {
  * what the real answer is anyway, but I'm curious if these are stored?
  */
 #define	MAXUID		UINT32_MAX
+
+/*
+ * Linux has it in sysmacros.h. FreeBSD has it in vnode.h. OFF_MAX is
+ * posix/limits.h on Haiku, so maybe its available on all POSIX and we should
+ * switch to it.
+ */
+#define	MAXOFFSET_T	OFF_MAX
 
 #endif

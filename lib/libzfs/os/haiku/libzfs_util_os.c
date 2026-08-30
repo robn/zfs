@@ -6,10 +6,17 @@
 #include <libzfs.h>
 #include "../../libzfs_impl.h"
 
+const char *
+libzfs_error_init(int error)
+{
+	(void) error;
+	return ("Failed to initialize the libzfs library.");
+}
+
 int
 libzfs_load_module(void)
 {
-	return (ENOSYS);
+	return (0);
 }
 
 int

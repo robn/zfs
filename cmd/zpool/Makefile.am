@@ -25,6 +25,11 @@ zpool_SOURCES += \
 	%D%/os/linux/zpool_vdev_os.c
 endif
 
+if BUILD_HAIKU
+zpool_SOURCES += \
+	%D%/os/haiku/zpool_vdev_os.c
+endif
+
 zpool_LDADD = \
 	libzfs.la \
 	libzfs_core.la \
