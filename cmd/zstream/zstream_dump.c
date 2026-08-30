@@ -459,7 +459,10 @@ chain_dump_records(void *item_in, void *context)
 	if (type < 0 || type >= DRR_NUMTYPES)
 		errx(1, "unknown record type: %d", type);
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
 	record_dumpers[type].rt_dumper(item);
+#pragma GCC diagnostic pop
 
 	if (type != DRR_BEGIN && OPTION_ENABLED(CA_DUMP_CHECKSUMS)) {
 		printf("    checksum = %llx/%llx/%llx/%llx\n",
