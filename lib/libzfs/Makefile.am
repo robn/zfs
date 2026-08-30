@@ -99,6 +99,10 @@ if BUILD_FREEBSD
 libzfs_la_LIBADD += -lutil -lgeom -lrt
 endif
 
+if BUILD_HAIKU
+libzfs_la_LIBADD += -lbsd
+endif
+
 pkgconfig_DATA += %D%/libzfs.pc
 
 dist_noinst_DATA += %D%/libzfs.abi %D%/libzfs.suppr
