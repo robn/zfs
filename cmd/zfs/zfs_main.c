@@ -1,6 +1,7 @@
 /*
  * HAIKU PORTING NOTES:
  * - removed zfs_rewrite via gate, too ioctlish for now
+ * - removed project stuff via gate, too ioctlish for now
  */
 
 // SPDX-License-Identifier: CDDL-1.0
@@ -8899,6 +8900,11 @@ zfs_do_change_key(int argc, char **argv)
 static int
 zfs_do_project(int argc, char **argv)
 {
+#ifdef __HAIKU__
+	(void) argc, (void) argv;
+	fprintf(stderr, "project: not implemented for Haiku\n");
+	return (-1);
+#else
 	zfs_project_control_t zpc = {
 		.zpc_expected_projid = ZFS_INVALID_PROJID,
 		.zpc_op = ZFS_PROJECT_OP_DEFAULT,
@@ -9068,6 +9074,7 @@ zfs_do_project(int argc, char **argv)
 	}
 
 	return (ret);
+#endif
 }
 
 #ifndef __HAIKU__
