@@ -1,3 +1,8 @@
+/*
+ * HAIKU PORTING NOTES:
+ * - removed zfs_rewrite via gate, too ioctlish for now
+ */
+
 // SPDX-License-Identifier: CDDL-1.0
 /*
  * This file and its contents are supplied under the terms of the
@@ -9083,6 +9088,7 @@ zfs_do_project(int argc, char **argv)
 	return (ret);
 }
 
+#ifndef __HAIKU__
 static int
 zfs_rewrite_file(const char *path, boolean_t verbose, zfs_rewrite_args_t *args)
 {
@@ -9204,10 +9210,16 @@ zfs_rewrite_path(const char *path, boolean_t verbose, boolean_t recurse,
 	}
 	return (ret);
 }
+#endif
 
 static int
 zfs_do_rewrite(int argc, char **argv)
 {
+#ifdef __HAIKU__
+	(void) argc, (void) argv;
+	fprintf(stderr, "rewrite: not implemented for Haiku\n");
+	return (-1);
+#else
 	int ret = 0, err, c;
 	boolean_t recurse = B_FALSE, verbose = B_FALSE, xdev = B_FALSE;
 
@@ -9276,6 +9288,7 @@ zfs_do_rewrite(int argc, char **argv)
 	fnvlist_free(dirs);
 
 	return (ret);
+#endif
 }
 
 static int
