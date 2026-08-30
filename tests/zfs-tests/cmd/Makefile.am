@@ -1,20 +1,26 @@
+# HAIKU PORTING NOTES:
+# - not building clonefile, dosmode_readonly_write
+
 # SPDX-License-Identifier: CDDL-1.0
 scripts_zfs_tests_bindir = $(datadir)/$(PACKAGE)/zfs-tests/bin
 
 
 scripts_zfs_tests_bin_PROGRAMS  = %D%/chg_usr_exec
-scripts_zfs_tests_bin_PROGRAMS += %D%/clonefile
 scripts_zfs_tests_bin_PROGRAMS += %D%/clone_mmap_cached
 scripts_zfs_tests_bin_PROGRAMS += %D%/clone_mmap_write
 scripts_zfs_tests_bin_PROGRAMS += %D%/cp_files
 scripts_zfs_tests_bin_PROGRAMS += %D%/ctime
 scripts_zfs_tests_bin_PROGRAMS += %D%/dir_rd_update
-scripts_zfs_tests_bin_PROGRAMS += %D%/dosmode_readonly_write
 scripts_zfs_tests_bin_PROGRAMS += %D%/get_diff
 scripts_zfs_tests_bin_PROGRAMS += %D%/rename_dir
 scripts_zfs_tests_bin_PROGRAMS += %D%/suid_write_to_file
 scripts_zfs_tests_bin_PROGRAMS += %D%/truncate_test
 scripts_zfs_tests_bin_PROGRAMS += %D%/zfs_diff-socket
+
+if !BUILD_HAIKU
+scripts_zfs_tests_bin_PROGRAMS += %D%/clonefile
+scripts_zfs_tests_bin_PROGRAMS += %D%/dosmode_readonly_write
+endif
 
 
 scripts_zfs_tests_bin_PROGRAMS += %D%/badsend
