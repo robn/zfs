@@ -1,3 +1,8 @@
+/*
+ * HAIKU PORTING NOTES:
+ * - removed ZFS_IOC_REWRITE via gate, too ioctlish for now
+ */
+
 // SPDX-License-Identifier: CDDL-1.0
 /*
  * This file and its contents are supplied under the terms of the
@@ -1766,6 +1771,7 @@ typedef enum zfs_ioc {
 
 #endif
 
+#ifndef __HAIKU__
 typedef struct zfs_rewrite_args {
 	uint64_t	off;
 	uint64_t	len;
@@ -1780,6 +1786,7 @@ typedef struct zfs_rewrite_args {
 #define	ZFS_REWRITE_SKIP_CURRENT_ASIZE	0x8 /* Skip blocks of current asize. */
 
 #define	ZFS_IOC_REWRITE		_IOW(0x83, 3, zfs_rewrite_args_t)
+#endif
 
 /*
  * ZFS-specific error codes used for returning descriptive errors
