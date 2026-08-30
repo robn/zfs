@@ -60,7 +60,9 @@ endif
 if BUILD_HAIKU
 libspl_la_SOURCES += \
 	%D%/os/haiku/getexecname.c \
-	%D%/os/haiku/gethostid.c
+	%D%/os/haiku/gethostid.c \
+	%D%/os/haiku/mnttab.c \
+	%D%/os/haiku/zone.c
 endif
 
 libspl_la_LIBADD = \
