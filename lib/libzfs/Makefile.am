@@ -74,7 +74,7 @@ libzfs_la_LIBADD = \
 	libnvpair.la \
 	libzutil.la
 
-libzfs_la_LIBADD += -lrt -lm $(LIBCRYPTO_LIBS) $(ZLIB_LIBS) $(LIBFETCH_LIBS) $(LTLIBINTL)
+libzfs_la_LIBADD += -lm $(LIBCRYPTO_LIBS) $(ZLIB_LIBS) $(LIBFETCH_LIBS) $(LTLIBINTL)
 
 libzfs_la_LDFLAGS = -version-info 7:0:0
 
@@ -82,8 +82,12 @@ if !ASAN_ENABLED
 libzfs_la_LDFLAGS += -Wl,-z,defs
 endif
 
+if BUILD_LINUX
+libzfs_la_LIBADD += -lrt
+endif
+
 if BUILD_FREEBSD
-libzfs_la_LIBADD += -lutil -lgeom
+libzfs_la_LIBADD += -lutil -lgeom -lrt
 endif
 
 pkgconfig_DATA += %D%/libzfs.pc
