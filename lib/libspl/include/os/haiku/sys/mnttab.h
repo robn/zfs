@@ -6,6 +6,7 @@
 #ifndef _SYS_MNTTAB_H
 #define	_SYS_MNTTAB_H
 
+#include <sys/stat.h>
 #include <sys/param.h> /* stat64 */
 
 #define	MNTTAB		"/dev/zero"
