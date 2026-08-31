@@ -72,8 +72,9 @@ COMMON_H = \
 	sys/mmp.h \
 	sys/mntent.h \
 	sys/multilist.h \
-	sys/nvpair.h \
+	sys/nvpair_marshal.h \
 	sys/nvpair_impl.h \
+	sys/nvpair.h \
 	sys/objlist.h \
 	sys/pathname.h \
 	sys/qat.h \
