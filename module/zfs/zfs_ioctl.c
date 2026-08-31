@@ -219,6 +219,8 @@
 
 #include <sys/zfs_ioctl_impl.h>
 
+#include <sys/nvpair_marshal.h>
+
 kmutex_t zfsdev_state_lock;
 static zfsdev_state_t zfsdev_state_listhead;
 
@@ -2089,64 +2091,61 @@ static const zfs_ioc_key_t zfs_keys_pool_scrub[] = {
 	{"scan_date_end",	DATA_TYPE_UINT64,	ZK_OPTIONAL},
 };
 
+NVLIST_MARSHAL_TYPE(zfs_ioc_pool_scrub_args_t,
+	("scan_type",		NV_TYPE(UINT64),	type,	NV_REQUIRED),
+	("scan_command",	NV_TYPE(UINT64),	command, NV_REQUIRED),
+	("scan_flags",		NV_TYPE(UINT64),	flags,	NV_OPTIONAL),
+	("scan_date_start",	NV_TYPE(UINT64),	start,	NV_OPTIONAL),
+	("scan_date_end",	NV_TYPE(UINT64),	end,	NV_OPTIONAL)
+);
+
 static int
 zfs_ioc_pool_scrub(const char *poolname, nvlist_t *innvl, nvlist_t *outnvl)
 {
 	spa_t *spa;
 	int error;
-	uint64_t scan_type, scan_cmd, scan_flags;
-	uint64_t date_start, date_end;
 
-	if (nvlist_lookup_uint64(innvl, "scan_type", &scan_type) != 0)
-		return (SET_ERROR(EINVAL));
-	if (nvlist_lookup_uint64(innvl, "scan_command", &scan_cmd) != 0)
-		return (SET_ERROR(EINVAL));
+	zfs_ioc_pool_scrub_args_t a;
+	if ((error = NV_UNMARSHAL(innvl, zfs_ioc_pool_scrub_args_t, &a)) != 0)
+		return (error);
 
-	if (nvlist_lookup_uint64(innvl, "scan_flags", &scan_flags) != 0)
-		scan_flags = 0;
-
-	if (nvlist_lookup_uint64(innvl, "scan_date_start", &date_start) != 0)
-		date_start = 0;
-	if (nvlist_lookup_uint64(innvl, "scan_date_end", &date_end) != 0)
-		date_end = 0;
-
-	if ((error = zfs_scan_ioc_validate(scan_type, scan_cmd, scan_flags,
-	    date_start, date_end)) != 0)
+	if ((error = zfs_scan_ioc_validate(a.type, a.command, a.flags,
+	    a.start, a.end)) != 0)
 		return (error);
 
 	if ((error = spa_open(poolname, &spa, FTAG)) != 0)
 		return (error);
 
-	if (scan_cmd == POOL_SCRUB_PAUSE) {
+	if (a.command == POOL_SCRUB_PAUSE) {
 		error = spa_scrub_pause_resume(spa, POOL_SCRUB_PAUSE);
-	} else if (scan_type == POOL_SCAN_NONE) {
+	} else if (a.type == POOL_SCAN_NONE) {
 		error = spa_scan_stop(spa);
 	} else {
 		uint64_t txg_start = 0, txg_end = 0;
 
-		if (scan_cmd & POOL_SCRUB_FROM_LAST_TXG) {
-			ASSERT0(date_start);
-			ASSERT0(date_end);
+		if (a.command & POOL_SCRUB_FROM_LAST_TXG) {
+			ASSERT0(a.start);
+			ASSERT0(a.end);
 			txg_start = spa_get_last_scrubbed_txg(spa);
 		}
 
-		if (date_start != 0 || date_end != 0) {
-			ASSERT0(scan_cmd & POOL_SCRUB_FROM_LAST_TXG);
+		if (a.start != 0 || a.end != 0) {
+			ASSERT0(a.command & POOL_SCRUB_FROM_LAST_TXG);
 			mutex_enter(&spa->spa_txg_log_time_lock);
-			if (date_start != 0) {
+			if (a.end != 0) {
 				txg_start = dbrrd_query(&spa->spa_txg_log_time,
-				    date_start, DBRRD_FLOOR);
+				    a.start, DBRRD_FLOOR);
 			}
 
-			if (date_end != 0) {
+			if (a.end != 0) {
 				txg_end = dbrrd_query(&spa->spa_txg_log_time,
-				    date_end, DBRRD_CEILING);
+				    a.end, DBRRD_CEILING);
 			}
 			mutex_exit(&spa->spa_txg_log_time_lock);
 		}
 
-		error = spa_scan_range(spa, scan_type, txg_start, txg_end,
-		    scan_flags);
+		error = spa_scan_range(spa, a.type, txg_start, txg_end,
+		    a.flags);
 	}
 
 	spa_close(spa, FTAG);
@@ -3984,23 +3983,27 @@ static const zfs_ioc_key_t zfs_keys_create[] = {
 	{"hidden_args",	DATA_TYPE_NVLIST,	ZK_OPTIONAL},
 };
 
+NV_MARSHAL_TYPE(zfs_ioc_create_args_t,
+	// XXX actually dmu_objset_type_t
+	("type",	NV_TYPE(INT32),		type,		NV_REQUIRED),
+	("props",	NV_TYPE(NVLIST),	props,		NV_OPTIONAL),
+	("hidden_args",	NV_TYPE(NVLIST),	hidden_args,	NV_OPTIONAL)
+);
+
 static int
 zfs_ioc_create(const char *fsname, nvlist_t *innvl, nvlist_t *outnvl)
 {
 	int error = 0;
 	zfs_creat_t zct = { 0 };
-	nvlist_t *nvprops = NULL;
-	nvlist_t *hidden_args = NULL;
 	void (*cbfunc)(objset_t *os, void *arg, cred_t *cr, dmu_tx_t *tx);
-	dmu_objset_type_t type;
 	boolean_t is_insensitive = B_FALSE;
 	dsl_crypto_params_t *dcp = NULL;
 
-	type = (dmu_objset_type_t)fnvlist_lookup_int32(innvl, "type");
-	(void) nvlist_lookup_nvlist(innvl, "props", &nvprops);
-	(void) nvlist_lookup_nvlist(innvl, ZPOOL_HIDDEN_ARGS, &hidden_args);
+	zfs_ioc_create_args_t a;
+	if ((error = NV_UNMARSHAL(innvl, zfs_ioc_create_args_t, &a)) != 0)
+		return (error);
 
-	switch (type) {
+	switch (a.type) {
 	case DMU_OST_ZFS:
 		cbfunc = zfs_create_cb;
 		break;
@@ -4017,21 +4020,21 @@ zfs_ioc_create(const char *fsname, nvlist_t *innvl, nvlist_t *outnvl)
 	    strchr(fsname, '%'))
 		return (SET_ERROR(EINVAL));
 
-	zct.zct_props = nvprops;
+	zct.zct_props = a.props;
 
 	if (cbfunc == NULL)
 		return (SET_ERROR(EINVAL));
 
-	if (type == DMU_OST_ZVOL) {
+	if (a.type == DMU_OST_ZVOL) {
 		uint64_t volsize, volblocksize;
 
-		if (nvprops == NULL)
+		if (a.props == NULL)
 			return (SET_ERROR(EINVAL));
-		if (nvlist_lookup_uint64(nvprops,
+		if (nvlist_lookup_uint64(a.props,
 		    zfs_prop_to_name(ZFS_PROP_VOLSIZE), &volsize) != 0)
 			return (SET_ERROR(EINVAL));
 
-		if ((error = nvlist_lookup_uint64(nvprops,
+		if ((error = nvlist_lookup_uint64(a.props,
 		    zfs_prop_to_name(ZFS_PROP_VOLBLOCKSIZE),
 		    &volblocksize)) != 0 && error != ENOENT)
 			return (SET_ERROR(EINVAL));
@@ -4045,7 +4048,7 @@ zfs_ioc_create(const char *fsname, nvlist_t *innvl, nvlist_t *outnvl)
 		    (error = zvol_check_volsize(volsize,
 		    volblocksize)) != 0)
 			return (error);
-	} else if (type == DMU_OST_ZFS) {
+	} else if (a.type == DMU_OST_ZFS) {
 		int error;
 
 		/*
@@ -4056,7 +4059,7 @@ zfs_ioc_create(const char *fsname, nvlist_t *innvl, nvlist_t *outnvl)
 		 */
 		VERIFY0(nvlist_alloc(&zct.zct_zplprops,
 		    NV_UNIQUE_NAME, KM_SLEEP));
-		error = zfs_fill_zplprops(fsname, nvprops,
+		error = zfs_fill_zplprops(fsname, a.props,
 		    zct.zct_zplprops, &is_insensitive);
 		if (error != 0) {
 			nvlist_free(zct.zct_zplprops);
@@ -4064,14 +4067,14 @@ zfs_ioc_create(const char *fsname, nvlist_t *innvl, nvlist_t *outnvl)
 		}
 	}
 
-	error = dsl_crypto_params_create_nvlist(DCP_CMD_NONE, nvprops,
-	    hidden_args, &dcp);
+	error = dsl_crypto_params_create_nvlist(DCP_CMD_NONE, a.props,
+	    a.hidden_args, &dcp);
 	if (error != 0) {
 		nvlist_free(zct.zct_zplprops);
 		return (error);
 	}
 
-	error = dmu_objset_create(fsname, type,
+	error = dmu_objset_create(fsname, a.type,
 	    is_insensitive ? DS_FLAG_CI_DATASET : 0, dcp, cbfunc, &zct);
 
 	nvlist_free(zct.zct_zplprops);
@@ -4082,7 +4085,7 @@ zfs_ioc_create(const char *fsname, nvlist_t *innvl, nvlist_t *outnvl)
 	 */
 	if (error == 0) {
 		error = zfs_set_prop_nvlist(fsname, ZPROP_SRC_LOCAL,
-		    nvprops, outnvl);
+		    a.props, outnvl);
 		if (error != 0) {
 			spa_t *spa;
 			int error2;
@@ -4094,7 +4097,7 @@ zfs_ioc_create(const char *fsname, nvlist_t *innvl, nvlist_t *outnvl)
 			 * the spa_zvol_taskq to drain then retry.
 			 */
 			error2 = dsl_destroy_head(fsname);
-			while ((error2 == EBUSY) && (type == DMU_OST_ZVOL)) {
+			while ((error2 == EBUSY) && (a.type == DMU_OST_ZVOL)) {
 				error2 = spa_open(fsname, &spa, FTAG);
 				if (error2 == 0) {
 					taskq_wait(spa->spa_zvol_taskq);
