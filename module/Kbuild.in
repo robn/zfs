@@ -227,7 +227,8 @@ NVPAIR_OBJS := \
 	fnvpair.o \
 	nvpair.o \
 	nvpair_alloc_fixed.o \
-	nvpair_alloc_spl.o
+	nvpair_alloc_spl.o \
+	nvpair_marshal.o
 
 zfs-objs += $(addprefix nvpair/,$(NVPAIR_OBJS))
 
