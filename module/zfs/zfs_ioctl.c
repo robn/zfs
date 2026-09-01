@@ -2091,7 +2091,7 @@ static const zfs_ioc_key_t zfs_keys_pool_scrub[] = {
 	{"scan_date_end",	DATA_TYPE_UINT64,	ZK_OPTIONAL},
 };
 
-NVLIST_MARSHAL_TYPE(zfs_ioc_pool_scrub_args_t,
+NV_MARSHAL_TYPE(zfs_ioc_pool_scrub_args_t,
 	("scan_type",		NV_TYPE(UINT64),	type,	NV_REQUIRED),
 	("scan_command",	NV_TYPE(UINT64),	command, NV_REQUIRED),
 	("scan_flags",		NV_TYPE(UINT64),	flags,	NV_OPTIONAL),
