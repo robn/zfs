@@ -147,6 +147,7 @@ _SYS_NVPAIR_H int nvlist_pack(nvlist_t *, char **, size_t *, int, int);
 _SYS_NVPAIR_H int nvlist_unpack(char *, size_t, nvlist_t **, int);
 _SYS_NVPAIR_H int nvlist_dup(const nvlist_t *, nvlist_t **, int);
 _SYS_NVPAIR_H int nvlist_merge(nvlist_t *, nvlist_t *, int);
+_SYS_NVPAIR_H int nvlist_alloc_aux(nvlist_t *, size_t, void **);
 
 _SYS_NVPAIR_H uint_t nvlist_nvflag(nvlist_t *);
 
