@@ -325,7 +325,6 @@ nvt_lookup_name_type(const nvlist_t *nvl, const char *name, data_type_t type)
 	i_nvp_t **tab = priv->nvp_hashtable;
 
 	if (tab == NULL) {
-		ASSERT0P(priv->nvp_list);
 		ASSERT0(priv->nvp_nbuckets);
 		ASSERT0(priv->nvp_nentries);
 		return (NULL);
@@ -824,6 +823,9 @@ nvlist_copy_pairs(const nvlist_t *snvl, nvlist_t *dnvl)
 		const nvpair_t *nvp = &curr->nvi_nvp;
 		int err;
 
+		if (nvp->nvp_name_sz == 0)
+			continue;
+
 		if ((err = nvlist_add_common(dnvl, NVP_NAME(nvp), NVP_TYPE(nvp),
 		    NVP_NELEM(nvp), NVP_VALUE(nvp))) != 0)
 			return (err);
@@ -934,6 +936,24 @@ nvlist_xdup(const nvlist_t *nvl, nvlist_t **nvlp, nv_alloc_t *nva)
 		*nvlp = ret;
 
 	return (err);
+}
+
+int
+nvlist_alloc_aux(nvlist_t *nvl, size_t sz, void **buf)
+{
+	nvpair_t *nvp;
+	size_t nvp_sz = NVP_SIZE_CALC(0, sz);
+
+	if ((nvp = nvp_buf_alloc(nvl, nvp_sz)) == NULL)
+		return (ENOMEM);
+
+	ASSERT(nvp->nvp_size == nvp_sz);
+	nvp->nvp_value_elem = 1;
+
+	nvp_buf_link(nvl, nvp);
+
+	*buf = NVP_VALUE(nvp);
+	return (0);
 }
 
 /*
@@ -1507,6 +1527,9 @@ nvlist_next_nvpair(nvlist_t *nvl, const nvpair_t *nvp)
 	else
 		curr = NULL;
 
+	while (curr != NULL && curr->nvi_nvp.nvp_name_sz == 0)
+		curr = curr->nvi_next;
+
 	priv->nvp_curr = curr;
 
 	return (curr != NULL ? &curr->nvi_nvp : NULL);
@@ -1531,6 +1554,9 @@ nvlist_prev_nvpair(nvlist_t *nvl, const nvpair_t *nvp)
 	else
 		curr = NULL;
 
+	while (curr != NULL && curr->nvi_nvp.nvp_name_sz == 0)
+		curr = curr->nvi_prev;
+
 	priv->nvp_curr = curr;
 
 	return (curr != NULL ? &curr->nvi_nvp : NULL);
@@ -1545,7 +1571,7 @@ nvlist_empty(const nvlist_t *nvl)
 	    (priv = (const nvpriv_t *)(uintptr_t)nvl->nvl_priv) == NULL)
 		return (B_TRUE);
 
-	return (priv->nvp_list == NULL);
+	return (priv->nvp_nentries == 0);
 }
 
 const char *
@@ -2147,6 +2173,8 @@ nvlist_exists(const nvlist_t *nvl, const char *name)
 
 	for (curr = priv->nvp_list; curr != NULL; curr = curr->nvi_next) {
 		nvp = &curr->nvi_nvp;
+		if (nvp->nvp_name_sz == 0)
+			continue;
 
 		if (strcmp(name, NVP_NAME(nvp)) == 0)
 			return (B_TRUE);
@@ -2406,9 +2434,12 @@ nvs_encode_pairs(nvstream_t *nvs, nvlist_t *nvl)
 	/*
 	 * Walk nvpair in list and encode each nvpair
 	 */
-	for (curr = priv->nvp_list; curr != NULL; curr = curr->nvi_next)
+	for (curr = priv->nvp_list; curr != NULL; curr = curr->nvi_next) {
+		if (curr->nvi_nvp.nvp_name_sz == 0)
+			continue;
 		if (nvs->nvs_ops->nvs_nvpair(nvs, &curr->nvi_nvp, NULL) != 0)
 			return (EFAULT);
+	}
 
 	return (nvs->nvs_ops->nvs_nvl_fini(nvs));
 }
@@ -2469,6 +2500,9 @@ nvs_getsize_pairs(nvstream_t *nvs, nvlist_t *nvl, size_t *buflen)
 	 * Get encoded size of nvpairs in nvlist
 	 */
 	for (curr = priv->nvp_list; curr != NULL; curr = curr->nvi_next) {
+		if (curr->nvi_nvp.nvp_name_sz == 0)
+			continue;
+
 		if (nvs->nvs_ops->nvs_nvp_size(nvs, &curr->nvi_nvp, &size) != 0)
 			return (EINVAL);
 

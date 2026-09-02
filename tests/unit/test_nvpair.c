@@ -1574,6 +1574,47 @@ test_nv_snprintf_deep(const MunitParameter params[], void *data)
 /* ========== */
 
 /*
+ * nvlist_alloc_aux() allocates an arbitrary chunk of memory and accounts it
+ * to the nvlist by adding an anonymous nvpair to the internal list. It should
+ * never be visible via any external interface.
+ */
+
+static MunitResult
+test_nv_alloc_aux(const MunitParameter params[], void *data)
+{
+	(void) params; (void) data;
+
+	nvlist_t *nvl = nvl_create();
+
+	/* Add five pairs: [anon, u64, anon, u64, anon] */
+	void *a;
+	unit_ok(nvlist_alloc_aux(nvl, 16, &a));
+	unit_ok(nvlist_add_uint64(nvl, nvl_simple_u64_key, nvl_simple_u64_val));
+	unit_ok(nvlist_alloc_aux(nvl, 16, &a));
+	unit_ok(nvlist_add_string(nvl, nvl_simple_str_key, nvl_simple_str_val));
+	unit_ok(nvlist_alloc_aux(nvl, 16, &a));
+
+	/* Iterators should only return the two named keys. */
+	nvpair_t *pair = NULL;
+	pair = nvlist_next_nvpair(nvl, NULL);
+	unit_notnull(pair);
+	unit_str_eq(nvpair_name(pair), nvl_simple_u64_key);
+	unit_eq(nvpair_type(pair), DATA_TYPE_UINT64);
+
+	pair = nvlist_next_nvpair(nvl, pair);
+	unit_notnull(pair);
+	unit_str_eq(nvpair_name(pair), nvl_simple_str_key);
+	unit_eq(nvpair_type(pair), DATA_TYPE_STRING);
+
+	unit_null(nvlist_next_nvpair(nvl, pair));
+
+	nvlist_free(nvl);
+	return (MUNIT_OK);
+}
+
+/* ========== */
+
+/*
  * The fnv* functions are infallible convience wrappers - they will succeed or
  * panic (via VERIFY() -> abort()). Because they're all one-line wrappers over
  * things we already tested properly, these are just basic sanity checks by
@@ -1804,6 +1845,9 @@ static const MunitTest nvpair_tests[] = {
 	UNIT_TEST("nv_print_deep",	test_nv_print_deep),
 	UNIT_TEST("nv_snprintf_simple",	test_nv_snprintf_simple),
 	UNIT_TEST("nv_snprintf_deep",	test_nv_snprintf_deep),
+
+	/* aux allocator */
+	UNIT_TEST("nv_alloc_aux",	test_nv_alloc_aux),
 
 	/* infallible convenience wrappers */
 	UNIT_TEST("nv_fnvlist_types",	test_nv_fnvlist_types),
