@@ -126,6 +126,12 @@ _UNIT_CHECK_DEFINE(double, double, "g")
 #undef _UNIT_CHECK_DEFINE
 
 /* helpers to generate useful random data */
+munit_bool
+unit_rand_bool(void)
+{
+	return (!!(munit_rand_uint32() & 0x1));
+}
+
 uint64_t
 unit_rand_uint64(void)
 {

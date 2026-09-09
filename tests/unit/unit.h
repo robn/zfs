@@ -129,6 +129,7 @@ _UNIT_CHECK_DECLARE(double, double)
 #define	unit_notnull(a)	munit_assert_not_null(a)
 
 /* helpers to generate useful random data */
+extern munit_bool unit_rand_bool(void);
 extern uint64_t unit_rand_uint64(void);
 extern char *unit_rand_str(char *buf, size_t bufsz);
 
