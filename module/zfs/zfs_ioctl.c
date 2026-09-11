@@ -252,8 +252,17 @@ typedef struct zfs_ioc_vec {
 	zfs_ioc_poolcheck_t	zvec_pool_check;
 	boolean_t		zvec_smush_outnvlist;
 	const char		*zvec_name;
-	const zfs_ioc_key_t	*zvec_nvl_keys;
-	size_t			zvec_nvl_key_count;
+	union {
+		struct {
+			const zfs_ioc_key_t	*zvec_nvl_keys;
+			size_t			zvec_nvl_key_count;
+		};
+		struct {
+			const nvm_desc_t	*zvec_nvm_desc_in;
+			const nvm_desc_t	*zvec_nvm_desc_out;
+		};
+	};
+	boolean_t		zvec_marshal;
 } zfs_ioc_vec_t;
 
 /* This array is indexed by zfs_userquota_prop_t */
@@ -2083,6 +2092,7 @@ zfs_ioc_pool_scan(zfs_cmd_t *zc)
  * scan_command         scrub command (pool_scrub_cmd_t)
  * scan_flags           scrub flags (pool_scrub_flags_t)
  */
+/*
 static const zfs_ioc_key_t zfs_keys_pool_scrub[] = {
 	{"scan_type",		DATA_TYPE_UINT64,	0},
 	{"scan_command",	DATA_TYPE_UINT64,	0},
@@ -2090,6 +2100,7 @@ static const zfs_ioc_key_t zfs_keys_pool_scrub[] = {
 	{"scan_date_start",	DATA_TYPE_UINT64,	ZK_OPTIONAL},
 	{"scan_date_end",	DATA_TYPE_UINT64,	ZK_OPTIONAL},
 };
+*/
 
 NVM_SCHEMA(zfs_ioc_pool_scrub_args_t,
 	("scan_type",		NVM_SCALAR(UINT64),	type,	NVM_REQUIRED),
@@ -2100,52 +2111,49 @@ NVM_SCHEMA(zfs_ioc_pool_scrub_args_t,
 );
 
 static int
-zfs_ioc_pool_scrub(const char *poolname, nvlist_t *innvl, nvlist_t *outnvl)
+zfs_ioc_pool_scrub(const char *poolname, zfs_ioc_pool_scrub_args_t *in,
+    nvlist_t *outnvl)
 {
 	spa_t *spa;
 	int error;
 
-	zfs_ioc_pool_scrub_args_t a;
-	if ((error = NVM_UNMARSHAL(innvl, zfs_ioc_pool_scrub_args_t, &a)) != 0)
-		return (error);
-
-	if ((error = zfs_scan_ioc_validate(a.type, a.command, a.flags,
-	    a.start, a.end)) != 0)
+	if ((error = zfs_scan_ioc_validate(in->type, in->command, in->flags,
+	    in->start, in->end)) != 0)
 		return (error);
 
 	if ((error = spa_open(poolname, &spa, FTAG)) != 0)
 		return (error);
 
-	if (a.command == POOL_SCRUB_PAUSE) {
+	if (in->command == POOL_SCRUB_PAUSE) {
 		error = spa_scrub_pause_resume(spa, POOL_SCRUB_PAUSE);
-	} else if (a.type == POOL_SCAN_NONE) {
+	} else if (in->type == POOL_SCAN_NONE) {
 		error = spa_scan_stop(spa);
 	} else {
 		uint64_t txg_start = 0, txg_end = 0;
 
-		if (a.command & POOL_SCRUB_FROM_LAST_TXG) {
-			ASSERT0(a.start);
-			ASSERT0(a.end);
+		if (in->command & POOL_SCRUB_FROM_LAST_TXG) {
+			ASSERT0(in->start);
+			ASSERT0(in->end);
 			txg_start = spa_get_last_scrubbed_txg(spa);
 		}
 
-		if (a.start != 0 || a.end != 0) {
-			ASSERT0(a.command & POOL_SCRUB_FROM_LAST_TXG);
+		if (in->start != 0 || in->end != 0) {
+			ASSERT0(in->command & POOL_SCRUB_FROM_LAST_TXG);
 			mutex_enter(&spa->spa_txg_log_time_lock);
-			if (a.end != 0) {
+			if (in->end != 0) {
 				txg_start = dbrrd_query(&spa->spa_txg_log_time,
-				    a.start, DBRRD_FLOOR);
+				    in->start, DBRRD_FLOOR);
 			}
 
-			if (a.end != 0) {
+			if (in->end != 0) {
 				txg_end = dbrrd_query(&spa->spa_txg_log_time,
-				    a.end, DBRRD_CEILING);
+				    in->end, DBRRD_CEILING);
 			}
 			mutex_exit(&spa->spa_txg_log_time_lock);
 		}
 
-		error = spa_scan_range(spa, a.type, txg_start, txg_end,
-		    a.flags);
+		error = spa_scan_range(spa, in->type, txg_start, txg_end,
+		    in->flags);
 	}
 
 	spa_close(spa, FTAG);
@@ -3572,23 +3580,22 @@ zfs_ioc_pool_set_props(zfs_cmd_t *zc)
  * }
  */
 
+#if 0
 static const zfs_ioc_key_t zfs_keys_get_props[] = {
 	{ ZPOOL_GET_PROPS_NAMES,	DATA_TYPE_STRING_ARRAY,	ZK_OPTIONAL },
 };
+#endif
 
 NVM_SCHEMA(zfs_ioc_get_props_args_t,
 	( ZPOOL_GET_PROPS_NAMES, NVM_ARRAY(STRING), props, NVM_OPTIONAL )
 );
 
 static int
-zfs_ioc_pool_get_props(const char *pool, nvlist_t *innvl, nvlist_t *outnvl)
+zfs_ioc_pool_get_props(const char *pool, zfs_ioc_get_props_args_t *in,
+    nvlist_t *outnvl)
 {
 	spa_t *spa;
 	int error;
-
-	zfs_ioc_get_props_args_t a;
-	if ((error = NVM_UNMARSHAL(innvl, zfs_ioc_get_props_args_t, &a)) != 0)
-		return (error);
 
 	if ((error = spa_open(pool, &spa, FTAG)) != 0) {
 		/*
@@ -3599,16 +3606,16 @@ zfs_ioc_pool_get_props(const char *pool, nvlist_t *innvl, nvlist_t *outnvl)
 		spa_namespace_enter(FTAG);
 		if ((spa = spa_lookup(pool)) != NULL) {
 			error = spa_prop_get(spa, outnvl);
-			if (error == 0 && a.has_props)
-				error = spa_prop_get_nvlist(spa, a.props,
-				    a.nelem_props, outnvl);
+			if (error == 0 && in->has_props)
+				error = spa_prop_get_nvlist(spa, in->props,
+				    in->nelem_props, outnvl);
 		}
 		spa_namespace_exit(FTAG);
 	} else {
 		error = spa_prop_get(spa, outnvl);
-		if (error == 0 && a.has_props)
-			error = spa_prop_get_nvlist(spa, a.props,
-			    a.nelem_props, outnvl);
+		if (error == 0 && in->has_props)
+			error = spa_prop_get_nvlist(spa, in->props,
+			    in->nelem_props, outnvl);
 		spa_close(spa, FTAG);
 	}
 
@@ -4000,12 +4007,6 @@ zfs_fill_zplprops_root(uint64_t spa_vers, nvlist_t *createprops,
  * outnvl: propname -> error code (int32)
  */
 
-static const zfs_ioc_key_t zfs_keys_create[] = {
-	{"type",	DATA_TYPE_INT32,	0},
-	{"props",	DATA_TYPE_NVLIST,	ZK_OPTIONAL},
-	{"hidden_args",	DATA_TYPE_NVLIST,	ZK_OPTIONAL},
-};
-
 NVM_SCHEMA(zfs_ioc_create_args_t,
 	// XXX actually dmu_objset_type_t
 	("type",	NVM_SCALAR(INT32),		type,		NVM_REQUIRED),
@@ -4014,7 +4015,7 @@ NVM_SCHEMA(zfs_ioc_create_args_t,
 );
 
 static int
-zfs_ioc_create(const char *fsname, nvlist_t *innvl, nvlist_t *outnvl)
+zfs_ioc_create(const char *fsname, zfs_ioc_create_args_t *in, nvlist_t *outnvl)
 {
 	int error = 0;
 	zfs_creat_t zct = { 0 };
@@ -4022,11 +4023,7 @@ zfs_ioc_create(const char *fsname, nvlist_t *innvl, nvlist_t *outnvl)
 	boolean_t is_insensitive = B_FALSE;
 	dsl_crypto_params_t *dcp = NULL;
 
-	zfs_ioc_create_args_t a;
-	if ((error = NVM_UNMARSHAL(innvl, zfs_ioc_create_args_t, &a)) != 0)
-		return (error);
-
-	switch (a.type) {
+	switch (in->type) {
 	case DMU_OST_ZFS:
 		cbfunc = zfs_create_cb;
 		break;
@@ -4043,21 +4040,21 @@ zfs_ioc_create(const char *fsname, nvlist_t *innvl, nvlist_t *outnvl)
 	    strchr(fsname, '%'))
 		return (SET_ERROR(EINVAL));
 
-	zct.zct_props = a.props;
+	zct.zct_props = in->props;
 
 	if (cbfunc == NULL)
 		return (SET_ERROR(EINVAL));
 
-	if (a.type == DMU_OST_ZVOL) {
+	if (in->type == DMU_OST_ZVOL) {
 		uint64_t volsize, volblocksize;
 
-		if (a.props == NULL)
+		if (in->props == NULL)
 			return (SET_ERROR(EINVAL));
-		if (nvlist_lookup_uint64(a.props,
+		if (nvlist_lookup_uint64(in->props,
 		    zfs_prop_to_name(ZFS_PROP_VOLSIZE), &volsize) != 0)
 			return (SET_ERROR(EINVAL));
 
-		if ((error = nvlist_lookup_uint64(a.props,
+		if ((error = nvlist_lookup_uint64(in->props,
 		    zfs_prop_to_name(ZFS_PROP_VOLBLOCKSIZE),
 		    &volblocksize)) != 0 && error != ENOENT)
 			return (SET_ERROR(EINVAL));
@@ -4071,7 +4068,7 @@ zfs_ioc_create(const char *fsname, nvlist_t *innvl, nvlist_t *outnvl)
 		    (error = zvol_check_volsize(volsize,
 		    volblocksize)) != 0)
 			return (error);
-	} else if (a.type == DMU_OST_ZFS) {
+	} else if (in->type == DMU_OST_ZFS) {
 		int error;
 
 		/*
@@ -4082,7 +4079,7 @@ zfs_ioc_create(const char *fsname, nvlist_t *innvl, nvlist_t *outnvl)
 		 */
 		VERIFY0(nvlist_alloc(&zct.zct_zplprops,
 		    NV_UNIQUE_NAME, KM_SLEEP));
-		error = zfs_fill_zplprops(fsname, a.props,
+		error = zfs_fill_zplprops(fsname, in->props,
 		    zct.zct_zplprops, &is_insensitive);
 		if (error != 0) {
 			nvlist_free(zct.zct_zplprops);
@@ -4090,14 +4087,14 @@ zfs_ioc_create(const char *fsname, nvlist_t *innvl, nvlist_t *outnvl)
 		}
 	}
 
-	error = dsl_crypto_params_create_nvlist(DCP_CMD_NONE, a.props,
-	    a.hidden_args, &dcp);
+	error = dsl_crypto_params_create_nvlist(DCP_CMD_NONE, in->props,
+	    in->hidden_args, &dcp);
 	if (error != 0) {
 		nvlist_free(zct.zct_zplprops);
 		return (error);
 	}
 
-	error = dmu_objset_create(fsname, a.type,
+	error = dmu_objset_create(fsname, in->type,
 	    is_insensitive ? DS_FLAG_CI_DATASET : 0, dcp, cbfunc, &zct);
 
 	nvlist_free(zct.zct_zplprops);
@@ -4108,7 +4105,7 @@ zfs_ioc_create(const char *fsname, nvlist_t *innvl, nvlist_t *outnvl)
 	 */
 	if (error == 0) {
 		error = zfs_set_prop_nvlist(fsname, ZPROP_SRC_LOCAL,
-		    a.props, outnvl);
+		    in->props, outnvl);
 		if (error != 0) {
 			spa_t *spa;
 			int error2;
@@ -4120,7 +4117,7 @@ zfs_ioc_create(const char *fsname, nvlist_t *innvl, nvlist_t *outnvl)
 			 * the spa_zvol_taskq to drain then retry.
 			 */
 			error2 = dsl_destroy_head(fsname);
-			while ((error2 == EBUSY) && (a.type == DMU_OST_ZVOL)) {
+			while ((error2 == EBUSY) && (in->type == DMU_OST_ZVOL)) {
 				error2 = spa_open(fsname, &spa, FTAG);
 				if (error2 == 0) {
 					taskq_wait(spa->spa_zvol_taskq);
@@ -8030,6 +8027,36 @@ zfs_ioctl_register(const char *name, zfs_ioc_t ioc, zfs_ioc_func_t *func,
 	vec->zvec_allow_log = allow_log;
 	vec->zvec_nvl_keys = nvl_keys;
 	vec->zvec_nvl_key_count = num_keys;
+	vec->zvec_marshal = B_FALSE;
+}
+
+static void
+zfs_ioctl_register_nvm(const char *name, zfs_ioc_t ioc,
+    void *func, zfs_secpolicy_func_t *secpolicy,
+    zfs_ioc_namecheck_t namecheck, zfs_ioc_poolcheck_t pool_check,
+    boolean_t smush_outnvlist, boolean_t allow_log,
+    const nvm_desc_t *nvm_desc_in, const nvm_desc_t *nvm_desc_out)
+{
+	zfs_ioc_vec_t *vec = &zfs_ioc_vec[ioc - ZFS_IOC_FIRST];
+
+	ASSERT3U(ioc, >=, ZFS_IOC_FIRST);
+	ASSERT3U(ioc, <, ZFS_IOC_LAST);
+	ASSERT0P(vec->zvec_legacy_func);
+	ASSERT0P(vec->zvec_func);
+
+	/* if we are logging, the name must be valid */
+	ASSERT(!allow_log || namecheck != NO_NAME);
+
+	vec->zvec_name = name;
+	vec->zvec_func = (zfs_ioc_func_t *)func;
+	vec->zvec_secpolicy = secpolicy;
+	vec->zvec_namecheck = namecheck;
+	vec->zvec_pool_check = pool_check;
+	vec->zvec_smush_outnvlist = smush_outnvlist;
+	vec->zvec_allow_log = allow_log;
+	vec->zvec_nvm_desc_in = nvm_desc_in;
+	vec->zvec_nvm_desc_out = nvm_desc_out;
+	vec->zvec_marshal = B_TRUE;
 }
 
 static void
@@ -8115,10 +8142,10 @@ zfs_ioctl_init(void)
 	    POOL_CHECK_SUSPENDED, B_FALSE, B_FALSE,
 	    zfs_keys_send_space, ARRAY_SIZE(zfs_keys_send_space));
 
-	zfs_ioctl_register("create", ZFS_IOC_CREATE,
+	zfs_ioctl_register_nvm("create", ZFS_IOC_CREATE,
 	    zfs_ioc_create, zfs_secpolicy_create_clone, DATASET_NAME,
 	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY, B_TRUE, B_TRUE,
-	    zfs_keys_create, ARRAY_SIZE(zfs_keys_create));
+	    NVM_DESC(zfs_ioc_create_args_t), NULL);
 
 	zfs_ioctl_register("clone", ZFS_IOC_CLONE,
 	    zfs_ioc_clone, zfs_secpolicy_create_clone, DATASET_NAME,
@@ -8277,15 +8304,15 @@ zfs_ioctl_init(void)
 	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY, B_FALSE, B_FALSE,
 	    zfs_keys_vdev_set_props, ARRAY_SIZE(zfs_keys_vdev_set_props));
 
-	zfs_ioctl_register("scrub", ZFS_IOC_POOL_SCRUB,
+	zfs_ioctl_register_nvm("scrub", ZFS_IOC_POOL_SCRUB,
 	    zfs_ioc_pool_scrub, zfs_secpolicy_config, POOL_NAME,
 	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY, B_TRUE, B_TRUE,
-	    zfs_keys_pool_scrub, ARRAY_SIZE(zfs_keys_pool_scrub));
+	    NVM_DESC(zfs_ioc_pool_scrub_args_t), NULL);
 
-	zfs_ioctl_register("get_props", ZFS_IOC_POOL_GET_PROPS,
+	zfs_ioctl_register_nvm("get_props", ZFS_IOC_POOL_GET_PROPS,
 	    zfs_ioc_pool_get_props, zfs_secpolicy_read, POOL_NAME,
 	    POOL_CHECK_NONE, B_FALSE, B_FALSE,
-	    zfs_keys_get_props, ARRAY_SIZE(zfs_keys_get_props));
+	    NVM_DESC(zfs_ioc_get_props_args_t), NULL);
 
 	zfs_ioctl_register("zpool_ddt_prune", ZFS_IOC_DDT_PRUNE,
 	    zfs_ioc_ddt_prune, zfs_secpolicy_config, POOL_NAME,
@@ -8771,7 +8798,7 @@ zfsdev_ioctl_common(uint_t vecnum, zfs_cmd_t *zc, int flag)
 	 * required pairs since zfs_check_input_nvpairs() confirmed that
 	 * they exist and are of the correct type.
 	 */
-	if (error == 0 && vec->zvec_func != NULL) {
+	if (error == 0 && vec->zvec_func != NULL && !vec->zvec_marshal) {
 		error = zfs_check_input_nvpairs(innvl, vec);
 		if (error != 0)
 			goto out;
@@ -8825,10 +8852,24 @@ zfsdev_ioctl_common(uint_t vecnum, zfs_cmd_t *zc, int flag)
 			}
 		}
 
-		outnvl = fnvlist_alloc();
-		cookie = spl_fstrans_mark();
-		error = vec->zvec_func(zc->zc_name, innvl, outnvl);
-		spl_fstrans_unmark(cookie);
+		if (vec->zvec_marshal) {
+			void *in =
+			    kmem_alloc(vec->zvec_nvm_desc_in->nvmd_struct_size,
+			    KM_SLEEP);
+			error = nvm_unmarshal(innvl, vec->zvec_nvm_desc_in, in);
+			if (error == 0) {
+				outnvl = fnvlist_alloc();
+				cookie = spl_fstrans_mark();
+				error = ((zfs_ioc_nvm_func_t *)vec->zvec_func)(zc->zc_name, in, outnvl);
+				spl_fstrans_unmark(cookie);
+			}
+			kmem_free(in, vec->zvec_nvm_desc_in->nvmd_struct_size);
+		} else {
+			outnvl = fnvlist_alloc();
+			cookie = spl_fstrans_mark();
+			error = vec->zvec_func(zc->zc_name, innvl, outnvl);
+			spl_fstrans_unmark(cookie);
+		}
 
 		/*
 		 * Some commands can partially execute, modify state, and still
