@@ -414,6 +414,8 @@ nvm_marshal(nvlist_t *nv, const nvm_desc_t *desc, void *a)
 	return (err);
 }
 
+/* ========== */
+
 static void
 nvm_zero_scalar(nvm_kind_t k, nvm_scalar_u *u)
 {
@@ -524,9 +526,9 @@ nvm_default_scalar(nvm_kind_t k, nvm_scalar_u *u, const uintptr_t def)
 }
 
 static void
-nvm_zero_array_fixed(nvm_kind_t k, void *arrbase, uint_t nelem)
+nvm_zero_array_fixed(nvm_kind_t k, void *arr, uint_t nelem)
 {
-	nvm_array_u *u = (nvm_array_u *)&arrbase;
+	nvm_array_u *u = (nvm_array_u *)&arr;
 
 	for (uint_t i = 0; i < nelem; i++) {
 		switch (k) {
@@ -587,7 +589,7 @@ nvm_zero_array_fixed(nvm_kind_t k, void *arrbase, uint_t nelem)
 static void nvm_reset(const nvm_desc_t *desc, uintptr_t base);
 
 static void
-nvm_reset_one(const nvm_field_t *f, uintptr_t base)
+nvm_reset_field(const nvm_field_t *f, uintptr_t base)
 {
 	if (f->nvmf_flags & NVMF_OPTIONAL)
 		*_NVM_FIELD_HAS(f, base) = B_FALSE;
@@ -622,8 +624,10 @@ static void
 nvm_reset(const nvm_desc_t *desc, uintptr_t base)
 {
 	for (size_t i = 0; i < desc->nvmd_nfields; i++)
-		nvm_reset_one(&desc->nvmd_fields[i], base);
+		nvm_reset_field(&desc->nvmd_fields[i], base);
 }
+
+/* ========== */
 
 /* Standard nvlist types are loaded directly into the struct from the nvpair. */
 static int
@@ -778,6 +782,7 @@ nvm_unmarshal_map(nvlist_t *nv, nvm_kind_t k, nvm_kind_u *u,
 	return (err);
 }
 
+#if 0
 /* Unmarshal a single nvlist entry into a field. */
 static int
 nvm_unmarshal_one(nvlist_t *nv, const nvm_field_t *f,
@@ -894,6 +899,285 @@ nvm_unmarshal_one(nvlist_t *nv, const nvm_field_t *f,
 
 	return (err);
 }
+#endif
+
+
+/* XXX NEW UNDER HERE */
+
+static int
+nvm_unmarshal_scalar_pair(nvpair_t *pair, nvm_kind_t k, nvm_scalar_u *u)
+{
+	int err = 0;
+
+	switch (k) {
+	case NVMK_FLAG:
+		if (nvpair_type(pair) == DATA_TYPE_BOOLEAN)
+			u->b = B_TRUE;
+		else
+			err = EINVAL;
+		break;
+		
+	case NVMK_BOOLEAN:
+		err = nvpair_value_boolean_value(pair, &u->b);
+		break;
+	case NVMK_BYTE:
+		err = nvpair_value_byte(pair, &u->byte);
+		break;
+	case NVMK_INT8:
+		err = nvpair_value_int8(pair, &u->i8);
+		break;
+	case NVMK_UINT8:
+		err = nvpair_value_uint8(pair, &u->u8);
+		break;
+	case NVMK_INT16:
+		err = nvpair_value_int16(pair, &u->i16);
+		break;
+	case NVMK_UINT16:
+		err = nvpair_value_uint16(pair, &u->u16);
+		break;
+	case NVMK_INT32:
+		err = nvpair_value_int32(pair, &u->i32);
+		break;
+	case NVMK_UINT32:
+		err = nvpair_value_uint32(pair, &u->u32);
+		break;
+	case NVMK_INT64:
+		err = nvpair_value_int64(pair, &u->i64);
+		break;
+	case NVMK_UINT64:
+		err = nvpair_value_uint64(pair, &u->u64);
+		break;
+	case NVMK_STRING:
+		err = nvpair_value_string(pair, &u->str);
+		break;
+	case NVMK_HRTIME:
+		err = nvpair_value_hrtime(pair, &u->hrtime);
+		break;
+#ifndef _KERNEL
+	case NVMK_DOUBLE:
+		err = nvpair_value_double(pair, &u->d);
+		break;
+#endif
+	case NVMK_NVLIST:
+		err = nvpair_value_nvlist(pair, &u->nvl);
+		break;
+
+	default:
+		__builtin_unreachable();
+	}
+
+	/* Type mismatch -> not found */
+	if (err == EINVAL)
+		err = ENOENT;
+
+	return (err);
+}
+
+static int
+nvm_unmarshal_array_pair(nvpair_t *pair, nvm_kind_t k, void **arrp,
+    uint_t *nelemp)
+{
+	nvm_array_u *u = (nvm_array_u *)arrp;
+	int err = 0;
+
+	switch (k) {
+	case NVMK_BOOLEAN_ARRAY:
+		err = nvpair_value_boolean_array(pair, &u->b, nelemp);
+		break;
+	case NVMK_BYTE_ARRAY:
+		err = nvpair_value_byte_array(pair, &u->byte, nelemp);
+		break;
+	case NVMK_INT8_ARRAY:
+		err = nvpair_value_int8_array(pair, &u->i8, nelemp);
+		break;
+	case NVMK_UINT8_ARRAY:
+		err = nvpair_value_uint8_array(pair, &u->u8, nelemp);
+		break;
+	case NVMK_INT16_ARRAY:
+		err = nvpair_value_int16_array(pair, &u->i16, nelemp);
+		break;
+	case NVMK_UINT16_ARRAY:
+		err = nvpair_value_uint16_array(pair, &u->u16, nelemp);
+		break;
+	case NVMK_INT32_ARRAY:
+		err = nvpair_value_int32_array(pair, &u->i32, nelemp);
+		break;
+	case NVMK_UINT32_ARRAY:
+		err = nvpair_value_uint32_array(pair, &u->u32, nelemp);
+		break;
+	case NVMK_INT64_ARRAY:
+		err = nvpair_value_int64_array(pair, &u->i64, nelemp);
+		break;
+	case NVMK_UINT64_ARRAY:
+		err = nvpair_value_uint64_array(pair, &u->u64, nelemp);
+		break;
+	case NVMK_STRING_ARRAY:
+		err = nvpair_value_string_array(pair, &u->str, nelemp);
+		break;
+	case NVMK_NVLIST_ARRAY:
+		err = nvpair_value_nvlist_array(pair, &u->nvl, nelemp);
+		break;
+	default:
+		__builtin_unreachable();
+	}
+
+	/* Type mismatch -> not found */
+	if (err == EINVAL)
+		err = ENOENT;
+
+	return (err);
+}
+
+
+#if 0
+static int
+nvm_unmarshal_array_dynamic(nvpair_t *pair, nvm_kind_t k, void **arrp,
+    uint_t *nelemp)
+{
+	(void) pair, (void) k, (void) arrp, (void) nelemp;
+	return (ENOSYS);
+}
+
+static int
+nvm_unmarshal_array_fixed(nvpair_t *pair, nvm_kind_t k, void *arr,
+    uint_t nelem)
+{
+	return (0);
+}
+#endif
+
+static int
+nvm_unmarshal_embedded(nvpair_t *pair, const nvm_desc_t *desc,
+    uintptr_t base)
+{
+	(void) pair, (void) desc, (void) base;
+	return (ENOSYS);
+}
+
+static int
+nvm_unmarshal_field(nvlist_t *nv, const nvm_field_t *f, uintptr_t base)
+{
+	int err = 0;
+
+	if (nv == NULL)
+		/*
+		 * Treat a NULL nvlist as ENOENT on this field. Unmarshaling
+		 * is reflecting the nvlist contents into the struct; having
+		 * no nvlist is semantically equivalent to an empty nvlist.
+		 * If the schema only has optional items, then there's no
+		 * reason for this to fail.
+		 */
+		err = ENOENT;
+
+	/* Get the item itself. */
+	nvpair_t *pair;
+	err = nvlist_lookup_nvpair(nv, f->nvmf_name, &pair);
+	if (err == EINVAL) {
+		/*
+		 * nvlist_lookup_nvpair returns EINVAL for not found as well,
+		 * so check that case specifically.
+		 */
+		if (!nvlist_exists(nv, f->nvmf_name))
+			err = ENOENT;
+	}
+
+	if (err == 0) {
+		switch (f->nvmf_cshape) {
+		case NVMC_SCALAR:
+			err = nvm_unmarshal_scalar_pair(pair, f->nvmf_kind,
+			    _NVM_FIELD(f, base));
+			break;
+
+		case NVMC_ARRAY_DYNAMIC:
+			err = nvm_unmarshal_array_pair(pair, f->nvmf_kind,
+			    _NVM_FIELD(f, base), _NVM_FIELD_NELEM(f, base));
+			break;
+
+		case NVMC_ARRAY_FIXED: {
+			void *tarr;
+			uint_t tnelem;
+
+			err = nvm_unmarshal_array_pair(pair, f->nvmf_kind,
+			    &tarr, &tnelem);
+			if (err == 0) {
+				if (tnelem != f->nvmf_nelem_offset)
+					err = ERANGE;
+				else
+					memcpy(_NVM_FIELD(f, base), tarr,
+					    f->nvmf_elem_size *
+					    f->nvmf_nelem_offset);
+			}
+			break;
+		}
+
+		case NVMC_EMBEDDED:
+			err = nvm_unmarshal_embedded(pair, f->nvmf_sub,
+			    _NVM_FIELD_BASE(f, base));
+			break;
+		}
+	}
+
+	if (err != 0) {
+		/*
+		 * Not found or other error, either set it to the
+		 * default or zero it.
+		 */
+		nvm_reset_field(f, base);
+	}
+
+	if (f->nvmf_flags & NVMF_OPTIONAL) {
+		/*
+		 * If it was optional, set the has_ flag accordingly.
+		 * For ENOENT, clear the error, since that's valid.
+		 */
+		*_NVM_FIELD_HAS(f, base) = (err == 0);
+		if (err == ENOENT)
+			err = 0;
+	}
+
+	return (err);
+}
+
+#if 0
+	if (f->nvmf_flags & NVMF_ARRAY_N) {
+		/*
+		 * For a fixed array, we have to fetch an array from
+		 * the nvlist to a temporary variable so we can check
+		 * its elements first.
+		 */
+		u = (nvm_kind_u *)&arr;
+		nelemp = &nelem;
+	} else {
+		/*
+		 * Set up pointers to the right place in the output
+		 * struct to store the nvlist data to.
+		 */
+		u = _NVM_FIELD(f, base);
+		nelemp = _NVM_FIELD_NELEM(f, base);
+	}
+
+	err = nvm_unmarshal_one(nv, f, u, nelemp);
+
+	if (f->nvmf_flags & NVMF_ARRAY_N) {
+		/*
+		 * For a fixed array, whatever we got from the nvlist
+		 * has to be checked and copied into place.
+		 */
+		if (err == 0 && *nelemp != f->nvmf_nelem_offset)
+			/* Array has wrong number of elements. */
+			err = ERANGE;
+
+		/*
+		 * If we got correct number of elements, copy them
+		 * to the output. If not, zero them.
+		 */
+		if (err == 0)
+			memcpy(_NVM_FIELD(f, base), arr,
+			    f->nvmf_elem_size * f->nvmf_nelem_offset);
+	}
+
+	return (err);
+#endif
 
 /*
  * Unmarshaling function. Uses the schema in `desc` to pull things out of `nv`
@@ -923,10 +1207,6 @@ nvm_unmarshal(nvlist_t *nv, const nvm_desc_t *desc, void *a)
 	for (size_t i = 0; err == 0 && i < desc->nvmd_nfields; i++) {
 		const nvm_field_t *f = &desc->nvmd_fields[i];
 		const char *name = f->nvmf_name;
-		void *arr;
-		nvm_kind_u *u;
-		uint_t nelem, *nelemp;
-		int ferr;
 
 		if (name == NULL) {
 			ASSERT0P(spill);
@@ -934,61 +1214,7 @@ nvm_unmarshal(nvlist_t *nv, const nvm_desc_t *desc, void *a)
 			continue;
 		}
 
-		if (f->nvmf_flags & NVMF_ARRAY_N) {
-			/*
-			 * For a fixed array, we have to fetch an array from
-			 * the nvlist to a temporary variable so we can check
-			 * its elements first.
-			 */
-			u = (nvm_kind_u *)&arr;
-			nelemp = &nelem;
-		} else {
-			/*
-			 * Set up pointers to the right place in the output
-			 * struct to store the nvlist data to.
-			 */
-			u = _NVM_FIELD(f, base);
-			nelemp = _NVM_FIELD_NELEM(f, base);
-		}
-
-		ferr = nvm_unmarshal_one(nv, f, u, nelemp);
-
-		if (f->nvmf_flags & NVMF_ARRAY_N) {
-			/*
-			 * For a fixed array, whatever we got from the nvlist
-			 * has to be checked and copied into place.
-			 */
-			if (ferr == 0 && *nelemp != f->nvmf_nelem_offset)
-				/* Array has wrong number of elements. */
-				ferr = ERANGE;
-
-			/*
-			 * If we got correct number of elements, copy them
-			 * to the output. If not, zero them.
-			 */
-			if (ferr == 0)
-				memcpy(_NVM_FIELD(f, base), arr,
-				    f->nvmf_elem_size * f->nvmf_nelem_offset);
-		}
-
-		if (ferr != 0) {
-			/*
-			 * Not found or other error, either set it to the
-			 * default or zero it.
-			 */
-			nvm_reset_one(f, base);
-		}
-
-		if (f->nvmf_flags & NVMF_OPTIONAL) {
-			/*
-			 * If it was optional, set the has_ flag accrodingly.
-			 * For ENOENT, clear the error, since that's valid.
-			 */
-			*(boolean_t *)(base + f->nvmf_has_offset) = (ferr == 0);
-			if (ferr == ENOENT)
-				ferr = 0;
-		}
-		err = ferr;
+		err = nvm_unmarshal_field(nv, f, base);
 
 		if (err == 0)
 			/* Note that we've processed this field. */
