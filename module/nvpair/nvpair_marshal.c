@@ -19,6 +19,46 @@
 #include <stddef.h>	/* for offsetof, typeof */
 #endif
 
+#define	_NVM_FIELD(f, base)		((void *)((base) + ((f)->nvmf_offset)))
+#define	_NVM_FIELD_HAS(f, base)		((boolean_t *)((base) + ((f)->nvmf_has_offset)))
+#define	_NVM_FIELD_NELEM(f, base)	((uint_t *)((base) + ((f)->nvmf_nelem_offset)))
+
+#define	_NVM_FIELD_BASE(f, base)	((uintptr_t)_NVM_FIELD((f), (base)))
+
+typedef union {
+	boolean_t	b;
+	uchar_t		byte;
+	int8_t		i8;
+	uint8_t		u8;
+	int16_t		i16;
+	uint16_t	u16;
+	int32_t		i32;
+	uint32_t	u32;
+	int64_t		i64;
+	uint64_t	u64;
+	const char	*str;
+	hrtime_t	hrtime;
+#ifndef _KERNEL
+	double		d;
+#endif
+	nvlist_t	*nvl;
+} nvm_scalar_u;
+
+typedef union {
+	boolean_t	*b;
+	uchar_t		*byte;
+	int8_t		*i8;
+	uint8_t		*u8;
+	int16_t		*i16;
+	uint16_t	*u16;
+	int32_t		*i32;
+	uint32_t	*u32;
+	int64_t		*i64;
+	uint64_t	*u64;
+	const char	**str;
+	nvlist_t	**nvl;
+} nvm_array_u;
+
 /*
  * Union of all possible types, to reduce the amount of casting and pointer
  * math we need to do.
@@ -342,7 +382,7 @@ nvm_marshal(nvlist_t *nv, const nvm_desc_t *desc, void *a)
 			 * elements, and we need a pointer to the first
 			 * element.
 			 */
-			arr = (void *)(base + f->nvmf_offset);
+			arr = _NVM_FIELD(f, base);
 			nelem = f->nvmf_nelem_offset;
 			u = (nvm_kind_u *)&arr;
 		} else {
@@ -350,8 +390,8 @@ nvm_marshal(nvlist_t *nv, const nvm_desc_t *desc, void *a)
 			 * Get a handle on the value data, and count of
 			 * elements for arrays.
 			 */
-			u = (nvm_kind_u *)(base + f->nvmf_offset);
-			nelem = *(uint_t *)(base + f->nvmf_nelem_offset);
+			u = _NVM_FIELD(f, base);
+			nelem = *_NVM_FIELD_NELEM(f, base);
 		}
 
 		/*
@@ -366,22 +406,18 @@ nvm_marshal(nvlist_t *nv, const nvm_desc_t *desc, void *a)
 	}
 
 	if (err == 0 && spill != NULL) {
-		nvm_kind_u *u = (nvm_kind_u *)(base + spill->nvmf_offset);
-		uint_t nelem = *(uint_t *)(base + spill->nvmf_nelem_offset);
+		nvm_kind_u *u = _NVM_FIELD(spill, base);
+		uint_t nelem = *_NVM_FIELD_NELEM(spill, base);
 		err = nvm_marshal_map(nv, spill->nvmf_kind, u, nelem);
 	}
 
 	return (err);
 }
 
-/*
- * Zero the data in the best way for the type. This is the default value for
- * an optional field that isn't present in the nvlist.
- */
-static inline void
-nvm_zero(nvm_kind_t kind, nvm_kind_u *u, uint_t *nelemp)
+static void
+nvm_zero_scalar(nvm_kind_t k, nvm_scalar_u *u)
 {
-	switch (kind) {
+	switch (k) {
 	case NVMK_FLAG:
 	case NVMK_BOOLEAN:
 		u->b = B_FALSE;
@@ -427,133 +463,51 @@ nvm_zero(nvm_kind_t kind, nvm_kind_u *u, uint_t *nelemp)
 	case NVMK_NVLIST:
 		u->nvl = NULL;
 		break;
-	case NVMK_STRUCT:
-		u->st = NULL;
-		break;
 
-	case NVMK_BOOLEAN_ARRAY:
-	case NVMK_BYTE_ARRAY:
-	case NVMK_INT8_ARRAY:
-	case NVMK_UINT8_ARRAY:
-	case NVMK_INT16_ARRAY:
-	case NVMK_UINT16_ARRAY:
-	case NVMK_INT32_ARRAY:
-	case NVMK_UINT32_ARRAY:
-	case NVMK_INT64_ARRAY:
-	case NVMK_UINT64_ARRAY:
-	case NVMK_STRING_ARRAY:
-	case NVMK_NVLIST_ARRAY:
-	case NVMK_STRUCT_ARRAY:
-		u->arr = NULL;
-		*nelemp = 0;
-		break;
+	default:
+		__builtin_unreachable();
 	}
 }
 
-/* Zero all array elements in the best way for the type. */
-static inline void
-nvm_zero_array_n(nvm_kind_t kind, nvm_kind_u *u, uint_t nelem)
+static void
+nvm_default_scalar(nvm_kind_t k, nvm_scalar_u *u, const uintptr_t def)
 {
-	for (uint_t i = 0; i < nelem; i++) {
-		switch (kind) {
-		case NVMK_BOOLEAN_ARRAY:
-			nvm_zero(NVMK_BOOLEAN,
-			    (nvm_kind_u *)&u->b_arr[i], NULL);
-			break;
-		case NVMK_BYTE_ARRAY:
-			nvm_zero(NVMK_BYTE,
-			    (nvm_kind_u *)&u->byte_arr[i], NULL);
-			break;
-		case NVMK_INT8_ARRAY:
-			nvm_zero(NVMK_INT8,
-			    (nvm_kind_u *)&u->i8_arr[i], NULL);
-			break;
-		case NVMK_UINT8_ARRAY:
-			nvm_zero(NVMK_UINT8,
-			    (nvm_kind_u *)&u->u8_arr[i], NULL);
-			break;
-		case NVMK_INT16_ARRAY:
-			nvm_zero(NVMK_INT16,
-			    (nvm_kind_u *)&u->i16_arr[i], NULL);
-			break;
-		case NVMK_UINT16_ARRAY:
-			nvm_zero(NVMK_UINT16,
-			    (nvm_kind_u *)&u->u16_arr[i], NULL);
-			break;
-		case NVMK_INT32_ARRAY:
-			nvm_zero(NVMK_INT32,
-			    (nvm_kind_u *)&u->i32_arr[i], NULL);
-			break;
-		case NVMK_UINT32_ARRAY:
-			nvm_zero(NVMK_UINT32,
-			    (nvm_kind_u *)&u->u32_arr[i], NULL);
-			break;
-		case NVMK_INT64_ARRAY:
-			nvm_zero(NVMK_INT64,
-			    (nvm_kind_u *)&u->i64_arr[i], NULL);
-			break;
-		case NVMK_UINT64_ARRAY:
-			nvm_zero(NVMK_UINT64,
-			    (nvm_kind_u *)&u->u64_arr[i], NULL);
-			break;
-		case NVMK_STRING_ARRAY:
-			nvm_zero(NVMK_STRING,
-			    (nvm_kind_u *)&u->str_arr[i], NULL);
-			break;
-		case NVMK_NVLIST_ARRAY:
-			nvm_zero(NVMK_NVLIST,
-			    (nvm_kind_u *)&u->nvl_arr[i], NULL);
-			break;
-		case NVMK_STRUCT_ARRAY:
-			nvm_zero(NVMK_STRUCT,
-			    (nvm_kind_u *)&u->st_arr[i], NULL);
-			break;
-		default:
-			__builtin_unreachable();
-		}
-	}
-}
-
-/* Set the data to the defined default value in the right way for the type. */
-static inline void
-nvm_default(nvm_kind_t kind, nvm_kind_u *u, intptr_t def)
-{
-	switch (kind) {
+	switch (k) {
 	case NVMK_BOOLEAN:
-		u->b = (uintptr_t)def;
+		u->b = def;
 		break;
 	case NVMK_BYTE:
-		u->byte = (uintptr_t)def;
+		u->byte = def;
 		break;
 	case NVMK_INT8:
-		u->i8 = def;
+		u->i8 = (intptr_t)def;
 		break;
 	case NVMK_UINT8:
-		u->u8 = (uintptr_t)def;
+		u->u8 = def;
 		break;
 	case NVMK_INT16:
-		u->i16 = def;
+		u->i16 = (intptr_t)def;
 		break;
 	case NVMK_UINT16:
-		u->u16 = (uintptr_t)def;
+		u->u16 = def;
 		break;
 	case NVMK_INT32:
-		u->i32 = def;
+		u->i32 = (intptr_t)def;
 		break;
 	case NVMK_UINT32:
-		u->u32 = (uintptr_t)def;
+		u->u32 = def;
 		break;
 	case NVMK_INT64:
-		u->i64 = def;
+		u->i64 = (intptr_t)def;
 		break;
 	case NVMK_UINT64:
-		u->u64 = (uintptr_t)def;
+		u->u64 = def;
 		break;
 	case NVMK_STRING:
-		u->str = (const char *)(uintptr_t)def;
+		u->str = (const char *)def;
 		break;
 	case NVMK_HRTIME:
-		u->hrtime = (uintptr_t)def;
+		u->hrtime = def;
 		break;
 #ifndef _KERNEL
 	case NVMK_DOUBLE:
@@ -561,57 +515,114 @@ nvm_default(nvm_kind_t kind, nvm_kind_u *u, intptr_t def)
 		break;
 #endif
 	case NVMK_NVLIST:
-		u->nvl = (nvlist_t *)(uintptr_t)def;
+		u->nvl = (nvlist_t *)def;
 		break;
 
-	case NVMK_FLAG:
-	case NVMK_STRUCT:
-	case NVMK_BOOLEAN_ARRAY:
-	case NVMK_BYTE_ARRAY:
-	case NVMK_INT8_ARRAY:
-	case NVMK_UINT8_ARRAY:
-	case NVMK_INT16_ARRAY:
-	case NVMK_UINT16_ARRAY:
-	case NVMK_INT32_ARRAY:
-	case NVMK_UINT32_ARRAY:
-	case NVMK_INT64_ARRAY:
-	case NVMK_UINT64_ARRAY:
-	case NVMK_STRING_ARRAY:
-	case NVMK_NVLIST_ARRAY:
-	case NVMK_STRUCT_ARRAY:
+	default:
 		__builtin_unreachable();
 	}
 }
 
 static void
-nvm_reset_one(const nvm_field_t *f, nvm_kind_u *u, uint_t *nelemp,
-    boolean_t *hasp)
+nvm_zero_array_fixed(nvm_kind_t k, void *arrbase, uint_t nelem)
 {
-	if (f->nvmf_flags & NVMF_OPTIONAL && hasp != NULL)
-		*hasp = B_FALSE;
+	nvm_array_u *u = (nvm_array_u *)&arrbase;
 
-	if (f->nvmf_flags & NVMF_ARRAY_N)
-		nvm_zero_array_n(f->nvmf_kind, (nvm_kind_u *)&u,
-		    f->nvmf_nelem_offset);
-	else if (f->nvmf_flags & NVMF_DEFAULT)
-		nvm_default(f->nvmf_kind, u, f->nvmf_default);
-	else
-		nvm_zero(f->nvmf_kind, u, nelemp);
-
-	if (f->nvmf_kind == NVMK_STRUCT) {
-		const nvm_desc_t *sdesc = f->nvmf_sub;
-		for (size_t i = 0; i < sdesc->nvmd_nfields; i++) {
-			const nvm_field_t *sf = &sdesc->nvmd_fields[i];
-			uintptr_t base = (uintptr_t)&u->st;
-			nvm_kind_u *su =
-			    (nvm_kind_u *)(base + sf->nvmf_offset);
-			uint_t *snelemp =
-			    (uint_t *)(base + sf->nvmf_nelem_offset);
-			boolean_t *shasp =
-			    (boolean_t *)(base + sf->nvmf_has_offset);
-			nvm_reset_one(sf, su, snelemp, shasp);
+	for (uint_t i = 0; i < nelem; i++) {
+		switch (k) {
+		case NVMK_BOOLEAN_ARRAY:
+			nvm_zero_scalar(NVMK_BOOLEAN,
+			    (nvm_scalar_u *)&u->b[i]);
+			break;
+		case NVMK_BYTE_ARRAY:
+			nvm_zero_scalar(NVMK_BYTE,
+			    (nvm_scalar_u *)&u->byte[i]);
+			break;
+		case NVMK_INT8_ARRAY:
+			nvm_zero_scalar(NVMK_INT8,
+			    (nvm_scalar_u *)&u->i8[i]);
+			break;
+		case NVMK_UINT8_ARRAY:
+			nvm_zero_scalar(NVMK_UINT8,
+			    (nvm_scalar_u *)&u->u8[i]);
+			break;
+		case NVMK_INT16_ARRAY:
+			nvm_zero_scalar(NVMK_INT16,
+			    (nvm_scalar_u *)&u->i16[i]);
+			break;
+		case NVMK_UINT16_ARRAY:
+			nvm_zero_scalar(NVMK_UINT16,
+			    (nvm_scalar_u *)&u->u16[i]);
+			break;
+		case NVMK_INT32_ARRAY:
+			nvm_zero_scalar(NVMK_INT32,
+			    (nvm_scalar_u *)&u->i32[i]);
+			break;
+		case NVMK_UINT32_ARRAY:
+			nvm_zero_scalar(NVMK_UINT32,
+			    (nvm_scalar_u *)&u->u32[i]);
+			break;
+		case NVMK_INT64_ARRAY:
+			nvm_zero_scalar(NVMK_INT64,
+			    (nvm_scalar_u *)&u->i64[i]);
+			break;
+		case NVMK_UINT64_ARRAY:
+			nvm_zero_scalar(NVMK_UINT64,
+			    (nvm_scalar_u *)&u->u64[i]);
+			break;
+		case NVMK_STRING_ARRAY:
+			nvm_zero_scalar(NVMK_STRING,
+			    (nvm_scalar_u *)&u->str[i]);
+			break;
+		case NVMK_NVLIST_ARRAY:
+			nvm_zero_scalar(NVMK_NVLIST,
+			    (nvm_scalar_u *)&u->nvl[i]);
+			break;
+		default:
+			__builtin_unreachable();
 		}
 	}
+}
+
+static void nvm_reset(const nvm_desc_t *desc, uintptr_t base);
+
+static void
+nvm_reset_one(const nvm_field_t *f, uintptr_t base)
+{
+	if (f->nvmf_flags & NVMF_OPTIONAL)
+		*_NVM_FIELD_HAS(f, base) = B_FALSE;
+
+	switch (f->nvmf_cshape) {
+	case NVMC_SCALAR:
+		if (f->nvmf_flags & NVMF_DEFAULT)
+			nvm_default_scalar(f->nvmf_kind, _NVM_FIELD(f, base),
+			    f->nvmf_default);
+		else
+			nvm_zero_scalar(f->nvmf_kind, _NVM_FIELD(f, base));
+		break;
+
+	case NVMC_ARRAY_DYNAMIC:
+		/* Works for NVM_ARRAY, NVM_MAP, NVM_SET, and NVM_STRUCT_ARRAY! */
+		*(void **)_NVM_FIELD(f, base) = NULL;
+		*_NVM_FIELD_NELEM(f, base) = 0;
+		break;
+
+	case NVMC_ARRAY_FIXED:
+		nvm_zero_array_fixed(f->nvmf_kind,
+		    _NVM_FIELD(f, base), f->nvmf_nelem_offset);
+		break;
+
+	case NVMC_EMBEDDED:
+		nvm_reset(f->nvmf_sub, _NVM_FIELD_BASE(f, base));
+		break;
+	}
+}
+
+static void
+nvm_reset(const nvm_desc_t *desc, uintptr_t base)
+{
+	for (size_t i = 0; i < desc->nvmd_nfields; i++)
+		nvm_reset_one(&desc->nvmd_fields[i], base);
 }
 
 /* Standard nvlist types are loaded directly into the struct from the nvpair. */
@@ -936,8 +947,8 @@ nvm_unmarshal(nvlist_t *nv, const nvm_desc_t *desc, void *a)
 			 * Set up pointers to the right place in the output
 			 * struct to store the nvlist data to.
 			 */
-			u = (nvm_kind_u *)(base + f->nvmf_offset);
-			nelemp = (uint_t *)(base + f->nvmf_nelem_offset);
+			u = _NVM_FIELD(f, base);
+			nelemp = _NVM_FIELD_NELEM(f, base);
 		}
 
 		ferr = nvm_unmarshal_one(nv, f, u, nelemp);
@@ -951,25 +962,21 @@ nvm_unmarshal(nvlist_t *nv, const nvm_desc_t *desc, void *a)
 				/* Array has wrong number of elements. */
 				ferr = ERANGE;
 
-			/* Actual position of output array. */
-			void *out = (void *)(base + f->nvmf_offset);
-
 			/*
 			 * If we got correct number of elements, copy them
 			 * to the output. If not, zero them.
 			 */
 			if (ferr == 0)
-				memcpy(out, arr,
+				memcpy(_NVM_FIELD(f, base), arr,
 				    f->nvmf_elem_size * f->nvmf_nelem_offset);
-			else
-				nvm_zero_array_n(f->nvmf_kind,
-				    (nvm_kind_u *)&out, f->nvmf_nelem_offset);
-		} else if (ferr != 0) {
+		}
+
+		if (ferr != 0) {
 			/*
 			 * Not found or other error, either set it to the
 			 * default or zero it.
 			 */
-			nvm_reset_one(f, u, nelemp, NULL);
+			nvm_reset_one(f, base);
 		}
 
 		if (f->nvmf_flags & NVMF_OPTIONAL) {
@@ -1024,14 +1031,7 @@ nvm_unmarshal(nvlist_t *nv, const nvm_desc_t *desc, void *a)
 		return (0);
 
 	/* We're about to return error, zero/default all fields. */
-	for (size_t i = 0; i < desc->nvmd_nfields; i++) {
-		const nvm_field_t *f = &desc->nvmd_fields[i];
-		nvm_kind_u *u = (nvm_kind_u *)(base + f->nvmf_offset);
-		uint_t *nelemp = (uint_t *)(base + f->nvmf_nelem_offset);
-
-		nvm_reset_one(f, u, nelemp,
-		    (boolean_t *)(base + f->nvmf_has_offset));
-	}
+	nvm_reset(desc, base);
 
 	return (err);
 }
