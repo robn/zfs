@@ -280,6 +280,36 @@ zfsdev_detach(void)
 
 zidmap_t *zfs_init_idmap;
 
+#if 0
+static int
+zalgo_module_notify(struct notifier_block *self, unsigned long val, void *data)
+{
+	struct module *mod = data;
+	int ret = 0;
+
+	if (val == MODULE_STATE_LIVE) {
+		printk(KERN_NOTICE "ZFS: module online: %s\n", mod->name);
+
+		printk(KERN_NOTICE "ZFS: %s: %d syms, strtab %s typetab %s\n",
+		    mod->name, mod->core_kallsyms->num_symtab,
+		    mod->core_kallsyms->strtab,
+		    mod->core_kallsyms->typetab);
+
+		for (int i = 0; i < mod->core_kallsyms->num_symtab; i++) {
+			Elf_Sym *sym = &mod->core_kallsyms->symtab[i];
+			//printk(KERN_NOTICE "ZFS: %s: %s ...
+		printl
+		    mod->core_kallsyms
+	}
+
+	return (notifier_from_errno(ret));
+}
+
+static struct notifier_block zalgo_module_nb = {
+	.notifier_call = zalgo_module_notify,
+};
+#endif
+
 static int
 openzfs_init_os(void)
 {
@@ -310,6 +340,12 @@ openzfs_init_os(void)
 #endif /* CONFIG_FS_POSIX_ACL */
 
 	zfs_init_idmap = (zidmap_t *)zfs_get_init_idmap();
+
+#if 0
+	int ret = register_module_notifier(&zalgo_module_nb);
+	if (ret)
+		pr_warn("Failed to register zalgo module notifier\n");
+#endif
 
 	return (0);
 }
