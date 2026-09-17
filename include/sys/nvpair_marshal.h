@@ -369,20 +369,22 @@ typedef enum {
 	NVMK_UINT64_ARRAY,
 	NVMK_STRING_ARRAY,
 	NVMK_NVLIST_ARRAY,
-
-	/* NVM_STRUCT */
-	NVMK_STRUCT,
-
-	/* NVM_STRUCT_ARRAY */
-	NVMK_STRUCT_ARRAY,
 } nvm_kind_t;
 
 typedef enum {
 	NVMC_SCALAR,		/* direct value (uint64_t, const char *) */
-	NVMC_ARRAY_DYNAMIC,	/* ptr + count (uint64_t*, nvm_pair_t*, T*) */
-	NVMC_ARRAY_FIXED,	/* inline array (uint64_t[N]) */
+	NVMC_DYN_ARRAY,		/* ptr + count (uint64_t*, nvm_pair_t*, T*) */
+	NVMC_FIXED_ARRAY,	/* inline array (uint64_t[N]) */
 	NVMC_EMBEDDED,		/* inline struct (T) */
 } nvm_cshape_t;
+
+typedef enum {
+	NVMA_DIRECT,
+	NVMA_FIXED_ARRAY,
+	NVMA_MAP,
+	NVMA_STRUCT,
+	NVMA_STRUCT_ARRAY,
+} nvm_adapter_t;
 
 /* Field flags. Modifies processing in various ways. */
 
@@ -407,7 +409,9 @@ typedef struct nvm_field {
 	/* Pair name, kind and flags, see above. */
 	const char	*nvmf_name;
 	nvm_kind_t	nvmf_kind;
+
 	nvm_cshape_t	nvmf_cshape;
+	nvm_adapter_t	nvmf_adapter;
 	uint32_t	nvmf_flags;
 
 	/* Offsets to fields in the generated struct. */
@@ -424,6 +428,7 @@ typedef struct nvm_field {
 	 * For NVM_MAP/NVM_SET, size of the pair type so we can allocate
 	 * the array.
 	 */
+	nvm_kind_t	nvmf_elem_kind;
 	size_t		nvmf_elem_size;
 	const nvm_desc_t *nvmf_sub;
 
@@ -603,19 +608,21 @@ typedef struct { const char *name; nvlist_t *value; }   _NVM_PTYPE_NVLIST;
  */
 #define	_NVM_SHAPE_NVM_FLAG	FLAG
 #define	_NVM_CSHAPE_NVM_FLAG	NVMC_SCALAR
+#define	_NVM_ADAPTER_NVM_FLAG	NVMA_DIRECT
 
 #define	_NVM_MEMBER_FLAG(name, kind, field, ...) \
 	_NVM_CTYPE_BOOLEAN field;
 
 #define	_NVM_DESC_FLAG(T, name, kind, field, ...) \
-	{ _NVM_NAME_NOSPILL(name), _NVM_KIND_FLAG, _NVM_CSHAPE_##kind, \
-	    B_FALSE, offsetof(T, field), 0, 0, 0, NULL, 0 },
+	{ _NVM_NAME_NOSPILL(name), _NVM_KIND_FLAG, _NVM_CSHAPE_##kind, _NVM_ADAPTER_##kind, \
+	    B_FALSE, offsetof(T, field), 0, 0, 0, 0, NULL, 0 },
 
 /*
  * NVM_SCALAR(K). Constructed directly out of the scalar type mappings above.
  */
 #define	_NVM_SHAPE_NVM_SCALAR(K)	SCALAR
 #define	_NVM_CSHAPE_NVM_SCALAR(K)	NVMC_SCALAR
+#define	_NVM_ADAPTER_NVM_SCALAR(K)	NVMA_DIRECT
 
 /* Map from schema kind to scalar type mappings. */
 #define	_NVM_CTYPE_NVM_SCALAR(K)	_NVM_CTYPE_##K
@@ -626,9 +633,9 @@ typedef struct { const char *name; nvlist_t *value; }   _NVM_PTYPE_NVLIST;
 	_NVM_HAS_FLAG(field, req)
 
 #define	_NVM_DESC_SCALAR(T, name, kind, field, req, def) \
-	{ _NVM_NAME_NOSPILL(name), _NVM_KIND_##kind, _NVM_CSHAPE_##kind, \
+	{ _NVM_NAME_NOSPILL(name), _NVM_KIND_##kind, _NVM_CSHAPE_##kind, _NVM_ADAPTER_##kind, \
 	    _NVM_REQ_FLAG(req) | _NVM_DEF_FLAG(def), \
-	    offsetof(T, field), 0, _NVM_HAS_OFFSET(T, field, req), 0, NULL, \
+	    offsetof(T, field), 0, _NVM_HAS_OFFSET(T, field, req), 0, 0, NULL, \
 	    _NVM_DEF_VALUE(def) },
 
 #define	_NVM_SPILL_SCALAR(name, kind)	0
@@ -637,7 +644,8 @@ typedef struct { const char *name; nvlist_t *value; }   _NVM_PTYPE_NVLIST;
  * NVM_ARRAY(K). Like NVM_SCALAR, but uses the array types.
  */
 #define	_NVM_SHAPE_NVM_ARRAY(K)		ARRAY
-#define	_NVM_CSHAPE_NVM_ARRAY(K)	NVMC_ARRAY_DYNAMIC
+#define	_NVM_CSHAPE_NVM_ARRAY(K)	NVMC_DYN_ARRAY
+#define	_NVM_ADAPTER_NVM_ARRAY(K)	NVMA_DIRECT
 
 /*
  * If an override is listed for the array version of a type, use it. We don't
@@ -656,17 +664,18 @@ typedef struct { const char *name; nvlist_t *value; }   _NVM_PTYPE_NVLIST;
 	_NVM_HAS_FLAG(field, req)
 
 #define	_NVM_DESC_ARRAY(T, name, kind, field, req, def) \
-	{ _NVM_NAME_NOSPILL(name), _NVM_KIND_##kind, _NVM_CSHAPE_##kind, \
+	{ _NVM_NAME_NOSPILL(name), _NVM_KIND_##kind, _NVM_CSHAPE_##kind, _NVM_ADAPTER_##kind, \
 	    _NVM_REQ_FLAG(req), \
 	    offsetof(T, field), offsetof(T, nelem_##field), \
-	    _NVM_HAS_OFFSET(T, field, req), 0, NULL, \
+	    _NVM_HAS_OFFSET(T, field, req), 0, 0, NULL, \
 	    _NVM_DEF_INVALID(def) },
 
 /*
  * NVM_ARRAY_N(K, N). Like NVM_ARRAY, but enforces fixed-size array.
  */
 #define	_NVM_SHAPE_NVM_ARRAY_N(K, N)	ARRAY_N
-#define	_NVM_CSHAPE_NVM_ARRAY_N(K, N)	NVMC_ARRAY_FIXED
+#define	_NVM_CSHAPE_NVM_ARRAY_N(K, N)	NVMC_FIXED_ARRAY
+#define	_NVM_ADAPTER_NVM_ARRAY_N(K, N)	NVMA_FIXED_ARRAY
 
 /* Follow NVM_ARRAY(K) on types. */
 #define	_NVM_CTYPE_NVM_ARRAY_N(K, N)	_NVM_CTYPE_NVM_ARRAY(K)
@@ -682,10 +691,10 @@ typedef struct { const char *name; nvlist_t *value; }   _NVM_PTYPE_NVLIST;
 
 /* Like NVM_ARRAY, but adding NVMF_ARRAY_N flag and the element count. */
 #define	_NVM_DESC_ARRAY_N(T, name, kind, field, req, def) \
-	{ _NVM_NAME_NOSPILL(name), _NVM_KIND_##kind, _NVM_CSHAPE_##kind, \
+	{ _NVM_NAME_NOSPILL(name), _NVM_KIND_##kind, _NVM_CSHAPE_##kind, _NVM_ADAPTER_##kind, \
 	    _NVM_REQ_FLAG(req)|NVMF_ARRAY_N, \
 	    offsetof(T, field), _NVM_NELEMS_##kind, \
-	    _NVM_HAS_OFFSET(T, field, req), sizeof (_NVM_CTYPE_##kind), NULL, \
+	    _NVM_HAS_OFFSET(T, field, req), 0, sizeof (_NVM_CTYPE_##kind), NULL, \
 	    _NVM_DEF_INVALID(def) },
 
 /*
@@ -693,7 +702,9 @@ typedef struct { const char *name; nvlist_t *value; }   _NVM_PTYPE_NVLIST;
  * C type is nvm_pair_*_t.
  */
 #define	_NVM_SHAPE_NVM_MAP(K)		MAP
-#define	_NVM_CSHAPE_NVM_MAP(K)		NVMC_ARRAY_DYNAMIC
+
+#define	_NVM_CSHAPE_NVM_MAP(K)		NVMC_DYN_ARRAY
+#define	_NVM_ADAPTER_NVM_MAP(K)		NVMA_MAP
 
 /* The C type is an nvm_pair_*_t type, see "Pair types" above. */
 #define	_NVM_CTYPE_NVM_MAP(K)		_NVM_PTYPE_##K
@@ -702,7 +713,8 @@ typedef struct { const char *name; nvlist_t *value; }   _NVM_PTYPE_NVLIST;
  * The actual marshaling type is a scalar kind; applied to the value of every
  * pair in the nvlist.
  */
-#define	_NVM_KIND_NVM_MAP(K)		_NVM_KIND_##K
+#define	_NVM_KIND_NVM_MAP(K)		_NVM_KIND_NVLIST
+#define	_NVM_ELEM_KIND_NVM_MAP(K)	_NVM_KIND_##K
 
 /* Field follows NVM_ARRAY. */
 #define	_NVM_MEMBER_MAP(name, kind, field, req, def) \
@@ -715,23 +727,26 @@ typedef struct { const char *name; nvlist_t *value; }   _NVM_PTYPE_NVLIST;
  * indicate a spill field.
  */
 #define	_NVM_DESC_MAP(T, name, kind, field, req, def) \
-	{ name, _NVM_KIND_##kind, _NVM_CSHAPE_##kind, \
+	{ name, _NVM_KIND_##kind, _NVM_CSHAPE_##kind, _NVM_ADAPTER_##kind, \
 	    _NVM_REQ_FLAG(req)|NVMF_MAP, \
 	    offsetof(T, field), offsetof(T, nelem_##field), \
-	    _NVM_HAS_OFFSET(T, field, req), sizeof (_NVM_CTYPE_##kind), \
+	    _NVM_HAS_OFFSET(T, field, req), _NVM_ELEM_KIND_##kind, sizeof (_NVM_CTYPE_##kind), \
 	    NULL, _NVM_DEF_INVALID(def) },
 
 /*
  * NVM_SET. Like NVM_MAP, but only the string keys.
  */
 #define	_NVM_SHAPE_NVM_SET		SET
-#define	_NVM_CSHAPE_NVM_SET		NVMC_ARRAY_DYNAMIC
+
+#define	_NVM_CSHAPE_NVM_SET		NVMC_DYN_ARRAY
+#define	_NVM_ADAPTER_NVM_SET		NVMA_MAP
 
 /* C type is just a string; we're making a string array. */
 #define	_NVM_CTYPE_NVM_SET		_NVM_CTYPE_STRING
 
 /* Marshaling type is just a flag, ie, a DATA_TYPE_BOOLEAN pair. */
-#define	_NVM_KIND_NVM_SET		_NVM_KIND_FLAG
+#define	_NVM_KIND_NVM_SET		_NVM_KIND_NVLIST
+#define	_NVM_ELEM_KIND_NVM_SET		_NVM_KIND_FLAG
 
 /* Field and desc follow NVM_MAP. */
 #define	_NVM_MEMBER_SET(name, kind, field, req, def) \
@@ -746,6 +761,9 @@ typedef struct { const char *name; nvlist_t *value; }   _NVM_PTYPE_NVLIST;
  */
 #define	_NVM_SHAPE_NVM_STRUCT(T)	STRUCT
 #define	_NVM_CSHAPE_NVM_STRUCT(T)	NVMC_EMBEDDED
+#define	_NVM_ADAPTER_NVM_STRUCT(T)	NVMA_STRUCT
+
+#define _NVM_KIND_NVM_STRUCT(T)		NVMK_NVLIST
 
 #define	_NVM_CTYPE_NVM_STRUCT(T)	T
 
@@ -753,10 +771,10 @@ typedef struct { const char *name; nvlist_t *value; }   _NVM_PTYPE_NVLIST;
 	_NVM_MEMBER_SCALAR(name, kind, field, req, def)
 
 #define	_NVM_DESC_STRUCT(T, name, kind, field, req, def) \
-	{ _NVM_NAME_NOSPILL(name), NVMK_STRUCT, _NVM_CSHAPE_##kind, \
+	{ _NVM_NAME_NOSPILL(name), _NVM_KIND_##kind, _NVM_CSHAPE_##kind, _NVM_ADAPTER_##kind, \
 	    _NVM_REQ_FLAG(req), \
 	    offsetof(T, field), 0, _NVM_HAS_OFFSET(T, field, req), \
-	    sizeof (_NVM_CTYPE_##kind), \
+	    0, sizeof (_NVM_CTYPE_##kind), \
 	    &_NVM_CONCAT(_NVM_CONCAT(_nvm__, _NVM_CTYPE_##kind), __desc), \
 	    _NVM_DEF_INVALID(def) },
 
@@ -764,8 +782,12 @@ typedef struct { const char *name; nvlist_t *value; }   _NVM_PTYPE_NVLIST;
  * NVM_STRUCT_ARRAY(T). Same as NVM_STRUCT(T), but following NVM_ARRAY instead
  * of NVM_SCALAR.
  */
-#define	_NVM_SHAPE_NVM_STRUCT_ARRAY(T)	STRUCT_ARRAY
-#define	_NVM_CSHAPE_NVM_STRUCT_ARRAY(T)	NVMC_ARRAY_DYNAMIC
+#define	_NVM_SHAPE_NVM_STRUCT_ARRAY(T)		STRUCT_ARRAY
+
+#define	_NVM_CSHAPE_NVM_STRUCT_ARRAY(T)		NVMC_DYN_ARRAY
+#define	_NVM_ADAPTER_NVM_STRUCT_ARRAY(T)	NVMA_STRUCT_ARRAY
+
+#define _NVM_KIND_NVM_STRUCT_ARRAY(T)		NVMK_NVLIST_ARRAY
 
 #define	_NVM_CTYPE_NVM_STRUCT_ARRAY(T)	T
 
@@ -773,11 +795,11 @@ typedef struct { const char *name; nvlist_t *value; }   _NVM_PTYPE_NVLIST;
 	_NVM_MEMBER_ARRAY(name, kind, field, req, def)
 
 #define	_NVM_DESC_STRUCT_ARRAY(T, name, kind, field, req, def) \
-	{ _NVM_NAME_NOSPILL(name), NVMK_STRUCT_ARRAY, _NVM_CSHAPE_##kind, \
+	{ _NVM_NAME_NOSPILL(name), _NVM_KIND_##kind, _NVM_CSHAPE_##kind, _NVM_ADAPTER_##kind, \
 	    _NVM_REQ_FLAG(req), \
 	    offsetof(T, field), offsetof(T, nelem_##field), \
 	    _NVM_HAS_OFFSET(T, field, req), \
-	    sizeof (_NVM_CTYPE_##kind), \
+	    0, sizeof (_NVM_CTYPE_##kind), \
 	    &_NVM_CONCAT(_NVM_CONCAT(_nvm__, _NVM_CTYPE_##kind), __desc), \
 	    _NVM_DEF_INVALID(def) },
 
