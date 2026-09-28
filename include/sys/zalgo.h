@@ -27,8 +27,13 @@ typedef struct {							\
 	const char			*zh_id;				\
 	const char			*zh_desc;			\
 } zalgo_##ty##_hold_t;							\
+									\
+typedef int (*zalgo_##ty##_register_fn_t)(zalgo_##ty##_subtype_t subtype, \
+    const char *id, const char *desc, const zalgo_##ty##_ops_t *ops);	\
+									\
 int zalgo_##ty##_register(zalgo_##ty##_subtype_t subtype, const char *id, \
     const char *desc, const zalgo_##ty##_ops_t *ops);			\
+									\
 zalgo_##ty##_hold_t *zalgo_##ty##_hold(zalgo_##ty##_subtype_t subtype);	\
 void zalgo_##ty##_rele(zalgo_##ty##_hold_t *hold);			\
 int zalgo_##ty##_select(zalgo_##ty##_subtype_t subtype, const char *id); \
