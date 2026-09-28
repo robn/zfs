@@ -54,6 +54,7 @@ libspl_sys_HEADERS = \
 	%D%/sys/processor.h \
 	%D%/sys/procfs_list.h \
 	%D%/sys/random.h \
+	%D%/sys/registry.h \
 	%D%/sys/rwlock.h \
 	%D%/sys/sid.h \
 	%D%/sys/simd.h \

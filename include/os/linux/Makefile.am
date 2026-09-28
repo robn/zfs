@@ -89,6 +89,7 @@ kernel_spl_sys_HEADERS = \
 	%D%/spl/sys/processor.h \
 	%D%/spl/sys/procfs_list.h \
 	%D%/spl/sys/random.h \
+	%D%/spl/sys/registry.h \
 	%D%/spl/sys/rwlock.h \
 	%D%/spl/sys/shrinker.h \
 	%D%/spl/sys/sid.h \
