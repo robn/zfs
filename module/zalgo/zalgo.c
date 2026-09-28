@@ -16,6 +16,7 @@
 
 #include <sys/zalgo.h>
 #include <sys/avl.h>
+#include <sys/registry.h>
 
 typedef enum {
 	ZG_DUMMY = 0,	/* dummy type, for test */
@@ -274,12 +275,24 @@ zalgo_init(void)
 	}
 	mutex_init(&zg_registry_lock, NULL, MUTEX_DEFAULT, NULL);
 
+	spl_registry_register("zalgo_mac_register", zalgo_mac_register);
+	spl_registry_register("zalgo_digest_register", zalgo_digest_register);
+	spl_registry_register("zalgo_checksum_register",
+	    zalgo_checksum_register);
+	spl_registry_register("zalgo_cipher_register", zalgo_cipher_register);
+
 	zalgo_kstat_init();
 }
 
 void
 zalgo_fini(void)
 {
+	spl_registry_deregister("zalgo_cipher_register", zalgo_cipher_register);
+	spl_registry_deregister("zalgo_checksum_register",
+	    zalgo_checksum_register);
+	spl_registry_deregister("zalgo_digest_register", zalgo_digest_register);
+	spl_registry_deregister("zalgo_mac_register", zalgo_mac_register);
+
 	zalgo_kstat_fini();
 
 	for (zalgo_type_t type = 0; type < ZG_TYPE_MAX; type++) {
