@@ -1,6 +1,7 @@
 # HAIKU PORTING NOTES:
 # - not building clonefile, dosmode_readonly_write
 # - explicitly link libspl_assert for assert()
+# - -lbsd to get err()
 
 # SPDX-License-Identifier: CDDL-1.0
 scripts_zfs_tests_bindir = $(datadir)/$(PACKAGE)/zfs-tests/bin
@@ -95,6 +96,10 @@ scripts_zfs_tests_bin_PROGRAMS += \
 	%D%/mmap_exec %D%/mmap_ftruncate %D%/mmap_seek \
 	%D%/mmap_sync %D%/mmapwrite %D%/readmmap %D%/mmap_write_sync \
 	%D%/mmap_read_truncate %D%/mmap_eof_extend
+
+if BUILD_HAIKU
+%C%_mmapwrite_LDADD = -lbsd
+endif
 
 if WANT_MMAP_LIBAIO
 scripts_zfs_tests_bin_PROGRAMS += %D%/mmap_libaio
