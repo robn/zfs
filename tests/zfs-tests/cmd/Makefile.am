@@ -2,6 +2,7 @@
 # - not building clonefile, dosmode_readonly_write
 # - explicitly link libspl_assert for assert()
 # - -lbsd to get err()
+# - no -lrt
 
 # SPDX-License-Identifier: CDDL-1.0
 scripts_zfs_tests_bindir = $(datadir)/$(PACKAGE)/zfs-tests/bin
@@ -132,7 +133,9 @@ scripts_zfs_tests_bin_PROGRAMS += %D%/send_doall
 	libnvpair.la
 
 scripts_zfs_tests_bin_PROGRAMS += %D%/stride_dd
+if !BUILD_HAIKU
 %C%_stride_dd_LDADD = -lrt
+endif
 
 scripts_zfs_tests_bin_PROGRAMS += %D%/threadsappend
 
