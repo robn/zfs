@@ -121,6 +121,8 @@ map_writer(void *filename)
 			err(1, "unmap file failed");
 		}
 	}
+
+	__builtin_unreachable();
 }
 
 int
