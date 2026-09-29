@@ -92,9 +92,11 @@ get_zvol_dataset(const char *inpath, char *ds)
 #if defined(__FreeBSD__)
 	if (ioctl(fd, DIOCGPHYSPATH, ds) == 0)
 		rc = B_TRUE;
-#else
+#elif defined(__linux__)
 	if (ioctl(fd, BLKZNAME, ds) == 0)
 		rc = B_TRUE;
+#else
+	(void) ds;
 #endif
 	close(fd);
 
