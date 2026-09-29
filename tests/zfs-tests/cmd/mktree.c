@@ -152,7 +152,7 @@ crtfile(char *pname)
 	}
 
 	size = sizeof (char) * 1024;
-	pbuf = (char *)valloc(size);
+	pbuf = (char *)aligned_alloc(sysconf(_SC_PAGESIZE), size);
 	for (i = 0; i < size / strlen(context); i++) {
 		int offset = i * strlen(context);
 		(void) snprintf(pbuf+offset, size-offset, "%s", context);
