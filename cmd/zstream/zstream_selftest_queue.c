@@ -1,3 +1,7 @@
+/*
+ * HAIKU PORTING NOTES:
+ * - including sys/sysmacros.h for MIN
+ */
 // SPDX-License-Identifier: CDDL-1.0
 /*
  * This file and its contents are supplied under the terms of the
@@ -63,6 +67,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/param.h>
+#include <sys/sysmacros.h>
 #include <unistd.h>
 
 #include "zstream_queue.h"
