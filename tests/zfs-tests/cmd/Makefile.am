@@ -1,17 +1,26 @@
 # HAIKU PORTING NOTES:
 # - not building clonefile, dosmode_readonly_write
+# - explicitly link libspl_assert for assert()
 
 # SPDX-License-Identifier: CDDL-1.0
 scripts_zfs_tests_bindir = $(datadir)/$(PACKAGE)/zfs-tests/bin
 
 
 scripts_zfs_tests_bin_PROGRAMS  = %D%/chg_usr_exec
+
 scripts_zfs_tests_bin_PROGRAMS += %D%/clone_mmap_cached
+%C%_clone_mmap_cached_LDADD = \
+	libspl_assert.la
+
 scripts_zfs_tests_bin_PROGRAMS += %D%/clone_mmap_write
 scripts_zfs_tests_bin_PROGRAMS += %D%/cp_files
 scripts_zfs_tests_bin_PROGRAMS += %D%/ctime
 scripts_zfs_tests_bin_PROGRAMS += %D%/dir_rd_update
+
 scripts_zfs_tests_bin_PROGRAMS += %D%/get_diff
+%C%_get_diff_LDADD = \
+	libspl_assert.la
+
 scripts_zfs_tests_bin_PROGRAMS += %D%/rename_dir
 scripts_zfs_tests_bin_PROGRAMS += %D%/suid_write_to_file
 scripts_zfs_tests_bin_PROGRAMS += %D%/truncate_test
@@ -77,6 +86,8 @@ scripts_zfs_tests_bin_PROGRAMS += %D%/libzfs_mnttab_cache_check
 	libzfs.la
 
 scripts_zfs_tests_bin_PROGRAMS += %D%/manipulate_user_buffer
+%C%_manipulate_user_buffer_LDADD = \
+	libspl_assert.la
 
 scripts_zfs_tests_bin_PROGRAMS += %D%/mkbusy %D%/mkfile %D%/mkfiles %D%/mktree
 
