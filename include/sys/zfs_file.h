@@ -27,7 +27,7 @@
  * loff_t name still compile. The FreeBSD kernel gets loff_t from its
  * own linux-compat headers.
  */
-#if !defined(_KERNEL) && (defined(__FreeBSD__) || defined(__HAIKU__))
+#if (!defined(_KERNEL) && defined(__FreeBSD__) || defined(__HAIKU__))
 typedef off_t loff_t;
 #endif
 
