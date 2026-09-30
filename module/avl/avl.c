@@ -1,3 +1,7 @@
+/*
+ * HAIKU PORTING NOTES:
+ * - include sys/string.h to ensure memcpy
+ */
 // SPDX-License-Identifier: CDDL-1.0
 /*
  * This file and its contents are supplied under the terms of the
@@ -98,10 +102,7 @@
 #include <sys/avl.h>
 #include <sys/cmn_err.h>
 #include <sys/mod.h>
-
-#ifndef _KERNEL
-#include <string.h>
-#endif
+#include <sys/string.h>
 
 /*
  * Walk from one node to the previous valued node (ie. an infix walk
