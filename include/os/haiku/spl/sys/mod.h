@@ -3,4 +3,8 @@
 
 #define	EXPORT_SYMBOL(sym)
 
+typedef void zfs_kernel_param_t;
+
+#define	ZFS_MODULE_VIRTUAL_PARAM_CALL(...)
+
 #endif

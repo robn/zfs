@@ -281,6 +281,14 @@ extern unsigned char bcd_to_byte[256];
 #define	highbit64(x)		flsll(x)
 #define	lowbit64(x)		ffsll(x)
 
+#define	max_ncpus		smp_get_num_cpus()
+
+#ifdef __HAIKU__
+/* XXX wherever the compiler shit ends up */
+#define		__init
+#define		__exit
+#endif
+
 #ifdef	__cplusplus
 }
 #endif

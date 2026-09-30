@@ -53,14 +53,13 @@
 #ifndef _SPL_DEBUG_H
 #define	_SPL_DEBUG_H
 
+#define _ASSEMBLER
+#include <arch/cpu.h>
+#undef _ASSEMBLER
 
 /*
  * Common DEBUG functionality.
  */
-#ifdef __FreeBSD__
-#include <linux/compiler.h>
-#endif
-
 #ifndef __printflike
 #define	__printflike(a, b)	__printf(a, b)
 #endif
@@ -84,6 +83,12 @@
 #ifndef	unlikely
 #define	unlikely(x) __builtin_expect((x), 0)
 #endif
+
+#ifndef ____cacheline_aligned
+#define	____cacheline_aligned	CACHE_LINE_ALIGN
+#endif
+
+#define	zfs_fallthrough			__attribute__((__fallthrough__))
 
 /*
  * Without this, we see warnings from objtool during normal Linux builds when

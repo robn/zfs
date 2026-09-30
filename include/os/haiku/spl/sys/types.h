@@ -18,4 +18,6 @@ typedef long long               longlong_t;
 
 typedef off_t			offset_t;
 
+typedef struct timespec inode_timespec_t;
+
 #endif
