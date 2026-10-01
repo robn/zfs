@@ -1,3 +1,7 @@
+/*
+ * HAIKU PORTING NOTES:
+ * - gate modparam junk on __HAIKU__
+ */
 // SPDX-License-Identifier: CDDL-1.0
 /*
  * This file and its contents are supplied under the terms of the
@@ -1695,7 +1699,7 @@ gcm_init_avx(gcm_ctx_t *ctx, const uint8_t *iv, size_t iv_len,
 	return (CRYPTO_SUCCESS);
 }
 
-#if defined(_KERNEL)
+#if defined(_KERNEL) && !defined(__HAIKU__)
 static int
 icp_gcm_avx_set_chunk_size(const char *buf, zfs_kernel_param_t *kp)
 {
