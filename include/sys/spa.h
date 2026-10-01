@@ -37,6 +37,7 @@
 #include <sys/dmu.h>
 #include <sys/space_map.h>
 #include <sys/bitops.h>
+#include <sys/rwlock.h>
 
 #ifdef	__cplusplus
 extern "C" {
