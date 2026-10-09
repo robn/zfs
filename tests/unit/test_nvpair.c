@@ -96,6 +96,9 @@ static const char nvl_unique_str_val[] = "two thousand and forty-eight";
 /* a key that doesn't exist in the test data */
 static const char nvl_nonexistent_key[] = "guy_fleegman";
 
+/* a big list of random keys, for stress testing */
+static char nvl_rand_keys[4096][32];
+
 static nvlist_t *
 nvl_create_simple_type(uint_t type)
 {
@@ -1723,6 +1726,104 @@ test_nv_fnvpair_value(const MunitParameter params[], void *data)
 
 /* ========== */
 
+/*
+ * These tests add many thousands of pairs to an nvlist (each in a different
+ * uniqueness mode). They're not expected to fail, but are good for profiling
+ * hashtable management functions (run with --iterations 1000).
+ */
+
+static MunitResult
+test_nv_add_many(const MunitParameter params[], void *data)
+{
+	(void) params; (void) data;
+
+	nvlist_t *nvl = nvl_create_type(0);
+
+	for (uint_t i = 0; i < ARRAY_SIZE(nvl_rand_keys); i++)
+		unit_ok(nvlist_add_boolean(nvl, nvl_rand_keys[i]));
+
+	nvlist_free(nvl);
+	return (MUNIT_OK);
+}
+
+static MunitResult
+test_nv_add_many_unique(const MunitParameter params[], void *data)
+{
+	(void) params; (void) data;
+
+	nvlist_t *nvl = nvl_create_type(NV_UNIQUE_NAME);
+
+	for (uint_t i = 0; i < ARRAY_SIZE(nvl_rand_keys); i++)
+		unit_ok(nvlist_add_boolean(nvl, nvl_rand_keys[i]));
+
+	nvlist_free(nvl);
+	return (MUNIT_OK);
+}
+
+static MunitResult
+test_nv_add_many_unique_type(const MunitParameter params[], void *data)
+{
+	(void) params; (void) data;
+
+	nvlist_t *nvl = nvl_create_type(NV_UNIQUE_NAME_TYPE);
+
+	for (uint_t i = 0; i < ARRAY_SIZE(nvl_rand_keys); i++)
+		unit_ok(nvlist_add_boolean(nvl, nvl_rand_keys[i]));
+
+	nvlist_free(nvl);
+	return (MUNIT_OK);
+}
+
+static MunitResult
+test_nv_replace_many(const MunitParameter params[], void *data)
+{
+	(void) params; (void) data;
+
+	nvlist_t *nvl = nvl_create_type(0);
+
+	for (uint_t i = 0; i < ARRAY_SIZE(nvl_rand_keys); i++)
+		unit_ok(nvlist_add_boolean(nvl, nvl_rand_keys[i]));
+	for (uint_t i = 0; i < ARRAY_SIZE(nvl_rand_keys); i++)
+		unit_ok(nvlist_add_boolean(nvl, nvl_rand_keys[i]));
+
+	nvlist_free(nvl);
+	return (MUNIT_OK);
+}
+
+static MunitResult
+test_nv_replace_many_unique(const MunitParameter params[], void *data)
+{
+	(void) params; (void) data;
+
+	nvlist_t *nvl = nvl_create_type(NV_UNIQUE_NAME);
+
+	for (uint_t i = 0; i < ARRAY_SIZE(nvl_rand_keys); i++)
+		unit_ok(nvlist_add_boolean(nvl, nvl_rand_keys[i]));
+	for (uint_t i = 0; i < ARRAY_SIZE(nvl_rand_keys); i++)
+		unit_ok(nvlist_add_boolean(nvl, nvl_rand_keys[i]));
+
+	nvlist_free(nvl);
+	return (MUNIT_OK);
+}
+
+static MunitResult
+test_nv_replace_many_unique_type(const MunitParameter params[], void *data)
+{
+	(void) params; (void) data;
+
+	nvlist_t *nvl = nvl_create_type(NV_UNIQUE_NAME_TYPE);
+
+	for (uint_t i = 0; i < ARRAY_SIZE(nvl_rand_keys); i++)
+		unit_ok(nvlist_add_boolean(nvl, nvl_rand_keys[i]));
+	for (uint_t i = 0; i < ARRAY_SIZE(nvl_rand_keys); i++)
+		unit_ok(nvlist_add_boolean(nvl, nvl_rand_keys[i]));
+
+	nvlist_free(nvl);
+	return (MUNIT_OK);
+}
+
+/* ========== */
+
 static const MunitTest nvpair_tests[] = {
 	/* creation, destruction, configuration */
 	UNIT_TEST("nv_alloc",		test_nv_alloc),
@@ -1812,6 +1913,15 @@ static const MunitTest nvpair_tests[] = {
 	UNIT_TEST("nv_fnvlist_copy",	test_nv_fnvlist_copy),
 	UNIT_TEST("nv_fnvpair_value",	test_nv_fnvpair_value),
 
+	/* hashtable stress tests */
+	UNIT_TEST("nv_add_many",		test_nv_add_many),
+	UNIT_TEST("nv_add_many_unique",		test_nv_add_many_unique),
+	UNIT_TEST("nv_add_many_unique_type",	test_nv_add_many_unique_type),
+	UNIT_TEST("nv_replace_many",		test_nv_replace_many),
+	UNIT_TEST("nv_replace_many_unique",	test_nv_replace_many_unique),
+	UNIT_TEST("nv_replace_many_unique_type",
+	    test_nv_replace_many_unique_type),
+
 	{ 0 },
 };
 
@@ -1826,5 +1936,8 @@ static const MunitSuite nvpair_test_suite = {
 int
 main(int argc, char **argv)
 {
+	for (uint_t i = 0; i < ARRAY_SIZE(nvl_rand_keys); i++)
+		unit_rand_str(nvl_rand_keys[i], sizeof (nvl_rand_keys[i]));
+
 	return (munit_suite_main(&nvpair_test_suite, NULL, argc, argv));
 }
