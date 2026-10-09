@@ -1285,12 +1285,6 @@ nvlist_add_common(nvlist_t *nvl, const char *name,
 		memcpy(NVP_VALUE(nvp), data, value_sz);
 	}
 
-	/* if unique name, remove before add */
-	if (nvl->nvl_nvflag & NV_UNIQUE_NAME)
-		(void) nvlist_remove_all(nvl, name);
-	else if (nvl->nvl_nvflag & NV_UNIQUE_NAME_TYPE)
-		(void) nvlist_remove(nvl, name, type);
-
 	err = nvt_add_nvpair(nvl, nvp);
 	if (err != 0) {
 		nvpair_free(nvp);
