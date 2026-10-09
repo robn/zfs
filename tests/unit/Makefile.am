@@ -21,7 +21,8 @@ UNIT_TESTS = \
 	%D%/test_fletcher \
 	%D%/test_sha2 \
 	%D%/test_cityhash \
-	%D%/test_nvpair
+	%D%/test_nvpair \
+	%D%/test_nvpair_stress
 noinst_PROGRAMS = $(UNIT_TESTS)
 
 
@@ -130,6 +131,22 @@ nodist_%C%_test_nvpair_SOURCES = \
 	%D%/test_nvpair.c
 
 %C%_test_nvpair_LDADD = \
+	libspl.la \
+	$(LIBTIRPC_LIBS) \
+	libunit.la
+
+
+%C%_test_nvpair_stress_CFLAGS = $(AM_CFLAGS) $(LIBTIRPC_CFLAGS)
+
+nodist_%C%_test_nvpair_stress_SOURCES = \
+	module/nvpair/nvpair.c \
+	module/nvpair/fnvpair.c \
+	lib/libnvpair/nvpair_alloc_system.c
+
+%C%_test_nvpair_stress_SOURCES = \
+	%D%/test_nvpair_stress.c
+
+%C%_test_nvpair_stress_LDADD = \
 	libspl.la \
 	$(LIBTIRPC_LIBS) \
 	libunit.la
