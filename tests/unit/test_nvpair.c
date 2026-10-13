@@ -878,6 +878,91 @@ test_nv_nvlist_array(const MunitParameter params[], void *data)
 
 /* ========== */
 
+/*
+ * Build out a nvlist and then move it to its parent. Do the same with an add
+ * and compare contents to ensure they behave the same.
+ */
+static MunitResult
+test_nv_move_nvlist(const MunitParameter params[], void *data)
+{
+	(void) params; (void) data;
+
+	nvlist_t *top = nvl_create();
+
+	nvlist_t *add = nvl_create();
+	nvlist_t *move = nvl_create();
+
+	unit_ok(nvlist_add_uint64(add, "key", 1));
+	unit_ok(nvlist_add_uint64(move, "key", 1));
+
+	unit_ok(nvlist_add_nvlist(top, "add", add));
+	nvlist_free(add);
+	unit_ok(nvlist_move_nvlist(top, "move", move));
+
+	unit_ok(nvlist_lookup_nvlist(top, "add", &add));
+	unit_ok(nvlist_lookup_nvlist(top, "move", &move));
+
+	uint64_t val = 0;
+	unit_ok(nvlist_lookup_uint64(add, "key", &val));
+	unit_eq(val, 1);
+	unit_ok(nvlist_lookup_uint64(move, "key", &val));
+	unit_eq(val, 1);
+
+	nvlist_free(top);
+	return (MUNIT_OK);
+}
+
+/* Add an array of nvlists to another, read it back. */
+static MunitResult
+test_nv_move_nvlist_array(const MunitParameter params[], void *data)
+{
+	(void) params; (void) data;
+
+	nvlist_t *top = nvl_create();
+
+	nvlist_t *add0 = nvl_create();
+	nvlist_t *add1 = nvl_create();
+	nvlist_t *move0 = nvl_create();
+	nvlist_t *move1 = nvl_create();
+
+	unit_ok(nvlist_add_uint64(add0, "key", 0));
+	unit_ok(nvlist_add_uint64(add1, "key", 1));
+	unit_ok(nvlist_add_uint64(move0, "key", 0));
+	unit_ok(nvlist_add_uint64(move1, "key", 1));
+
+	const nvlist_t *add[] = { add0, add1 };
+	unit_ok(nvlist_add_nvlist_array(top, "add", add, ARRAY_SIZE(add)));
+	nvlist_free(add0);
+	nvlist_free(add1);
+
+	const nvlist_t *move[] = { move0, move1 };
+	unit_ok(nvlist_move_nvlist_array(top, "move", move, ARRAY_SIZE(move)));
+
+	nvlist_t **out;
+	uint_t n;
+	unit_ok(nvlist_lookup_nvlist_array(top, "add", &out, &n));
+	unit_eq(n, ARRAY_SIZE(add));
+
+	uint64_t val;
+	unit_ok(nvlist_lookup_uint64(out[0], "key", &val));
+	unit_eq(val, 0);
+	unit_ok(nvlist_lookup_uint64(out[1], "key", &val));
+	unit_eq(val, 1);
+
+	unit_ok(nvlist_lookup_nvlist_array(top, "move", &out, &n));
+	unit_eq(n, ARRAY_SIZE(move));
+
+	unit_ok(nvlist_lookup_uint64(out[0], "key", &val));
+	unit_eq(val, 0);
+	unit_ok(nvlist_lookup_uint64(out[1], "key", &val));
+	unit_eq(val, 1);
+
+	nvlist_free(top);
+	return (MUNIT_OK);
+}
+
+/* ========== */
+
 /* lookup and return pair, check it */
 static MunitResult
 test_nv_lookup_nvpair(const MunitParameter params[], void *data)
@@ -1952,6 +2037,10 @@ static const MunitTest nvpair_tests[] = {
 	/* add/lookup sublist / array of sublists */
 	UNIT_TEST("nv_nvlist",		test_nv_nvlist),
 	UNIT_TEST("nv_nvlist_array",	test_nv_nvlist_array),
+
+	/* move/lookup sublist / array of sublists */
+	UNIT_TEST("nv_move_nvlist",		test_nv_move_nvlist),
+	UNIT_TEST("nv_move_nvlist_array",	test_nv_move_nvlist_array),
 
 	/* lookup and traverse by pair */
 	UNIT_TEST("nv_lookup_nvpair",	test_nv_lookup_nvpair,
