@@ -226,6 +226,47 @@ test_nvs_add_nvlist_array_many(const MunitParameter params[], void *data)
 	return (MUNIT_OK);
 }
 
+static MunitResult
+test_nvs_move_nvlist_many(const MunitParameter params[], void *data)
+{
+	(void) data;
+
+	nvlist_t *top = nvl_create_from_params(params);
+	nvlist_t *sub = nvl_create_from_params(params);
+
+	for (uint_t i = 0; i < ARRAY_SIZE(nvl_rand_keys); i++)
+		unit_ok(nvlist_add_boolean(sub, nvl_rand_keys[i]));
+	nvlist_move_nvlist(top, "sub", sub);
+
+	nvlist_free(top);
+	return (MUNIT_OK);
+}
+
+static MunitResult
+test_nvs_move_nvlist_array_many(const MunitParameter params[], void *data)
+{
+	(void) data;
+
+	nvlist_t *top = nvl_create_from_params(params);
+
+	nvlist_t *nvl[16];
+	for (uint_t i = 0; i < ARRAY_SIZE(nvl); i++)
+		unit_ok(nvlist_alloc(&nvl[i], NV_UNIQUE_NAME, KM_SLEEP));
+
+	for (uint_t i = 0; i < ARRAY_SIZE(nvl); i++) {
+		for (uint_t j = 0;
+		    j < ARRAY_SIZE(nvl_rand_keys) / ARRAY_SIZE(nvl); j++)
+			unit_ok(nvlist_add_boolean(nvl[i],
+			    nvl_rand_keys[i * ARRAY_SIZE(nvl) + i]));
+	}
+
+	unit_ok(nvlist_move_nvlist_array(top, "subs",
+	    (const nvlist_t **)nvl, ARRAY_SIZE(nvl)));
+
+	nvlist_free(top);
+	return (MUNIT_OK);
+}
+
 /* ========== */
 
 static const MunitTest nvpair_stress_tests[] = {
@@ -245,6 +286,10 @@ static const MunitTest nvpair_stress_tests[] = {
 	    test_nvs_add_nvlist_many, nvs_unique_params),
 	UNIT_TEST("nvs_add_nvlist_array_many",
 	    test_nvs_add_nvlist_array_many, nvs_unique_params),
+	UNIT_TEST("nvs_move_nvlist_many",
+	    test_nvs_move_nvlist_many, nvs_unique_params),
+	UNIT_TEST("nvs_move_nvlist_array_many",
+	    test_nvs_move_nvlist_array_many, nvs_unique_params),
 
 	{ 0 },
 };
