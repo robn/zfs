@@ -1,3 +1,8 @@
+/*
+ * HAIKU PORTING NOTES:
+ * - including kmem.h for KM_SLEEP etc, but that should be fixed properly
+ * - stdio in kernel to get snprintf
+ */
 // SPDX-License-Identifier: CDDL-1.0
 /*
  * This file and its contents are supplied under the terms of the
@@ -37,8 +42,12 @@
 #include <sys/mod.h>
 #include <sys/sunddi.h>
 #include <sys/sysmacros.h>
+#include <sys/kmem.h>
 #ifndef _KERNEL
 #include <stddef.h>
+#endif
+#if defined(_KERNEL) && defined(__HAIKU__)
+#include <stdio.h>
 #endif
 
 #define	skip_whitespace(p)	while ((*(p) == ' ') || (*(p) == '\t')) (p)++

@@ -1,3 +1,7 @@
+/*
+ * HAIKU PORTING NOTES:
+ * - stdarg.h for va_list
+ */
 // SPDX-License-Identifier: CDDL-1.0
 /*
  * This file and its contents are supplied under the terms of the
@@ -20,6 +24,9 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/errno.h>
+#ifdef __HAIKU__
+#include <stdarg.h>
+#endif
 
 #ifdef	__cplusplus
 extern "C" {

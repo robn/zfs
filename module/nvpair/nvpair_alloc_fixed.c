@@ -19,6 +19,7 @@
 #include <sys/nvpair.h>
 #include <sys/sysmacros.h>
 #include <sys/mod.h>
+#include <sys/errno.h>
 
 /*
  * This allocator is very simple.
