@@ -3301,7 +3301,8 @@ nvs_xdr_nvl_fini(nvstream_t *nvs)
  */
 
 #if (defined(__FreeBSD_version) && __FreeBSD_version >= 1600010) || \
-    defined(_KERNEL) && defined(__linux__) /* Linux kernel */
+    (defined(_KERNEL) && defined(__linux__)) || /* Linux kernel */ \
+    (defined(_KERNEL) && defined(__HAIKU__))
 
 #define	NVS_BUILD_XDRPROC_T(type)		\
 static bool_t					\
