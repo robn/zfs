@@ -34,7 +34,7 @@ rw_init(krwlock_t *rwlp, char *name, int type, void *arg)
 	(void) name, (void) type, (void) arg;
 	VERIFY0(pthread_rwlock_init(&rwlp->rw_lock, NULL));
 	rwlp->rw_readers = 0;
-	rwlp->rw_owner = 0;
+	spl_owner_clear(&rwlp->rw_owner);
 }
 
 void
@@ -51,7 +51,7 @@ rw_enter(krwlock_t *rwlp, krw_t rw)
 		atomic_inc_uint(&rwlp->rw_readers);
 	} else {
 		VERIFY0(pthread_rwlock_wrlock(&rwlp->rw_lock));
-		rwlp->rw_owner = pthread_self();
+		spl_owner_set(&rwlp->rw_owner);
 	}
 }
 
@@ -61,7 +61,7 @@ rw_exit(krwlock_t *rwlp)
 	if (RW_READ_HELD(rwlp))
 		atomic_dec_uint(&rwlp->rw_readers);
 	else
-		rwlp->rw_owner = 0;
+		spl_owner_clear(&rwlp->rw_owner);
 
 	VERIFY0(pthread_rwlock_unlock(&rwlp->rw_lock));
 }
@@ -80,7 +80,7 @@ rw_tryenter(krwlock_t *rwlp, krw_t rw)
 		if (rw == RW_READER)
 			atomic_inc_uint(&rwlp->rw_readers);
 		else
-			rwlp->rw_owner = pthread_self();
+			spl_owner_set(&rwlp->rw_owner);
 
 		return (1);
 	}

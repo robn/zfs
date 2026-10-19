@@ -27,6 +27,7 @@ libspl_la_SOURCES = \
 	%D%/list.c \
 	%D%/mkdirp.c \
 	%D%/mutex.c \
+	%D%/owner.c \
 	%D%/page.c \
 	%D%/procfs_list.c \
 	%D%/random.c \

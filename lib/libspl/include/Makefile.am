@@ -45,6 +45,7 @@ libspl_sys_HEADERS = \
 	%D%/sys/misc.h \
 	%D%/sys/mod.h \
 	%D%/sys/mutex.h \
+	%D%/sys/owner.h \
 	%D%/sys/policy.h \
 	%D%/sys/processor.h \
 	%D%/sys/procfs_list.h \
