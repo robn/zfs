@@ -1,3 +1,7 @@
+/*
+ * HAIKU PORTING NOTES:
+ * - gate the clone option, since we don't have ficlonerange or copy_file_range.
+ */
 // SPDX-License-Identifier: CDDL-1.0
 /*
  * This file and its contents are supplied under the terms of the
@@ -131,6 +135,7 @@ main(int argc, char *argv[])
 		if (fallocate(fd, 0, 0, new_size) != 0)
 			fail("fallocate");
 #endif
+#ifndef __HAIKU__
 	} else if (clone) {
 		char src[4096];
 
@@ -156,6 +161,7 @@ main(int argc, char *argv[])
 #endif
 		(void) close(sfd);
 		new_size = 2 * psz + CLONE_BLKSZ;
+#endif
 	} else {
 		usage();
 	}
