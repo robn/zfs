@@ -276,20 +276,47 @@ nv_arr_insert(nvpriv_t *priv, i_nvp_t *e)
 		ASSERT3P(priv->nvp_arr, !=, NULL);
 		ASSERT3U(priv->nvp_arr_alloc, >, 0);
 
-		const uint32_t new_alloc = priv->nvp_arr_alloc << 1;
+		if (priv->nvp_npairs < (priv->nvp_arr_alloc >> 1)) {
+			uint32_t src = priv->nvp_arr_first;
+			uint32_t dest = 0;
+			while (src <= priv->nvp_arr_last) {
+				i_nvp_t *curr = priv->nvp_arr[src];
+				if (curr == NULL) {
+					src++;
+					continue;
+				}
+				if (src == dest) {
+					src++;
+					dest++;
+					continue;
+				}
+				curr->nvi_slot = dest;
+				priv->nvp_arr[dest++] = curr;
+				priv->nvp_arr[src++] = NULL;
+			}
 
-		i_nvp_t **arr =
-		     nv_mem_zalloc(priv, new_alloc * sizeof (i_nvp_t *));
-		if (arr == NULL)
-			return (ENOMEM);
+			ASSERT3U(dest, ==, priv->nvp_npairs);
+			memset(&priv->nvp_arr[dest], 0,
+			    (priv->nvp_arr_alloc - dest) * sizeof (i_nvp_t *));
 
-		memcpy(arr, priv->nvp_arr,
-		    priv->nvp_arr_alloc * sizeof (i_nvp_t *));
-		nv_mem_free(priv, priv->nvp_arr,
-		    priv->nvp_arr_alloc * sizeof (i_nvp_t *));
+			priv->nvp_arr_first = 0;
+			priv->nvp_arr_last = dest-1;
+		} else {
+			const uint32_t new_alloc = priv->nvp_arr_alloc << 1;
 
-		priv->nvp_arr = arr;
-		priv->nvp_arr_alloc = new_alloc;
+			i_nvp_t **arr =
+			    nv_mem_zalloc(priv, new_alloc * sizeof (i_nvp_t *));
+			if (arr == NULL)
+				return (ENOMEM);
+
+			memcpy(arr, priv->nvp_arr,
+			    priv->nvp_arr_alloc * sizeof (i_nvp_t *));
+			nv_mem_free(priv, priv->nvp_arr,
+			    priv->nvp_arr_alloc * sizeof (i_nvp_t *));
+
+			priv->nvp_arr = arr;
+			priv->nvp_arr_alloc = new_alloc;
+		}
 	}
 
 	uint32_t slot;
