@@ -313,10 +313,18 @@ nv_arr_remove(nvpriv_t *priv, i_nvp_t *e)
 {
 	ASSERT3P(priv->nvp_arr[e->nvi_slot], ==, e);
 
-	/* XXX walk first/last indexes forward/back if removing first/last */
-
-	priv->nvp_arr[e->nvi_slot] = NULL;
+	uint32_t slot = e->nvi_slot;
+	priv->nvp_arr[slot] = NULL;
 	e->nvi_slot = NVP_UNLINKED;
+
+	if (priv->nvp_arr_first == priv->nvp_arr_last) {
+		ASSERT3U(priv->nvp_arr_first, ==, slot);
+		priv->nvp_arr_first = priv->nvp_arr_last = NVP_UNLINKED;
+	} else if (priv->nvp_arr_first == slot) {
+		while (priv->nvp_arr[++priv->nvp_arr_first] == NULL) {}
+	} else if (priv->nvp_arr_last == slot) {
+		while (priv->nvp_arr[--priv->nvp_arr_last] == NULL) {}
+	}
 }
 
 static void
