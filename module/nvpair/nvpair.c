@@ -423,7 +423,8 @@ nvt_lookup_name_type(const nvlist_t *nvl, const char *name, data_type_t type)
 	i_nvp_t **tab = priv->nvp_hashtable;
 
 	if (tab == NULL) {
-		ASSERT0P(priv->nvp_list);
+		ASSERT3U(priv->nvp_arr_first, ==, NVP_UNLINKED);
+		ASSERT3U(priv->nvp_arr_last, ==, NVP_UNLINKED);
 		ASSERT0(priv->nvp_npairs);
 		ASSERT0(priv->nvp_nbuckets);
 		ASSERT0(priv->nvp_nentries);
@@ -757,17 +758,6 @@ nvp_buf_link(nvlist_t *nvl, nvpair_t *nvp)
 	nvpriv_t *priv = (nvpriv_t *)(uintptr_t)nvl->nvl_priv;
 	i_nvp_t *curr = NVPAIR2I_NVP(nvp);
 
-	/* Put element at end of nvlist */
-	if (priv->nvp_list == NULL) {
-		ASSERT0(priv->nvp_npairs);
-		priv->nvp_list = priv->nvp_last = curr;
-	} else {
-		ASSERT3U(priv->nvp_npairs, >, 0);
-		curr->nvi_prev = priv->nvp_last;
-		priv->nvp_last->nvi_next = curr;
-		priv->nvp_last = curr;
-	}
-
 	VERIFY0(nv_arr_insert(priv, curr)); /* XXX handle ENOMEM */
 
 	priv->nvp_npairs++;
@@ -782,15 +772,6 @@ nvp_buf_unlink(nvlist_t *nvl, nvpair_t *nvp)
 	nvpriv_t *priv = (nvpriv_t *)(uintptr_t)nvl->nvl_priv;
 	i_nvp_t *curr = NVPAIR2I_NVP(nvp);
 
-	if (curr == priv->nvp_list)
-		priv->nvp_list = curr->nvi_next;
-	else
-		curr->nvi_prev->nvi_next = curr->nvi_next;
-
-	if (curr == priv->nvp_last)
-		priv->nvp_last = curr->nvi_prev;
-	else
-		curr->nvi_next->nvi_prev = curr->nvi_prev;
 
 	nv_arr_remove(priv, curr);
 

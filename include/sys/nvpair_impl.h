@@ -47,17 +47,11 @@ struct i_nvp {
 			/* this pair's slot in nvp_arr */
 			uint32_t _nvi_slot;
 
-			/* pointer to next nvpair */
-			i_nvp_t	*_nvi_next;
-
-			/* pointer to prev nvpair */
-			i_nvp_t	*_nvi_prev;
+			/* hash value of key */
+			uint32_t _nvi_hash;
 
 			/* next pair in table bucket */
 			i_nvp_t	*_nvi_hashtable_next;
-
-			/* hash value of key */
-			uint32_t _nvi_hash;
 		} _nvi;
 	} _nvi_un;
 
@@ -65,19 +59,14 @@ struct i_nvp {
 	nvpair_t nvi_nvp;
 };
 #define	nvi_slot	_nvi_un._nvi._nvi_slot
-#define	nvi_next	_nvi_un._nvi._nvi_next
-#define	nvi_prev	_nvi_un._nvi._nvi_prev
-#define	nvi_hashtable_next	_nvi_un._nvi._nvi_hashtable_next
 #define	nvi_hash	_nvi_un._nvi._nvi_hash
+#define	nvi_hashtable_next	_nvi_un._nvi._nvi_hashtable_next
 
 typedef struct {
 	i_nvp_t		**nvp_arr;	/* array of nvpairs */
 	uint32_t	nvp_arr_alloc;	/* number of slots in pair array */
 	uint32_t	nvp_arr_first;	/* first in-use slot in pair array */
 	uint32_t	nvp_arr_last;	/* last in-use slot in pair array */
-
-	i_nvp_t		*nvp_list;	/* linked list of nvpairs */
-	i_nvp_t		*nvp_last;	/* last nvpair */
 
 	nv_alloc_t	*nvp_nva;	/* pluggable allocator */
 	uint32_t	nvp_stat;	/* internal state */
