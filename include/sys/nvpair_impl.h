@@ -44,6 +44,9 @@ struct i_nvp {
 		uint64_t	_nvi_align;
 
 		struct {
+			/* this pair's slot in nvp_arr */
+			uint32_t _nvi_slot;
+
 			/* pointer to next nvpair */
 			i_nvp_t	*_nvi_next;
 
@@ -61,15 +64,22 @@ struct i_nvp {
 	/* nvpair */
 	nvpair_t nvi_nvp;
 };
+#define	nvi_slot	_nvi_un._nvi._nvi_slot
 #define	nvi_next	_nvi_un._nvi._nvi_next
 #define	nvi_prev	_nvi_un._nvi._nvi_prev
 #define	nvi_hashtable_next	_nvi_un._nvi._nvi_hashtable_next
 #define	nvi_hash	_nvi_un._nvi._nvi_hash
 
 typedef struct {
+	i_nvp_t		**nvp_arr;	/* array of nvpairs */
+	uint32_t	nvp_arr_alloc;	/* number of slots in pair array */
+	uint32_t	nvp_arr_first;	/* first in-use slot in pair array */
+	uint32_t	nvp_arr_last;	/* last in-use slot in pair array */
+
 	i_nvp_t		*nvp_list;	/* linked list of nvpairs */
 	i_nvp_t		*nvp_last;	/* last nvpair */
 	const i_nvp_t	*nvp_curr;	/* current walker nvpair */
+
 	nv_alloc_t	*nvp_nva;	/* pluggable allocator */
 	uint32_t	nvp_stat;	/* internal state */
 	uint32_t	nvp_npairs;	/* # of nvpairs on list */

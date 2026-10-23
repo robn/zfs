@@ -135,6 +135,8 @@ static int nvlist_add_common(nvlist_t *nvl, const char *name, data_type_t type,
 #define	NVPAIR2I_NVP(nvp) \
 	((i_nvp_t *)((size_t)(nvp) - offsetof(i_nvp_t, nvi_nvp)))
 
+#define	NVP_UNLINKED		UINT32_MAX
+
 #ifdef _KERNEL
 static const int nvpair_max_recursion = 20;
 #else
@@ -211,6 +213,8 @@ nv_priv_init(nvpriv_t *priv, nv_alloc_t *nva, uint32_t stat)
 {
 	memset(priv, 0, sizeof (nvpriv_t));
 
+	priv->nvp_arr_first = priv->nvp_arr_last = NVP_UNLINKED;
+
 	priv->nvp_nva = nva;
 	priv->nvp_stat = stat;
 }
@@ -248,6 +252,89 @@ nv_priv_alloc_embedded(nvpriv_t *priv)
 	nv_priv_init(emb_priv, priv->nvp_nva, NV_STAT_EMBEDDED);
 
 	return (emb_priv);
+}
+
+static int
+nv_arr_insert(nvpriv_t *priv, i_nvp_t *e)
+{
+	ASSERT3U(e->nvi_slot, ==, NVP_UNLINKED);
+
+	if (priv->nvp_arr_alloc == 0) {
+		ASSERT0P(priv->nvp_arr);
+		ASSERT3U(priv->nvp_arr_first, ==, NVP_UNLINKED);
+		ASSERT3U(priv->nvp_arr_last, ==, NVP_UNLINKED);
+
+		const uint32_t arr_alloc_default = 8; /* XXX tune, config, etc */
+		i_nvp_t **arr = nv_mem_zalloc(priv,
+		    arr_alloc_default * sizeof (i_nvp_t *));
+		if (arr == NULL)
+			return (ENOMEM);
+
+		priv->nvp_arr = arr;
+		priv->nvp_arr_alloc = arr_alloc_default;
+	} else if (priv->nvp_arr_last == (priv->nvp_arr_alloc - 1)) {
+		ASSERT3P(priv->nvp_arr, !=, NULL);
+		ASSERT3U(priv->nvp_arr_alloc, >, 0);
+
+		const uint32_t new_alloc = priv->nvp_arr_alloc << 1;
+
+		i_nvp_t **arr =
+		     nv_mem_zalloc(priv, new_alloc * sizeof (i_nvp_t *));
+		if (arr == NULL)
+			return (ENOMEM);
+
+		memcpy(arr, priv->nvp_arr,
+		    priv->nvp_arr_alloc * sizeof (i_nvp_t *));
+		nv_mem_free(priv, priv->nvp_arr,
+		    priv->nvp_arr_alloc * sizeof (i_nvp_t *));
+
+		priv->nvp_arr = arr;
+		priv->nvp_arr_alloc = new_alloc;
+	}
+
+	uint32_t slot;
+	if (priv->nvp_arr_last == NVP_UNLINKED) {
+		ASSERT3U(priv->nvp_arr_first, ==, NVP_UNLINKED);
+		slot = priv->nvp_arr_first = priv->nvp_arr_last = 0;
+	} else {
+		ASSERT3U(priv->nvp_arr_first, !=, NVP_UNLINKED);
+		ASSERT3U(priv->nvp_arr_last, >=, priv->nvp_arr_first);
+		slot = ++priv->nvp_arr_last;
+	}
+
+	e->nvi_slot = slot;
+	priv->nvp_arr[slot] = e;
+
+	return (0);
+}
+
+static void
+nv_arr_remove(nvpriv_t *priv, i_nvp_t *e)
+{
+	ASSERT3P(priv->nvp_arr[e->nvi_slot], ==, e);
+
+	/* XXX walk first/last indexes forward/back if removing first/last */
+
+	priv->nvp_arr[e->nvi_slot] = NULL;
+	e->nvi_slot = NVP_UNLINKED;
+}
+
+static void
+nv_arr_free(nvpriv_t *priv)
+{
+	i_nvp_t **arr = priv->nvp_arr;
+	if (arr == NULL) {
+		ASSERT0(priv->nvp_arr_alloc);
+		ASSERT3U(priv->nvp_arr_first, ==, NVP_UNLINKED);
+		ASSERT3U(priv->nvp_arr_last, ==, NVP_UNLINKED);
+		return;
+	}
+
+	nv_mem_free(priv, arr, priv->nvp_arr_alloc * sizeof (i_nvp_t *));
+
+	priv->nvp_arr = NULL;
+	priv->nvp_arr_alloc = 0;
+	priv->nvp_arr_first = priv->nvp_arr_last = NVP_UNLINKED;
 }
 
 static int
@@ -641,6 +728,8 @@ nvp_buf_alloc(nvlist_t *nvl, size_t len)
 	if ((buf = nv_mem_zalloc(priv, nvsize)) == NULL)
 		return (NULL);
 
+	buf->nvi_slot = NVP_UNLINKED;
+
 	nvp = &buf->nvi_nvp;
 	nvp->nvp_size = len;
 
@@ -679,6 +768,8 @@ nvp_buf_link(nvlist_t *nvl, nvpair_t *nvp)
 		priv->nvp_last = curr;
 	}
 
+	VERIFY0(nv_arr_insert(priv, curr)); /* XXX handle ENOMEM */
+
 	priv->nvp_npairs++;
 }
 
@@ -706,6 +797,8 @@ nvp_buf_unlink(nvlist_t *nvl, nvpair_t *nvp)
 		priv->nvp_last = curr->nvi_prev;
 	else
 		curr->nvi_next->nvi_prev = curr->nvi_prev;
+
+	nv_arr_remove(priv, curr);
 
 	ASSERT3U(priv->nvp_npairs, >, 0);
 	priv->nvp_npairs--;
@@ -912,6 +1005,7 @@ nvlist_free(nvlist_t *nvl)
 		nvl->nvl_priv = 0;
 
 	nvt_tab_free(priv);
+	nv_arr_free(priv);
 	nv_mem_free(priv, priv, sizeof (nvpriv_t));
 }
 
