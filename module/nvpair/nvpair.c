@@ -995,6 +995,11 @@ nvlist_copy_pairs(const nvlist_t *snvl, nvlist_t *dnvl)
 	if (priv->nvp_npairs == 0)
 		return (0);
 
+	int err = nv_arr_ensure((nvpriv_t *)(uintptr_t)dnvl->nvl_priv,
+	    priv->nvp_npairs);
+	if (err != 0)
+		return (err);
+
 	for (uint32_t slot = priv->nvp_arr_first;
 	    slot <= priv->nvp_arr_last; slot++) {
 		const i_nvp_t *curr = priv->nvp_arr[slot];
@@ -1002,7 +1007,6 @@ nvlist_copy_pairs(const nvlist_t *snvl, nvlist_t *dnvl)
 			continue;
 		const nvpair_t *nvp = &curr->nvi_nvp;
 
-		int err;
 		if ((err = nvlist_add_common(dnvl, NVP_NAME(nvp), NVP_TYPE(nvp),
 		    NVP_NELEM(nvp), NVP_VALUE(nvp))) != 0)
 			return (err);
