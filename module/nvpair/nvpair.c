@@ -2587,19 +2587,26 @@ static int
 nvs_getsize_pairs(nvstream_t *nvs, nvlist_t *nvl, size_t *buflen)
 {
 	nvpriv_t *priv = (nvpriv_t *)(uintptr_t)nvl->nvl_priv;
-	i_nvp_t *curr;
 	uint64_t nvsize = *buflen;
 	size_t size;
 
 	/*
 	 * Get encoded size of nvpairs in nvlist
 	 */
-	for (curr = priv->nvp_list; curr != NULL; curr = curr->nvi_next) {
-		if (nvs->nvs_ops->nvs_nvp_size(nvs, &curr->nvi_nvp, &size) != 0)
-			return (EINVAL);
+	if (priv->nvp_npairs > 0) {
+		for (uint32_t slot = priv->nvp_arr_first;
+		    slot <= priv->nvp_arr_last; slot++) {
+			i_nvp_t *curr = priv->nvp_arr[slot];
+			if (curr == NULL)
+				continue;
 
-		if ((nvsize += size) > INT32_MAX)
-			return (EINVAL);
+			if (nvs->nvs_ops->nvs_nvp_size(nvs,
+			    &curr->nvi_nvp, &size) != 0)
+				return (EINVAL);
+
+			if ((nvsize += size) > INT32_MAX)
+				return (EINVAL);
+		}
 	}
 
 	*buflen = nvsize;
