@@ -981,7 +981,6 @@ void
 nvlist_free(nvlist_t *nvl)
 {
 	nvpriv_t *priv;
-	i_nvp_t *curr;
 
 	if (nvl == NULL ||
 	    (priv = (nvpriv_t *)(uintptr_t)nvl->nvl_priv) == NULL)
@@ -990,13 +989,16 @@ nvlist_free(nvlist_t *nvl)
 	/*
 	 * Unpacked nvlist are linked through i_nvp_t
 	 */
-	curr = priv->nvp_list;
-	while (curr != NULL) {
-		nvpair_t *nvp = &curr->nvi_nvp;
-		curr = curr->nvi_next;
-
-		nvpair_free(nvp);
-		nvp_buf_free(nvl, nvp);
+	if (priv->nvp_npairs > 0) {
+		for (uint32_t slot = priv->nvp_arr_first;
+		    slot <= priv->nvp_arr_last; slot++) {
+			i_nvp_t *curr = priv->nvp_arr[slot];
+			if (curr == NULL)
+				continue;
+			nvpair_t *nvp = &curr->nvi_nvp;
+			nvpair_free(nvp);
+			nvp_buf_free(nvl, nvp);
+		}
 	}
 
 	if (!(priv->nvp_stat & NV_STAT_EMBEDDED))
