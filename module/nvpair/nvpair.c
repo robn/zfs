@@ -782,12 +782,6 @@ nvp_buf_unlink(nvlist_t *nvl, nvpair_t *nvp)
 	nvpriv_t *priv = (nvpriv_t *)(uintptr_t)nvl->nvl_priv;
 	i_nvp_t *curr = NVPAIR2I_NVP(nvp);
 
-	/*
-	 * protect nvlist_next_nvpair() against walking on freed memory.
-	 */
-	if (priv->nvp_curr == curr)
-		priv->nvp_curr = curr->nvi_next;
-
 	if (curr == priv->nvp_list)
 		priv->nvp_list = curr->nvi_next;
 	else
@@ -1007,22 +1001,6 @@ nvlist_free(nvlist_t *nvl)
 	nvt_tab_free(priv);
 	nv_arr_free(priv);
 	nv_mem_free(priv, priv, sizeof (nvpriv_t));
-}
-
-static int
-nvlist_contains_nvp(const nvlist_t *nvl, const nvpair_t *nvp)
-{
-	const nvpriv_t *priv = (const nvpriv_t *)(uintptr_t)nvl->nvl_priv;
-	const i_nvp_t *curr;
-
-	if (nvp == NULL)
-		return (0);
-
-	for (curr = priv->nvp_list; curr != NULL; curr = curr->nvi_next)
-		if (&curr->nvi_nvp == nvp)
-			return (1);
-
-	return (0);
 }
 
 /*
@@ -1613,19 +1591,21 @@ nvlist_next_nvpair(nvlist_t *nvl, const nvpair_t *nvp)
 
 	curr = NVPAIR2I_NVP(nvp);
 
-	/*
-	 * Ensure that nvp is a valid nvpair on this nvlist.
-	 * NB: nvp_curr is used only as a hint so that we don't always
-	 * have to walk the list to determine if nvp is still on the list.
-	 */
+	uint32_t slot = NVP_UNLINKED;
 	if (nvp == NULL)
-		curr = priv->nvp_list;
-	else if (priv->nvp_curr == curr || nvlist_contains_nvp(nvl, nvp))
-		curr = curr->nvi_next;
-	else
-		curr = NULL;
+		slot = priv->nvp_arr_first;
+	else if (curr->nvi_slot != NVP_UNLINKED)
+		slot = curr->nvi_slot + 1;
 
-	priv->nvp_curr = curr;
+	curr = NULL;
+	if (slot != NVP_UNLINKED) {
+		for (; slot <= priv->nvp_arr_last; slot++) {
+			if (priv->nvp_arr[slot] != NULL) {
+				curr = priv->nvp_arr[slot];
+				break;
+			}
+		}
+	}
 
 	return (curr != NULL ? &curr->nvi_nvp : NULL);
 }
@@ -1642,14 +1622,23 @@ nvlist_prev_nvpair(nvlist_t *nvl, const nvpair_t *nvp)
 
 	curr = NVPAIR2I_NVP(nvp);
 
-	if (nvp == NULL)
-		curr = priv->nvp_last;
-	else if (priv->nvp_curr == curr || nvlist_contains_nvp(nvl, nvp))
-		curr = curr->nvi_prev;
-	else
-		curr = NULL;
+	uint32_t slot = NVP_UNLINKED;
+	if (nvp == NULL && priv->nvp_arr_last != NVP_UNLINKED)
+		slot = priv->nvp_arr_last;
+	else if (curr->nvi_slot != NVP_UNLINKED && curr->nvi_slot > 0)
+		slot = curr->nvi_slot - 1;
 
-	priv->nvp_curr = curr;
+	curr = NULL;
+	if (slot != NVP_UNLINKED) {
+		for (; slot >= priv->nvp_arr_first; slot--) {
+			if (priv->nvp_arr[slot] != NULL) {
+				curr = priv->nvp_arr[slot];
+				break;
+			}
+			if (slot == 0)
+				break;
+		}
+	}
 
 	return (curr != NULL ? &curr->nvi_nvp : NULL);
 }
