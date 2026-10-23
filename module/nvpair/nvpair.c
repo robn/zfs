@@ -1626,25 +1626,26 @@ nvlist_prev_nvpair(nvlist_t *nvl, const nvpair_t *nvp)
 
 	curr = NVPAIR2I_NVP(nvp);
 
-	uint32_t slot = NVP_UNLINKED;
-	if (nvp == NULL && priv->nvp_arr_last != NVP_UNLINKED)
+	uint32_t slot;
+	if (nvp == NULL)
 		slot = priv->nvp_arr_last;
-	else if (curr->nvi_slot != NVP_UNLINKED && curr->nvi_slot > 0)
-		slot = curr->nvi_slot - 1;
+	else if (priv->nvp_hint > 0 && priv->nvp_hint >= priv->nvp_arr_first &&
+	    priv->nvp_arr[priv->nvp_hint] == curr)
+		slot = priv->nvp_hint - 1;	/* no pair deref */
+	else if (curr->nvi_slot > 0 && curr->nvi_slot >= priv->nvp_arr_first &&
+	    priv->nvp_arr[curr->nvi_slot] == curr)
+		slot = curr->nvi_slot - 1;	/* deref, but validated */
+	else
+		return (NULL);
 
-	curr = NULL;
-	if (slot != NVP_UNLINKED) {
-		for (; slot >= priv->nvp_arr_first; slot--) {
-			if (priv->nvp_arr[slot] != NULL) {
-				curr = priv->nvp_arr[slot];
-				break;
-			}
-			if (slot == 0)
-				break;
+	for (; slot >= priv->nvp_arr_first; slot--) {
+		if (priv->nvp_arr[slot] != NULL) {
+			priv->nvp_hint = slot;
+			return (&priv->nvp_arr[slot]->nvi_nvp);
 		}
 	}
 
-	return (curr != NULL ? &curr->nvi_nvp : NULL);
+	return (NULL);
 }
 
 /*
