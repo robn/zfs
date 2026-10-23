@@ -1585,6 +1585,8 @@ nvlist_next_nvpair(nvlist_t *nvl, const nvpair_t *nvp)
 	if (nvl == NULL ||
 	    (priv = (nvpriv_t *)(uintptr_t)nvl->nvl_priv) == NULL)
 		return (NULL);
+	if (priv->nvp_arr_first == NVP_UNLINKED)
+		return (NULL);
 
 	curr = NVPAIR2I_NVP(nvp);
 
@@ -1618,6 +1620,8 @@ nvlist_prev_nvpair(nvlist_t *nvl, const nvpair_t *nvp)
 
 	if (nvl == NULL ||
 	    (priv = (nvpriv_t *)(uintptr_t)nvl->nvl_priv) == NULL)
+		return (NULL);
+	if (priv->nvp_arr_last == NVP_UNLINKED)
 		return (NULL);
 
 	curr = NVPAIR2I_NVP(nvp);
