@@ -135,6 +135,8 @@ static int nvlist_add_common(nvlist_t *nvl, const char *name, data_type_t type,
 #define	NVPAIR2I_NVP(nvp) \
 	((i_nvp_t *)((size_t)(nvp) - offsetof(i_nvp_t, nvi_nvp)))
 
+#define	NVP_UNLINKED		UINT32_MAX
+
 #ifdef _KERNEL
 static const int nvpair_max_recursion = 20;
 #else
@@ -211,6 +213,8 @@ nv_priv_init(nvpriv_t *priv, nv_alloc_t *nva, uint32_t stat)
 {
 	memset(priv, 0, sizeof (nvpriv_t));
 
+	priv->nvp_arr_first = priv->nvp_arr_last = NVP_UNLINKED;
+
 	priv->nvp_nva = nva;
 	priv->nvp_stat = stat;
 }
@@ -248,6 +252,97 @@ nv_priv_alloc_embedded(nvpriv_t *priv)
 	nv_priv_init(emb_priv, priv->nvp_nva, NV_STAT_EMBEDDED);
 
 	return (emb_priv);
+}
+
+static int
+nv_arr_insert(nvpriv_t *priv, i_nvp_t *e)
+{
+	ASSERT3U(e->nvi_slot, ==, NVP_UNLINKED);
+
+	if (priv->nvp_arr_alloc == 0) {
+		ASSERT0P(priv->nvp_arr);
+		ASSERT3U(priv->nvp_arr_first, ==, NVP_UNLINKED);
+		ASSERT3U(priv->nvp_arr_last, ==, NVP_UNLINKED);
+
+		const uint32_t arr_alloc_default = 8; /* XXX tune, config, etc */
+		i_nvp_t **arr = nv_mem_zalloc(priv,
+		    arr_alloc_default * sizeof (i_nvp_t *));
+		if (arr == NULL)
+			return (ENOMEM);
+
+		priv->nvp_arr = arr;
+		priv->nvp_arr_alloc = arr_alloc_default;
+	} else if (priv->nvp_arr_last == (priv->nvp_arr_alloc - 1)) {
+		ASSERT3P(priv->nvp_arr, !=, NULL);
+		ASSERT3U(priv->nvp_arr_alloc, >, 0);
+
+		const uint32_t new_alloc = priv->nvp_arr_alloc << 1;
+
+		i_nvp_t **arr =
+		     nv_mem_zalloc(priv, new_alloc * sizeof (i_nvp_t *));
+		if (arr == NULL)
+			return (ENOMEM);
+
+		memcpy(arr, priv->nvp_arr,
+		    priv->nvp_arr_alloc * sizeof (i_nvp_t *));
+		nv_mem_free(priv, priv->nvp_arr,
+		    priv->nvp_arr_alloc * sizeof (i_nvp_t *));
+
+		priv->nvp_arr = arr;
+		priv->nvp_arr_alloc = new_alloc;
+	}
+
+	uint32_t slot;
+	if (priv->nvp_arr_last == NVP_UNLINKED) {
+		ASSERT3U(priv->nvp_arr_first, ==, NVP_UNLINKED);
+		slot = priv->nvp_arr_first = priv->nvp_arr_last = 0;
+	} else {
+		ASSERT3U(priv->nvp_arr_first, !=, NVP_UNLINKED);
+		ASSERT3U(priv->nvp_arr_last, >=, priv->nvp_arr_first);
+		slot = ++priv->nvp_arr_last;
+	}
+
+	e->nvi_slot = slot;
+	priv->nvp_arr[slot] = e;
+
+	return (0);
+}
+
+static void
+nv_arr_remove(nvpriv_t *priv, i_nvp_t *e)
+{
+	ASSERT3P(priv->nvp_arr[e->nvi_slot], ==, e);
+
+	uint32_t slot = e->nvi_slot;
+	priv->nvp_arr[slot] = NULL;
+	e->nvi_slot = NVP_UNLINKED;
+
+	if (priv->nvp_arr_first == priv->nvp_arr_last) {
+		ASSERT3U(priv->nvp_arr_first, ==, slot);
+		priv->nvp_arr_first = priv->nvp_arr_last = NVP_UNLINKED;
+	} else if (priv->nvp_arr_first == slot) {
+		while (priv->nvp_arr[++priv->nvp_arr_first] == NULL) {}
+	} else if (priv->nvp_arr_last == slot) {
+		while (priv->nvp_arr[--priv->nvp_arr_last] == NULL) {}
+	}
+}
+
+static void
+nv_arr_free(nvpriv_t *priv)
+{
+	i_nvp_t **arr = priv->nvp_arr;
+	if (arr == NULL) {
+		ASSERT0(priv->nvp_arr_alloc);
+		ASSERT3U(priv->nvp_arr_first, ==, NVP_UNLINKED);
+		ASSERT3U(priv->nvp_arr_last, ==, NVP_UNLINKED);
+		return;
+	}
+
+	nv_mem_free(priv, arr, priv->nvp_arr_alloc * sizeof (i_nvp_t *));
+
+	priv->nvp_arr = NULL;
+	priv->nvp_arr_alloc = 0;
+	priv->nvp_arr_first = priv->nvp_arr_last = NVP_UNLINKED;
 }
 
 static int
@@ -340,7 +435,8 @@ nvt_lookup_name_type(const nvlist_t *nvl, const char *name, data_type_t type)
 	i_nvp_t **tab = priv->nvp_hashtable;
 
 	if (tab == NULL) {
-		ASSERT0P(priv->nvp_list);
+		ASSERT3U(priv->nvp_arr_first, ==, NVP_UNLINKED);
+		ASSERT3U(priv->nvp_arr_last, ==, NVP_UNLINKED);
 		ASSERT0(priv->nvp_npairs);
 		ASSERT0(priv->nvp_nbuckets);
 		ASSERT0(priv->nvp_nentries);
@@ -645,6 +741,8 @@ nvp_buf_alloc(nvlist_t *nvl, size_t len)
 	if ((buf = nv_mem_zalloc(priv, nvsize)) == NULL)
 		return (NULL);
 
+	buf->nvi_slot = NVP_UNLINKED;
+
 	nvp = &buf->nvi_nvp;
 	nvp->nvp_size = len;
 
@@ -672,16 +770,7 @@ nvp_buf_link(nvlist_t *nvl, nvpair_t *nvp)
 	nvpriv_t *priv = (nvpriv_t *)(uintptr_t)nvl->nvl_priv;
 	i_nvp_t *curr = NVPAIR2I_NVP(nvp);
 
-	/* Put element at end of nvlist */
-	if (priv->nvp_list == NULL) {
-		ASSERT0(priv->nvp_npairs);
-		priv->nvp_list = priv->nvp_last = curr;
-	} else {
-		ASSERT3U(priv->nvp_npairs, >, 0);
-		curr->nvi_prev = priv->nvp_last;
-		priv->nvp_last->nvi_next = curr;
-		priv->nvp_last = curr;
-	}
+	VERIFY0(nv_arr_insert(priv, curr)); /* XXX handle ENOMEM */
 
 	priv->nvp_npairs++;
 }
@@ -695,21 +784,8 @@ nvp_buf_unlink(nvlist_t *nvl, nvpair_t *nvp)
 	nvpriv_t *priv = (nvpriv_t *)(uintptr_t)nvl->nvl_priv;
 	i_nvp_t *curr = NVPAIR2I_NVP(nvp);
 
-	/*
-	 * protect nvlist_next_nvpair() against walking on freed memory.
-	 */
-	if (priv->nvp_curr == curr)
-		priv->nvp_curr = curr->nvi_next;
 
-	if (curr == priv->nvp_list)
-		priv->nvp_list = curr->nvi_next;
-	else
-		curr->nvi_prev->nvi_next = curr->nvi_next;
-
-	if (curr == priv->nvp_last)
-		priv->nvp_last = curr->nvi_prev;
-	else
-		curr->nvi_next->nvi_prev = curr->nvi_prev;
+	nv_arr_remove(priv, curr);
 
 	ASSERT3U(priv->nvp_npairs, >, 0);
 	priv->nvp_npairs--;
@@ -843,15 +919,21 @@ static int
 nvlist_copy_pairs(const nvlist_t *snvl, nvlist_t *dnvl)
 {
 	const nvpriv_t *priv;
-	const i_nvp_t *curr;
 
 	if ((priv = (const nvpriv_t *)(uintptr_t)snvl->nvl_priv) == NULL)
 		return (EINVAL);
 
-	for (curr = priv->nvp_list; curr != NULL; curr = curr->nvi_next) {
-		const nvpair_t *nvp = &curr->nvi_nvp;
-		int err;
+	if (priv->nvp_npairs == 0)
+		return (0);
 
+	for (uint32_t slot = priv->nvp_arr_first;
+	    slot <= priv->nvp_arr_last; slot++) {
+		const i_nvp_t *curr = priv->nvp_arr[slot];
+		if (curr == NULL)
+			continue;
+		const nvpair_t *nvp = &curr->nvi_nvp;
+
+		int err;
 		if ((err = nvlist_add_common(dnvl, NVP_NAME(nvp), NVP_TYPE(nvp),
 		    NVP_NELEM(nvp), NVP_VALUE(nvp))) != 0)
 			return (err);
@@ -892,7 +974,6 @@ void
 nvlist_free(nvlist_t *nvl)
 {
 	nvpriv_t *priv;
-	i_nvp_t *curr;
 
 	if (nvl == NULL ||
 	    (priv = (nvpriv_t *)(uintptr_t)nvl->nvl_priv) == NULL)
@@ -901,13 +982,16 @@ nvlist_free(nvlist_t *nvl)
 	/*
 	 * Unpacked nvlist are linked through i_nvp_t
 	 */
-	curr = priv->nvp_list;
-	while (curr != NULL) {
-		nvpair_t *nvp = &curr->nvi_nvp;
-		curr = curr->nvi_next;
-
-		nvpair_free(nvp);
-		nvp_buf_free(nvl, nvp);
+	if (priv->nvp_npairs > 0) {
+		for (uint32_t slot = priv->nvp_arr_first;
+		    slot <= priv->nvp_arr_last; slot++) {
+			i_nvp_t *curr = priv->nvp_arr[slot];
+			if (curr == NULL)
+				continue;
+			nvpair_t *nvp = &curr->nvi_nvp;
+			nvpair_free(nvp);
+			nvp_buf_free(nvl, nvp);
+		}
 	}
 
 	if (!(priv->nvp_stat & NV_STAT_EMBEDDED))
@@ -916,23 +1000,8 @@ nvlist_free(nvlist_t *nvl)
 		nvl->nvl_priv = 0;
 
 	nvt_tab_free(priv);
+	nv_arr_free(priv);
 	nv_mem_free(priv, priv, sizeof (nvpriv_t));
-}
-
-static int
-nvlist_contains_nvp(const nvlist_t *nvl, const nvpair_t *nvp)
-{
-	const nvpriv_t *priv = (const nvpriv_t *)(uintptr_t)nvl->nvl_priv;
-	const i_nvp_t *curr;
-
-	if (nvp == NULL)
-		return (0);
-
-	for (curr = priv->nvp_list; curr != NULL; curr = curr->nvi_next)
-		if (&curr->nvi_nvp == nvp)
-			return (1);
-
-	return (0);
 }
 
 /*
@@ -1520,24 +1589,31 @@ nvlist_next_nvpair(nvlist_t *nvl, const nvpair_t *nvp)
 	if (nvl == NULL ||
 	    (priv = (nvpriv_t *)(uintptr_t)nvl->nvl_priv) == NULL)
 		return (NULL);
+	if (priv->nvp_arr_first == NVP_UNLINKED)
+		return (NULL);
 
 	curr = NVPAIR2I_NVP(nvp);
 
-	/*
-	 * Ensure that nvp is a valid nvpair on this nvlist.
-	 * NB: nvp_curr is used only as a hint so that we don't always
-	 * have to walk the list to determine if nvp is still on the list.
-	 */
+	uint32_t slot;
 	if (nvp == NULL)
-		curr = priv->nvp_list;
-	else if (priv->nvp_curr == curr || nvlist_contains_nvp(nvl, nvp))
-		curr = curr->nvi_next;
+		slot = priv->nvp_arr_first;
+	else if (priv->nvp_hint <= priv->nvp_arr_last &&
+	    priv->nvp_arr[priv->nvp_hint] == curr)
+		slot = priv->nvp_hint + 1;	/* no pair deref */
+	else if (curr->nvi_slot <= priv->nvp_arr_last &&
+	    priv->nvp_arr[curr->nvi_slot] == curr)
+		slot = curr->nvi_slot + 1;	/* deref, but validated */
 	else
-		curr = NULL;
+		return (NULL);
 
-	priv->nvp_curr = curr;
+	for (; slot <= priv->nvp_arr_last; slot++) {
+		if (priv->nvp_arr[slot] != NULL) {
+			priv->nvp_hint = slot;
+			return (&priv->nvp_arr[slot]->nvi_nvp);
+		}
+	}
 
-	return (curr != NULL ? &curr->nvi_nvp : NULL);
+	return (NULL);
 }
 
 nvpair_t *
@@ -1549,19 +1625,31 @@ nvlist_prev_nvpair(nvlist_t *nvl, const nvpair_t *nvp)
 	if (nvl == NULL ||
 	    (priv = (nvpriv_t *)(uintptr_t)nvl->nvl_priv) == NULL)
 		return (NULL);
+	if (priv->nvp_arr_last == NVP_UNLINKED)
+		return (NULL);
 
 	curr = NVPAIR2I_NVP(nvp);
 
+	uint32_t slot;
 	if (nvp == NULL)
-		curr = priv->nvp_last;
-	else if (priv->nvp_curr == curr || nvlist_contains_nvp(nvl, nvp))
-		curr = curr->nvi_prev;
+		slot = priv->nvp_arr_last;
+	else if (priv->nvp_hint > 0 && priv->nvp_hint >= priv->nvp_arr_first &&
+	    priv->nvp_arr[priv->nvp_hint] == curr)
+		slot = priv->nvp_hint - 1;	/* no pair deref */
+	else if (curr->nvi_slot > 0 && curr->nvi_slot >= priv->nvp_arr_first &&
+	    priv->nvp_arr[curr->nvi_slot] == curr)
+		slot = curr->nvi_slot - 1;	/* deref, but validated */
 	else
-		curr = NULL;
+		return (NULL);
 
-	priv->nvp_curr = curr;
+	for (; slot >= priv->nvp_arr_first; slot--) {
+		if (priv->nvp_arr[slot] != NULL) {
+			priv->nvp_hint = slot;
+			return (&priv->nvp_arr[slot]->nvi_nvp);
+		}
+	}
 
-	return (curr != NULL ? &curr->nvi_nvp : NULL);
+	return (NULL);
 }
 
 /*
@@ -2434,14 +2522,22 @@ static int
 nvs_encode_pairs(nvstream_t *nvs, nvlist_t *nvl)
 {
 	nvpriv_t *priv = (nvpriv_t *)(uintptr_t)nvl->nvl_priv;
-	i_nvp_t *curr;
 
 	/*
 	 * Walk nvpair in list and encode each nvpair
 	 */
-	for (curr = priv->nvp_list; curr != NULL; curr = curr->nvi_next)
-		if (nvs->nvs_ops->nvs_nvpair(nvs, &curr->nvi_nvp, NULL) != 0)
-			return (EFAULT);
+	if (priv->nvp_npairs > 0) {
+		for (uint32_t slot = priv->nvp_arr_first;
+		    slot <= priv->nvp_arr_last; slot++) {
+			i_nvp_t *curr = priv->nvp_arr[slot];
+			if (curr == NULL)
+				continue;
+
+			if (nvs->nvs_ops->nvs_nvpair(nvs,
+			    &curr->nvi_nvp, NULL) != 0)
+				return (EFAULT);
+		}
+	}
 
 	return (nvs->nvs_ops->nvs_nvl_fini(nvs));
 }
@@ -2494,19 +2590,26 @@ static int
 nvs_getsize_pairs(nvstream_t *nvs, nvlist_t *nvl, size_t *buflen)
 {
 	nvpriv_t *priv = (nvpriv_t *)(uintptr_t)nvl->nvl_priv;
-	i_nvp_t *curr;
 	uint64_t nvsize = *buflen;
 	size_t size;
 
 	/*
 	 * Get encoded size of nvpairs in nvlist
 	 */
-	for (curr = priv->nvp_list; curr != NULL; curr = curr->nvi_next) {
-		if (nvs->nvs_ops->nvs_nvp_size(nvs, &curr->nvi_nvp, &size) != 0)
-			return (EINVAL);
+	if (priv->nvp_npairs > 0) {
+		for (uint32_t slot = priv->nvp_arr_first;
+		    slot <= priv->nvp_arr_last; slot++) {
+			i_nvp_t *curr = priv->nvp_arr[slot];
+			if (curr == NULL)
+				continue;
 
-		if ((nvsize += size) > INT32_MAX)
-			return (EINVAL);
+			if (nvs->nvs_ops->nvs_nvp_size(nvs,
+			    &curr->nvi_nvp, &size) != 0)
+				return (EINVAL);
+
+			if ((nvsize += size) > INT32_MAX)
+				return (EINVAL);
+		}
 	}
 
 	*buflen = nvsize;

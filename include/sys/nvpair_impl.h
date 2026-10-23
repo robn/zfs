@@ -44,32 +44,32 @@ struct i_nvp {
 		uint64_t	_nvi_align;
 
 		struct {
-			/* pointer to next nvpair */
-			i_nvp_t	*_nvi_next;
-
-			/* pointer to prev nvpair */
-			i_nvp_t	*_nvi_prev;
-
-			/* next pair in table bucket */
-			i_nvp_t	*_nvi_hashtable_next;
+			/* this pair's slot in nvp_arr */
+			uint32_t _nvi_slot;
 
 			/* hash value of key */
 			uint32_t _nvi_hash;
+
+			/* next pair in table bucket */
+			i_nvp_t	*_nvi_hashtable_next;
 		} _nvi;
 	} _nvi_un;
 
 	/* nvpair */
 	nvpair_t nvi_nvp;
 };
-#define	nvi_next	_nvi_un._nvi._nvi_next
-#define	nvi_prev	_nvi_un._nvi._nvi_prev
-#define	nvi_hashtable_next	_nvi_un._nvi._nvi_hashtable_next
+#define	nvi_slot	_nvi_un._nvi._nvi_slot
 #define	nvi_hash	_nvi_un._nvi._nvi_hash
+#define	nvi_hashtable_next	_nvi_un._nvi._nvi_hashtable_next
 
 typedef struct {
-	i_nvp_t		*nvp_list;	/* linked list of nvpairs */
-	i_nvp_t		*nvp_last;	/* last nvpair */
-	const i_nvp_t	*nvp_curr;	/* current walker nvpair */
+	i_nvp_t		**nvp_arr;	/* array of nvpairs */
+	uint32_t	nvp_arr_alloc;	/* number of slots in pair array */
+	uint32_t	nvp_arr_first;	/* first in-use slot in pair array */
+	uint32_t	nvp_arr_last;	/* last in-use slot in pair array */
+
+	uint32_t	nvp_hint;	/* position of last iteration */
+
 	nv_alloc_t	*nvp_nva;	/* pluggable allocator */
 	uint32_t	nvp_stat;	/* internal state */
 	uint32_t	nvp_npairs;	/* # of nvpairs on list */
