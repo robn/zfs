@@ -68,6 +68,8 @@ typedef struct {
 	uint32_t	nvp_arr_first;	/* first in-use slot in pair array */
 	uint32_t	nvp_arr_last;	/* last in-use slot in pair array */
 
+	uint32_t	nvp_hint;	/* position of last iteration */
+
 	nv_alloc_t	*nvp_nva;	/* pluggable allocator */
 	uint32_t	nvp_stat;	/* internal state */
 	uint32_t	nvp_npairs;	/* # of nvpairs on list */
