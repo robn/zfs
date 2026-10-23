@@ -926,15 +926,21 @@ static int
 nvlist_copy_pairs(const nvlist_t *snvl, nvlist_t *dnvl)
 {
 	const nvpriv_t *priv;
-	const i_nvp_t *curr;
 
 	if ((priv = (const nvpriv_t *)(uintptr_t)snvl->nvl_priv) == NULL)
 		return (EINVAL);
 
-	for (curr = priv->nvp_list; curr != NULL; curr = curr->nvi_next) {
-		const nvpair_t *nvp = &curr->nvi_nvp;
-		int err;
+	if (priv->nvp_npairs == 0)
+		return (0);
 
+	for (uint32_t slot = priv->nvp_arr_first;
+	    slot <= priv->nvp_arr_last; slot++) {
+		const i_nvp_t *curr = priv->nvp_arr[slot];
+		if (curr == NULL)
+			continue;
+		const nvpair_t *nvp = &curr->nvi_nvp;
+
+		int err;
 		if ((err = nvlist_add_common(dnvl, NVP_NAME(nvp), NVP_TYPE(nvp),
 		    NVP_NELEM(nvp), NVP_VALUE(nvp))) != 0)
 			return (err);
