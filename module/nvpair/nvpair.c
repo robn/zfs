@@ -2519,14 +2519,22 @@ static int
 nvs_encode_pairs(nvstream_t *nvs, nvlist_t *nvl)
 {
 	nvpriv_t *priv = (nvpriv_t *)(uintptr_t)nvl->nvl_priv;
-	i_nvp_t *curr;
 
 	/*
 	 * Walk nvpair in list and encode each nvpair
 	 */
-	for (curr = priv->nvp_list; curr != NULL; curr = curr->nvi_next)
-		if (nvs->nvs_ops->nvs_nvpair(nvs, &curr->nvi_nvp, NULL) != 0)
-			return (EFAULT);
+	if (priv->nvp_npairs > 0) {
+		for (uint32_t slot = priv->nvp_arr_first;
+		    slot <= priv->nvp_arr_last; slot++) {
+			i_nvp_t *curr = priv->nvp_arr[slot];
+			if (curr == NULL)
+				continue;
+
+			if (nvs->nvs_ops->nvs_nvpair(nvs,
+			    &curr->nvi_nvp, NULL) != 0)
+				return (EFAULT);
+		}
+	}
 
 	return (nvs->nvs_ops->nvs_nvl_fini(nvs));
 }
