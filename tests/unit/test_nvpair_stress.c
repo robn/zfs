@@ -195,6 +195,14 @@ nvs_teardown(void *data)
 
 /* ========== */
 
+/* do nothing. just establishes the overhead from fixture setup. */
+static MunitResult
+test_nvs_nop(const MunitParameter params[], void *data)
+{
+	(void) params, (void) data;
+	return (MUNIT_OK);
+}
+
 /* build and free a fresh list, repeatedly. includes alloc/free cost */
 static MunitResult
 test_nvs_insert(const MunitParameter params[], void *data)
@@ -445,6 +453,7 @@ static const MunitParameterEnum nvs_unique_params[] = {
 	    MUNIT_TEST_OPTION_NONE, (MunitParameterEnum *)(params) }
 
 static const MunitTest nvpair_stress_tests[] = {
+	NVS_TEST("nop",		test_nvs_nop,		nvs_all_params),
 	NVS_TEST("insert",	test_nvs_insert,	nvs_all_params),
 	NVS_TEST("replace",	test_nvs_replace,	nvs_unique_params),
 	NVS_TEST("remove_hit",	test_nvs_remove_hit,	nvs_all_params),
