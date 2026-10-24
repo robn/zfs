@@ -296,62 +296,90 @@ nv_arr_ensure(nvpriv_t *priv, uint32_t npairs)
 		return (0);
 
 	/*
-	 * Just appending would take us off the end. If there's room for the
-	 * existing pairs and our new ones, then there must be enough empty
-	 * space and compacting will make enough space.
+	 * We need to find room. We are always looking for the array size to be
+	 * at least twice the number of real entries, so holes never exceed
+	 * half the array between compactions. So, we compute 2x the total
+	 * number of real entries that will be on the list, rounded up to the
+	 * nearest power 2. If that's larger than the current allocation, we
+	 * allocate more, otherwise we use the existing allocation. Then we
+	 * compact all the existing entries down to the start of the
+	 * allocation, leaving room at the end for at least the number of
+	 * existing entries + the requested amount.
 	 */
-	if ((priv->nvp_npairs + npairs) < (priv->nvp_arr_alloc >> 1)) {
-		ASSERT3P(priv->nvp_arr, !=, NULL);
-		ASSERT3U(priv->nvp_arr_alloc, >, 0);
-
-		uint32_t src = priv->nvp_arr_first;
-		uint32_t dest = 0;
-		while (src <= priv->nvp_arr_last) {
-			i_nvp_t *curr = priv->nvp_arr[src];
-			if (curr == NULL) {
-				src++;
-				continue;
-			}
-			if (src == dest) {
-				src++;
-				dest++;
-				continue;
-			}
-			curr->nvi_slot = dest;
-			priv->nvp_arr[dest++] = curr;
-			priv->nvp_arr[src++] = NULL;
-		}
-
-		ASSERT3U(dest, ==, priv->nvp_npairs);
-		memset(&priv->nvp_arr[dest], 0,
-		    (priv->nvp_arr_alloc - dest) * sizeof (i_nvp_t *));
-
-		priv->nvp_arr_first = 0;
-		priv->nvp_arr_last = dest-1;
-
-		ASSERT3U(priv->nvp_arr_last + npairs, <, priv->nvp_arr_alloc);
-
-		return (0);
-	}
-
-	/*
-	 * There's just not enough room, so grow the allocation to be big
-	 * enough, and move the existing pointer list over.
-	 */
-	uint32_t alloc = last + 1;
+	uint32_t alloc = ((priv->nvp_npairs + npairs) << 1);
 	if (!ISP2(alloc))
 		alloc = 1U << highbit64(alloc);
 
-	i_nvp_t **arr = nv_mem_zalloc(priv, alloc * sizeof (i_nvp_t *));
-	if (arr == NULL)
-		return (ENOMEM);
+	i_nvp_t **dest;
+	boolean_t inplace;
+	if (alloc <= priv->nvp_arr_alloc) {
+		/* Allocation is large enough, compact in place. */
+		dest = priv->nvp_arr;
+		inplace = B_TRUE;
+	} else {
+		/* Need a larger allocation. */
+		/* XXX regular alloc, not zalloc, since we zero the tail */
+		dest = nv_mem_zalloc(priv, alloc * sizeof (i_nvp_t *));
+		if (dest == NULL)
+			return (ENOMEM);
+		inplace = B_FALSE;
+	}
 
-	memcpy(arr, priv->nvp_arr, priv->nvp_arr_alloc * sizeof (i_nvp_t *));
-	nv_mem_free(priv, priv->nvp_arr,
-	    priv->nvp_arr_alloc * sizeof (i_nvp_t *));
+	/*
+	 * Now walk the source and dest array, skipping NULLs in the source,
+	 * and copying the rest to dest.
+	 */
+	uint32_t sslot = priv->nvp_arr_first;
+	uint32_t dslot = 0;
+	while (sslot <= priv->nvp_arr_last) {
 
-	priv->nvp_arr = arr;
-	priv->nvp_arr_alloc = alloc;
+		/* Skip holes in the source. */
+		i_nvp_t *e = priv->nvp_arr[sslot];
+		if (e == NULL) {
+			sslot++;
+			continue;
+		}
+
+		/*
+		 * If in-place and on the same slot, just move both slots
+		 * forward, no need to copy anything.
+		 */
+		if (inplace && sslot == dslot) {
+			sslot++;
+			dslot++;
+			continue;
+		}
+
+		/* Copy pair to new array, updating it with its new slot id */
+		e->nvi_slot = dslot;
+		dest[dslot++] = e;
+
+		sslot++;
+	}
+
+	ASSERT3U(dslot, ==, priv->nvp_npairs);
+
+	/* Reset the first and last slot pointers after compact. */
+	priv->nvp_arr_first = 0;
+	priv->nvp_arr_last = dslot-1;
+
+	/*
+	 * If we grew the array, free the old one and update the array pointer
+	 * and alloc size for the new one.
+	 */
+	if (!inplace) {
+		nv_mem_free(priv, priv->nvp_arr,
+		    priv->nvp_arr_alloc * sizeof (i_nvp_t *));
+		priv->nvp_arr = dest;
+		priv->nvp_arr_alloc = alloc;
+	}
+
+	/* Zero the tail. */
+	memset(&priv->nvp_arr[dslot], 0,
+	    (priv->nvp_arr_alloc - dslot) * sizeof (i_nvp_t *));
+
+	/* Sanity check that we did what we came here to do! */
+	ASSERT3U(priv->nvp_arr_last + npairs, <, priv->nvp_arr_alloc);
 
 	return (0);
 }
