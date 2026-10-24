@@ -189,12 +189,18 @@ nvlist_lookup_nv_alloc(nvlist_t *nvl)
 }
 
 static void *
-nv_mem_zalloc(nvpriv_t *nvp, size_t size)
+nv_mem_alloc(nvpriv_t *nvp, size_t size)
 {
 	nv_alloc_t *nva = nvp->nvp_nva;
+	return (nva->nva_ops->nv_ao_alloc(nva, size));
+}
+
+static void *
+nv_mem_zalloc(nvpriv_t *nvp, size_t size)
+{
 	void *buf;
 
-	if ((buf = nva->nva_ops->nv_ao_alloc(nva, size)) != NULL)
+	if ((buf = nv_mem_alloc(nvp, size)) != NULL)
 		memset(buf, 0, size);
 
 	return (buf);
@@ -318,8 +324,7 @@ nv_arr_ensure(nvpriv_t *priv, uint32_t npairs)
 		inplace = B_TRUE;
 	} else {
 		/* Need a larger allocation. */
-		/* XXX regular alloc, not zalloc, since we zero the tail */
-		dest = nv_mem_zalloc(priv, alloc * sizeof (i_nvp_t *));
+		dest = nv_mem_alloc(priv, alloc * sizeof (i_nvp_t *));
 		if (dest == NULL)
 			return (ENOMEM);
 		inplace = B_FALSE;
