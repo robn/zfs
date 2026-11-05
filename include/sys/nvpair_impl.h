@@ -77,6 +77,8 @@ typedef struct {
 	i_nvp_t		**nvp_hashtable; /* table of entries used for lookup */
 	uint32_t	nvp_nbuckets;	/* # of buckets in hash table */
 	uint32_t	nvp_nentries;	/* # of entries in hash table */
+
+	i_nvp_t		*nvp_arr_init[8]; /* small initial pair array */
 } nvpriv_t;
 
 #ifdef	__cplusplus

@@ -219,6 +219,8 @@ nv_priv_init(nvpriv_t *priv, nv_alloc_t *nva, uint32_t stat)
 {
 	memset(priv, 0, sizeof (nvpriv_t));
 
+	priv->nvp_arr = (i_nvp_t **)&priv->nvp_arr_init;
+	priv->nvp_arr_alloc = ARRAY_SIZE(priv->nvp_arr_init);
 	priv->nvp_arr_first = priv->nvp_arr_last = NVP_UNLINKED;
 
 	priv->nvp_nva = nva;
@@ -282,34 +284,6 @@ nv_arr_make_room(nvpriv_t *priv, uint32_t npairs)
 	 */
 	ASSERT(!nv_arr_has_room(priv, npairs));
 
-	if (priv->nvp_arr_alloc == 0) {
-		ASSERT0P(priv->nvp_arr);
-		ASSERT3U(priv->nvp_arr_first, ==, NVP_UNLINKED);
-		ASSERT3U(priv->nvp_arr_last, ==, NVP_UNLINKED);
-
-		/*
-		 * This is the first allocation, so just make enough to hold
-		 * the given number of pairs. Minimum alloc is for 8 pairs, and
-		 * if they didn't give us a nice power-2, round up to the
-		 * nearest (otherwise the math gets awkward later).
-		 *
-		 * XXX the 8 minimum should be a macro or tunable.
-		 *       -- robn, 2026-10-23
-		 */
-
-		uint32_t alloc = MAX(npairs, 8);
-		if (!ISP2(alloc))
-			alloc = 1U << highbit64(alloc);
-
-		if ((priv->nvp_arr =
-		    nv_mem_zalloc(priv, alloc * sizeof (i_nvp_t *))) == NULL)
-			return (ENOMEM);
-
-		priv->nvp_arr_alloc = alloc;
-
-		return (0);
-	}
-
 	/*
 	 * We need to find room. We are always looking for the array size to be
 	 * at least twice the number of real entries, so holes never exceed
@@ -340,50 +314,60 @@ nv_arr_make_room(nvpriv_t *priv, uint32_t npairs)
 	}
 
 	/*
-	 * Now walk the source and dest array, skipping NULLs in the source,
-	 * and copying the rest to dest.
+	 * Set up to walk the source and dest array and copy the pairs over.
+	 * If there's no pairs, we won't do the copy, but we still need sslot
+	 * for the check, and dslot for the "zero the tail" below, which will
+	 * be the entire array.
 	 */
 	uint32_t sslot = priv->nvp_arr_first;
 	uint32_t dslot = 0;
-	while (sslot <= priv->nvp_arr_last) {
 
-		/* Skip holes in the source. */
-		i_nvp_t *e = priv->nvp_arr[sslot];
-		if (e == NULL) {
+	if (sslot != NVP_UNLINKED) {
+		/* Walk the arrays, skipping NULLs and copying the rest. */
+		while (sslot <= priv->nvp_arr_last) {
+
+			/* Skip holes in the source. */
+			i_nvp_t *e = priv->nvp_arr[sslot];
+			if (e == NULL) {
+				sslot++;
+				continue;
+			}
+
+			/*
+			 * If in-place and on the same slot, just move both
+			 * slots forward, no need to copy anything.
+			 */
+			if (inplace && sslot == dslot) {
+				sslot++;
+				dslot++;
+				continue;
+			}
+
+			/*
+			 * Copy pair to new array, updating it with its new
+			 * slot id.
+			 */
+			e->nvi_slot = dslot;
+			dest[dslot++] = e;
+
 			sslot++;
-			continue;
 		}
 
-		/*
-		 * If in-place and on the same slot, just move both slots
-		 * forward, no need to copy anything.
-		 */
-		if (inplace && sslot == dslot) {
-			sslot++;
-			dslot++;
-			continue;
-		}
+		ASSERT3U(dslot, ==, priv->nvp_npairs);
 
-		/* Copy pair to new array, updating it with its new slot id */
-		e->nvi_slot = dslot;
-		dest[dslot++] = e;
-
-		sslot++;
+		/* Reset the first and last slot pointers after compact. */
+		priv->nvp_arr_first = 0;
+		priv->nvp_arr_last = dslot-1;
 	}
-
-	ASSERT3U(dslot, ==, priv->nvp_npairs);
-
-	/* Reset the first and last slot pointers after compact. */
-	priv->nvp_arr_first = 0;
-	priv->nvp_arr_last = dslot-1;
 
 	/*
 	 * If we grew the array, free the old one and update the array pointer
 	 * and alloc size for the new one.
 	 */
 	if (!inplace) {
-		nv_mem_free(priv, priv->nvp_arr,
-		    priv->nvp_arr_alloc * sizeof (i_nvp_t *));
+		if (priv->nvp_arr != (i_nvp_t **)&priv->nvp_arr_init)
+			nv_mem_free(priv, priv->nvp_arr,
+			    priv->nvp_arr_alloc * sizeof (i_nvp_t *));
 		priv->nvp_arr = dest;
 		priv->nvp_arr_alloc = alloc;
 	}
@@ -442,18 +426,10 @@ static void
 nv_arr_free(nvpriv_t *priv)
 {
 	i_nvp_t **arr = priv->nvp_arr;
-	if (arr == NULL) {
-		ASSERT0(priv->nvp_arr_alloc);
-		ASSERT3U(priv->nvp_arr_first, ==, NVP_UNLINKED);
-		ASSERT3U(priv->nvp_arr_last, ==, NVP_UNLINKED);
+	if (arr == (i_nvp_t **)&priv->nvp_arr_init)
 		return;
-	}
 
 	nv_mem_free(priv, arr, priv->nvp_arr_alloc * sizeof (i_nvp_t *));
-
-	priv->nvp_arr = NULL;
-	priv->nvp_arr_alloc = 0;
-	priv->nvp_arr_first = priv->nvp_arr_last = NVP_UNLINKED;
 }
 
 static int
