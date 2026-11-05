@@ -254,10 +254,22 @@ nv_priv_alloc_embedded(nvpriv_t *priv)
 	return (emb_priv);
 }
 
-static int
-nv_arr_insert(nvpriv_t *priv, i_nvp_t *e)
+static inline boolean_t
+nv_arr_has_room(const nvpriv_t *priv)
 {
-	ASSERT3U(e->nvi_slot, ==, NVP_UNLINKED);
+	uint32_t next = (priv->nvp_arr_last == NVP_UNLINKED) ?
+	    0 : priv->nvp_arr_last + 1;
+	return (next + 1 <= priv->nvp_arr_alloc);
+}
+
+static noinline int
+nv_arr_make_room(nvpriv_t *priv)
+{
+	/*
+	 * Caller should have called nv_arr_has_room() first. It's not unsafe,
+	 * but the call overhead on the hot path hurts.
+	 */
+	ASSERT(!nv_arr_has_room(priv));
 
 	if (priv->nvp_arr_alloc == 0) {
 		ASSERT0P(priv->nvp_arr);
@@ -292,19 +304,30 @@ nv_arr_insert(nvpriv_t *priv, i_nvp_t *e)
 		priv->nvp_arr_alloc = new_alloc;
 	}
 
-	uint32_t slot;
-	if (priv->nvp_arr_last == NVP_UNLINKED) {
-		ASSERT3U(priv->nvp_arr_first, ==, NVP_UNLINKED);
-		slot = priv->nvp_arr_first = priv->nvp_arr_last = 0;
-	} else {
-		ASSERT3U(priv->nvp_arr_first, !=, NVP_UNLINKED);
-		ASSERT3U(priv->nvp_arr_last, >=, priv->nvp_arr_first);
-		slot = ++priv->nvp_arr_last;
+	/* Sanity check that we did what we came here to do! */
+	ASSERT(nv_arr_has_room(priv));
+
+	return (0);
+}
+
+static int
+nv_arr_insert(nvpriv_t *priv, i_nvp_t *e)
+{
+	ASSERT3U(e->nvi_slot, ==, NVP_UNLINKED);
+
+	if (!nv_arr_has_room(priv)) {
+		int err = nv_arr_make_room(priv);
+		if (err != 0)
+			return (err);
 	}
 
-	e->nvi_slot = slot;
-	priv->nvp_arr[slot] = e;
+	if (priv->nvp_arr_last == NVP_UNLINKED)
+		priv->nvp_arr_first = priv->nvp_arr_last = 0;
+	else
+		priv->nvp_arr_last++;
 
+	e->nvi_slot = priv->nvp_arr_last;
+	priv->nvp_arr[priv->nvp_arr_last] = e;
 	return (0);
 }
 
@@ -764,7 +787,7 @@ nvp_buf_free(nvlist_t *nvl, nvpair_t *nvp)
 /*
  * nvp_buf_link - link a new nv pair into the nvlist.
  */
-static void
+static inline void
 nvp_buf_link(nvlist_t *nvl, nvpair_t *nvp)
 {
 	nvpriv_t *priv = (nvpriv_t *)(uintptr_t)nvl->nvl_priv;
