@@ -362,34 +362,65 @@ nv_arr_make_room(nvpriv_t *priv, uint32_t npairs)
 		dslot = priv->nvp_npairs;
 		memcpy(dest, priv->nvp_arr, dslot * sizeof (i_nvp_t *));
 	} else if (sslot != NVP_UNLINKED) {
-		/* Walk the arrays, skipping NULLs and copying the rest. */
-		while (sslot <= priv->nvp_arr_last) {
+		/*
+		 * We want to copy all the pair pointers from the source array
+		 * to the dest, skipping NULLs in the source, such we end up
+		 * with all the pairs nicely packed at the start of the dest
+		 * array, with no holes. As they're copied, each pair's slot
+		 * id field gets updated with the id of its new home.
+		 *
+		 * The basic algorithm here is simple:
+		 *
+		 * for (sslot = first; sslot <= last; sslot++) {
+		 *   if (src[sslot] != NULL) {
+		 *     dest[dslot] = src[sslot];
+		 *     dest[dslot]->nvi_slot = dslot;
+		 *     dslot++;
+		 *   }
+		 * }
+		 *
+		 * This implementation is deliberately weird to help with
+		 * repeated compaction on highly fragmented lists, where branch
+		 * misprediction on the NULL check is visible in profiles.
+		 *
+		 * To get around this, we avoid branches by always copying the
+		 * pointer, regardless of its value, and then always writing
+		 * the slot index, either to the actual pair, or to a dummy on
+		 * the stack. To select which one to write to we use a ternary
+		 * assignment, and for the increment we add the result of a
+		 * comparison. When available, the compiler will emit
+		 * conditional move instructions rather than branches (eg CMOV
+		 * and SETNE on x86). If not available, they'll just be regular
+		 * branches, which is what the "obvious" implementation would
+		 * have got us anyway.
+		 */
 
-			/* Skip holes in the source. */
-			i_nvp_t *e = priv->nvp_arr[sslot];
-			if (e == NULL) {
-				sslot++;
-				continue;
-			}
+		/*
+		 * Hoist the source array pointer and the last slot onto the
+		 * stack, to help the compiler optimise the loop when
+		 * -fno-strict-aliasing is enabled.
+		 */
+		i_nvp_t **src = priv->nvp_arr;
+		uint32_t last = priv->nvp_arr_last;
 
-			/*
-			 * If in-place and on the same slot, just move both
-			 * slots forward, no need to copy anything.
-			 */
-			if (inplace && sslot == dslot) {
-				sslot++;
-				dslot++;
-				continue;
-			}
+		/* Scratch target for NULL slots. */
+		i_nvp_t dummy;
 
-			/*
-			 * Copy pair to new array, updating it with its new
-			 * slot id.
-			 */
-			e->nvi_slot = dslot;
-			dest[dslot++] = e;
+		for (; sslot <= last; sslot++) {
+			/* Load the entry. */
+			i_nvp_t *e = src[sslot];
 
-			sslot++;
+			/* Always write it. */
+			dest[dslot] = e;
+
+			/* Set target to either the true entry, or the dummy. */
+			i_nvp_t *t = (e != NULL) ? e : &dummy;
+
+			/* Set the slot id in the target. */
+			t->nvi_slot = dslot;
+
+			/* Move to the next dest slot, or not. */
+			dslot += (e != NULL);
 		}
 
 		ASSERT3U(dslot, ==, priv->nvp_npairs);
