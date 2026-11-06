@@ -306,7 +306,7 @@ test_nvs_exists_miss(const MunitParameter params[], void *data)
 
 /* full forward walk, repeated */
 static MunitResult
-test_nvs_iter(const MunitParameter params[], void *data)
+test_nvs_iter_next(const MunitParameter params[], void *data)
 {
 	(void) params;
 	nvs_fixture_t *fx = data;
@@ -315,6 +315,23 @@ test_nvs_iter(const MunitParameter params[], void *data)
 		uint_t npairs = 0;
 		nvpair_t *nvp = NULL;
 		while ((nvp = nvlist_next_nvpair(fx->nvl, nvp)) != NULL)
+			npairs++;
+		unit_eq(npairs, fx->n);
+	}
+	return (MUNIT_OK);
+}
+
+/* full reverse walk, repeated */
+static MunitResult
+test_nvs_iter_prev(const MunitParameter params[], void *data)
+{
+	(void) params;
+	nvs_fixture_t *fx = data;
+
+	for (uint_t done = 0; done < NVS_ROUNDS; done += fx->n) {
+		uint_t npairs = 0;
+		nvpair_t *nvp = NULL;
+		while ((nvp = nvlist_prev_nvpair(fx->nvl, nvp)) != NULL)
 			npairs++;
 		unit_eq(npairs, fx->n);
 	}
@@ -462,7 +479,8 @@ static const MunitTest nvpair_stress_tests[] = {
 	NVS_TEST("lookup_miss",	test_nvs_lookup_miss,	nvs_unique_params),
 	NVS_TEST("exists_hit",	test_nvs_exists_hit,	nvs_all_params),
 	NVS_TEST("exists_miss",	test_nvs_exists_miss,	nvs_all_params),
-	NVS_TEST("iter",	test_nvs_iter,		nvs_all_params),
+	NVS_TEST("iter_next",	test_nvs_iter_next,	nvs_all_params),
+	NVS_TEST("iter_prev",	test_nvs_iter_prev,	nvs_all_params),
 	NVS_TEST("iter_two",	test_nvs_iter_two,	nvs_all_params),
 	NVS_TEST("iter_remove",	test_nvs_iter_remove,	nvs_all_params),
 	NVS_TEST("dup",		test_nvs_dup,		nvs_all_params),
