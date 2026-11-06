@@ -285,28 +285,56 @@ nv_arr_make_room(nvpriv_t *priv, uint32_t npairs)
 	ASSERT(!nv_arr_has_room(priv, npairs));
 
 	/*
-	 * We need to find room. We are always looking for the array size to be
-	 * at least twice the number of real entries, so holes never exceed
-	 * half the array between compactions. So, we compute 2x the total
-	 * number of real entries that will be on the list, rounded up to the
-	 * nearest power 2. If that's larger than the current allocation, we
-	 * allocate more, otherwise we use the existing allocation. Then we
-	 * compact all the existing entries down to the start of the
-	 * allocation, leaving room at the end for at least the number of
-	 * existing entries + the requested amount.
+	 * We need to find room. We can either compact the existing array, or
+	 * allocate a new one and copy it over.
+	 *
+	 * "Compact" and "copy" are the same basic operation: walk the source
+	 * and dest arrays, skipping holes (NULLs) on the source, and copying
+	 * the pair pointer to the dest. The only difference is whether the
+	 * dest is the same as the source, or a new array.
+	 *
+	 * In most cases however, pairs are being added or removed
+	 * one-at-a-time. A mixed add/remove workload can get us into difficult
+	 * situations. Consider a full array, and then the following happens:
+	 * - remove one from the middle of the array, leaving a hole
+	 * - insert one, triggering a compact (copy), moving the hole to the
+	 *   end, where it is used for the insert
+	 * - insert one, forcing a reallocation and another copy, to the new
+	 *   array
+	 *
+	 * To avoid these kind of cases, when deciding to compact-in-place
+	 * or allocate-and-copy, we aim for a final array that will be no more
+	 * than half full, with the existing entries compacted at the front.
+	 * That is, we compact-in-place when at least half of the existing
+	 * array contents is holes, otherwise we allocate at least twice the
+	 * existing array size and compact (copy) into it.
 	 */
-	uint32_t alloc = ((priv->nvp_npairs + npairs) << 1);
-	if (!ISP2(alloc))
-		alloc = 1U << highbit64(alloc);
 
+	/* Absolute minimum array size for existing + requested entries. */
+	uint32_t minalloc = priv->nvp_npairs + npairs;
+
+	uint32_t alloc;
 	i_nvp_t **dest;
 	boolean_t inplace;
-	if (alloc <= priv->nvp_arr_alloc) {
-		/* Allocation is large enough, compact in place. */
+	if (priv->nvp_npairs <= (priv->nvp_arr_alloc >> 1) &&
+	    minalloc <= priv->nvp_arr_alloc) {
+		/*
+		 * At least half the existing array is holes, and compacting
+		 * it will give enough room, so we'll stay with the existing
+		 * allocation.
+		 */
+		alloc = priv->nvp_arr_alloc;
 		dest = priv->nvp_arr;
 		inplace = B_TRUE;
 	} else {
-		/* Need a larger allocation. */
+		/*
+		 * We have to grow the array. At least double the existing
+		 * size, for small requests (eg 1, on insert) but if a presize
+		 * is asking for more, do it all right now.
+		 */
+		alloc = MAX(priv->nvp_arr_alloc << 1, minalloc);
+		if (!ISP2(alloc))
+			alloc = 1U << highbit64(alloc);
 		dest = nv_mem_alloc(priv, alloc * sizeof (i_nvp_t *));
 		if (dest == NULL)
 			return (ENOMEM);
