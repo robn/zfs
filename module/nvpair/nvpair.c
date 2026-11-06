@@ -255,57 +255,71 @@ nv_priv_alloc_embedded(nvpriv_t *priv)
 }
 
 static inline boolean_t
-nv_arr_has_room(const nvpriv_t *priv)
+nv_arr_has_room(const nvpriv_t *priv, uint32_t npairs)
 {
+	/*
+	 * If we just appended all the pairs to the end, this would be the new
+	 * nvp_arr_last. If it will fit within the current allocation, then
+	 * there's nothing more to do.
+	 */
 	uint32_t next = (priv->nvp_arr_last == NVP_UNLINKED) ?
 	    0 : priv->nvp_arr_last + 1;
-	return (next + 1 <= priv->nvp_arr_alloc);
+	return (next + npairs <= priv->nvp_arr_alloc);
 }
 
 static noinline int
-nv_arr_make_room(nvpriv_t *priv)
+nv_arr_make_room(nvpriv_t *priv, uint32_t npairs)
 {
 	/*
 	 * Caller should have called nv_arr_has_room() first. It's not unsafe,
 	 * but the call overhead on the hot path hurts.
 	 */
-	ASSERT(!nv_arr_has_room(priv));
+	ASSERT(!nv_arr_has_room(priv, npairs));
 
 	if (priv->nvp_arr_alloc == 0) {
 		ASSERT0P(priv->nvp_arr);
 		ASSERT3U(priv->nvp_arr_first, ==, NVP_UNLINKED);
 		ASSERT3U(priv->nvp_arr_last, ==, NVP_UNLINKED);
 
-		const uint32_t arr_alloc_default = 8; /* XXX tune, config, etc */
-		i_nvp_t **arr = nv_mem_zalloc(priv,
-		    arr_alloc_default * sizeof (i_nvp_t *));
-		if (arr == NULL)
+		/*
+		 * This is the first allocation, so just make enough to hold
+		 * the given number of pairs. Minimum alloc is for 8 pairs, and
+		 * if they didn't give us a nice power-2, round up to the
+		 * nearest (otherwise the math gets awkward later).
+		 *
+		 * XXX the 8 minimum should be a macro or tunable.
+		 *       -- robn, 2026-10-23
+		 */
+
+		uint32_t alloc = MAX(npairs, 8);
+		if (!ISP2(alloc))
+			alloc = 1U << highbit64(alloc);
+
+		if ((priv->nvp_arr =
+		    nv_mem_zalloc(priv, alloc * sizeof (i_nvp_t *))) == NULL)
 			return (ENOMEM);
 
-		priv->nvp_arr = arr;
-		priv->nvp_arr_alloc = arr_alloc_default;
-	} else if (priv->nvp_arr_last == (priv->nvp_arr_alloc - 1)) {
-		ASSERT3P(priv->nvp_arr, !=, NULL);
-		ASSERT3U(priv->nvp_arr_alloc, >, 0);
+		priv->nvp_arr_alloc = alloc;
 
-		const uint32_t new_alloc = priv->nvp_arr_alloc << 1;
-
-		i_nvp_t **arr =
-		     nv_mem_zalloc(priv, new_alloc * sizeof (i_nvp_t *));
-		if (arr == NULL)
-			return (ENOMEM);
-
-		memcpy(arr, priv->nvp_arr,
-		    priv->nvp_arr_alloc * sizeof (i_nvp_t *));
-		nv_mem_free(priv, priv->nvp_arr,
-		    priv->nvp_arr_alloc * sizeof (i_nvp_t *));
-
-		priv->nvp_arr = arr;
-		priv->nvp_arr_alloc = new_alloc;
+		return (0);
 	}
 
+	uint32_t alloc = priv->nvp_arr_alloc + npairs;
+	if (!ISP2(alloc))
+		alloc = 1U << highbit64(alloc);
+
+	i_nvp_t **arr = nv_mem_zalloc(priv, alloc * sizeof (i_nvp_t *));
+	if (arr == NULL)
+		return (ENOMEM);
+
+	memcpy(arr, priv->nvp_arr, priv->nvp_arr_alloc * sizeof (i_nvp_t *));
+	nv_mem_free(priv, priv->nvp_arr,
+	    priv->nvp_arr_alloc * sizeof (i_nvp_t *));
+	priv->nvp_arr = arr;
+	priv->nvp_arr_alloc = alloc;
+
 	/* Sanity check that we did what we came here to do! */
-	ASSERT(nv_arr_has_room(priv));
+	ASSERT(nv_arr_has_room(priv, npairs));
 
 	return (0);
 }
@@ -315,8 +329,8 @@ nv_arr_insert(nvpriv_t *priv, i_nvp_t *e)
 {
 	ASSERT3U(e->nvi_slot, ==, NVP_UNLINKED);
 
-	if (!nv_arr_has_room(priv)) {
-		int err = nv_arr_make_room(priv);
+	if (!nv_arr_has_room(priv, 1)) {
+		int err = nv_arr_make_room(priv, 1);
 		if (err != 0)
 			return (err);
 	}
@@ -942,12 +956,21 @@ static int
 nvlist_copy_pairs(const nvlist_t *snvl, nvlist_t *dnvl)
 {
 	const nvpriv_t *priv;
-
 	if ((priv = (const nvpriv_t *)(uintptr_t)snvl->nvl_priv) == NULL)
+		return (EINVAL);
+
+	nvpriv_t *dpriv;
+	if ((dpriv = (nvpriv_t *)(uintptr_t)dnvl->nvl_priv) == NULL)
 		return (EINVAL);
 
 	if (priv->nvp_npairs == 0)
 		return (0);
+
+	if (!nv_arr_has_room(dpriv, priv->nvp_npairs)) {
+		int err = nv_arr_make_room(dpriv, priv->nvp_npairs);
+		if (err != 0)
+			return (err);
+	}
 
 	for (uint32_t slot = priv->nvp_arr_first;
 	    slot <= priv->nvp_arr_last; slot++) {
