@@ -1863,22 +1863,47 @@ nvlist_prev_nvpair(nvlist_t *nvl, const nvpair_t *nvp)
 
 	curr = NVPAIR2I_NVP(nvp);
 
-	uint32_t slot;
-	if (nvp == NULL)
-		slot = priv->nvp_arr_last;
-	else if (priv->nvp_hint > 0 && priv->nvp_hint >= priv->nvp_arr_first &&
-	    priv->nvp_arr[priv->nvp_hint] == curr)
-		slot = priv->nvp_hint - 1;	/* no pair deref */
-	else if (curr->nvi_slot > 0 && curr->nvi_slot >= priv->nvp_arr_first &&
-	    priv->nvp_arr[curr->nvi_slot] == curr)
-		slot = curr->nvi_slot - 1;	/* deref, but validated */
-	else
-		return (NULL);
+	/*
+	 * This function is basically the inverse of nvlist_next_nvpair().
+	 * Read the commentary there to understand why it looks the way it
+	 * does, and profile any changes carefully!
+	 */
 
-	for (; slot >= priv->nvp_arr_first; slot--) {
-		if (priv->nvp_arr[slot] != NULL) {
+	i_nvp_t **arr = priv->nvp_arr;
+	uint32_t first = priv->nvp_arr_first;
+	uint32_t last = priv->nvp_arr_last;
+
+	/* Hoisting the hint too, for the first check. */
+	uint32_t hint = priv->nvp_hint;
+
+	uint32_t slot;
+	if (arr[hint] == curr) {
+		if (hint == first)
+			return (NULL);
+
+		slot = hint - 1;
+
+		if (arr[slot] != NULL) {
 			priv->nvp_hint = slot;
-			return (&priv->nvp_arr[slot]->nvi_nvp);
+			return (&arr[slot]->nvi_nvp);
+		}
+
+		slot--;
+	} else if (nvp == NULL) {
+		slot = last;
+	} else if (curr->nvi_slot <= last && curr->nvi_slot >= first &&
+	    priv->nvp_arr[curr->nvi_slot] == curr) {
+		if (curr->nvi_slot == first)
+			return (NULL);
+		slot = curr->nvi_slot - 1;
+	} else {
+		return (NULL);
+	}
+
+	for (; slot >= first; slot--) {
+		if (arr[slot] != NULL) {
+			priv->nvp_hint = slot;
+			return (&arr[slot]->nvi_nvp);
 		}
 	}
 
