@@ -1729,25 +1729,92 @@ nvlist_next_nvpair(nvlist_t *nvl, const nvpair_t *nvp)
 
 	curr = NVPAIR2I_NVP(nvp);
 
-	uint32_t slot;
-	if (nvp == NULL)
-		slot = priv->nvp_arr_first;
-	else if (priv->nvp_hint <= priv->nvp_arr_last &&
-	    priv->nvp_arr[priv->nvp_hint] == curr)
-		slot = priv->nvp_hint + 1;	/* no pair deref */
-	else if (curr->nvi_slot <= priv->nvp_arr_last &&
-	    priv->nvp_arr[curr->nvi_slot] == curr)
-		slot = curr->nvi_slot + 1;	/* deref, but validated */
-	else
-		return (NULL);
+	/*
+	 * Note that the rest of this function is carefully structured to do
+	 * the smallest possible amount of work on the common case, and to
+	 * give the compiler as much help as possible. Profile any changes
+	 * carefully!
+	 */
 
-	for (; slot <= priv->nvp_arr_last; slot++) {
-		if (priv->nvp_arr[slot] != NULL) {
+	/*
+	 * Hoist arr and last into locals to help the compiler optimise the
+	 * loop below under -fno-strict-aliasing. Doing it here saves some
+	 * typing in the curr checks too.
+	 */
+	i_nvp_t **arr = priv->nvp_arr;
+	uint32_t last = priv->nvp_arr_last;
+
+	/* Hoisting the hint too, for the first check. */
+	uint32_t hint = priv->nvp_hint;
+
+	uint32_t slot;
+
+	/*
+	 * First check is to see if curr is at the hint position.
+	 *
+	 * Note that nvp may be NULL, in which case curr is NVPAIR2I_NVP(NULL).
+	 * On any platform we're ever likely to encounter, that's a safe
+	 * wraparound into somewhere in the top memory page, which will be
+	 * unavailable to an allocator and likely not on a sensible alignment
+	 * for an i_nvp_t anyway.
+	 *
+	 * Additionally, we are only doing this single comparison. If it
+	 * matches, curr will never actually be dereferenced. If it doesn't, we
+	 * continue to the nvp == NULL check anyway, and after that it's safe.
+	 */
+	if (arr[hint] == curr) {
+		/*
+		 * Fast path for the most common case of a single iterator over
+		 * an array with no holes. If we're past the end, return NULL.
+		 * If the next pair exists, return it directly. Otherwise,
+		 * we're over a hole and can fall into the loop.
+		 */
+		slot = hint + 1;
+
+		if (slot > last)
+			return (NULL);
+
+		if (arr[slot] != NULL) {
 			priv->nvp_hint = slot;
-			return (&priv->nvp_arr[slot]->nvi_nvp);
+			return (&arr[slot]->nvi_nvp);
+		}
+
+		/* Already checked the hole, so can start one forward. */
+		slot++;
+	} else if (nvp == NULL) {
+		/* No previous pair, start at the first slot. */
+		slot = priv->nvp_arr_first;
+	} else if (curr->nvi_slot <= last && arr[curr->nvi_slot] == curr) {
+		/*
+		 * This is some other pair, not the one in the hint. Caller is
+		 * doing something weird (caching a pair; multiple iterators
+		 * over the same list; etc). We have no choice but to take
+		 * a deref, which will slow things down but so it goes.
+		 */
+		slot = curr->nvi_slot + 1;
+	} else {
+		/*
+		 * Who knows. If this is even a real pair, it belongs to some
+		 * other list, not ours.
+		 */
+		return (NULL);
+	}
+
+	/*
+	 * Scan forward, looking for the first non-hole slot, and return the
+	 * pair within it.
+	 */
+	for (; slot <= last; slot++) {
+		if (arr[slot] != NULL) {
+			priv->nvp_hint = slot;
+			return (&arr[slot]->nvi_nvp);
 		}
 	}
 
+	/*
+	 * To get here, curr was the last pair and we missed the fast path.
+	 * Regardless, there's nothing left.
+	 */
 	return (NULL);
 }
 
