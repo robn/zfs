@@ -350,7 +350,18 @@ nv_arr_make_room(nvpriv_t *priv, uint32_t npairs)
 	uint32_t sslot = priv->nvp_arr_first;
 	uint32_t dslot = 0;
 
-	if (sslot != NVP_UNLINKED) {
+	if (sslot == 0 && priv->nvp_arr_last + 1 == priv->nvp_npairs) {
+		/*
+		 * Fast path; there are no holes, so we can avoid copying
+		 * and renumbering.
+		 */
+
+		/* Nothing to compact, so we must be growing. */
+		ASSERT0(inplace);
+
+		dslot = priv->nvp_npairs;
+		memcpy(dest, priv->nvp_arr, dslot * sizeof (i_nvp_t *));
+	} else if (sslot != NVP_UNLINKED) {
 		/* Walk the arrays, skipping NULLs and copying the rest. */
 		while (sslot <= priv->nvp_arr_last) {
 
