@@ -189,12 +189,18 @@ nvlist_lookup_nv_alloc(nvlist_t *nvl)
 }
 
 static void *
-nv_mem_zalloc(nvpriv_t *nvp, size_t size)
+nv_mem_alloc(nvpriv_t *nvp, size_t size)
 {
 	nv_alloc_t *nva = nvp->nvp_nva;
+	return (nva->nva_ops->nv_ao_alloc(nva, size));
+}
+
+static void *
+nv_mem_zalloc(nvpriv_t *nvp, size_t size)
+{
 	void *buf;
 
-	if ((buf = nva->nva_ops->nv_ao_alloc(nva, size)) != NULL)
+	if ((buf = nv_mem_alloc(nvp, size)) != NULL)
 		memset(buf, 0, size);
 
 	return (buf);
@@ -304,19 +310,87 @@ nv_arr_make_room(nvpriv_t *priv, uint32_t npairs)
 		return (0);
 	}
 
-	uint32_t alloc = priv->nvp_arr_alloc + npairs;
+	/*
+	 * We need to find room. We are always looking for the array size to be
+	 * at least twice the number of real entries, so holes never exceed
+	 * half the array between compactions. So, we compute 2x the total
+	 * number of real entries that will be on the list, rounded up to the
+	 * nearest power 2. If that's larger than the current allocation, we
+	 * allocate more, otherwise we use the existing allocation. Then we
+	 * compact all the existing entries down to the start of the
+	 * allocation, leaving room at the end for at least the number of
+	 * existing entries + the requested amount.
+	 */
+	uint32_t alloc = ((priv->nvp_npairs + npairs) << 1);
 	if (!ISP2(alloc))
 		alloc = 1U << highbit64(alloc);
 
-	i_nvp_t **arr = nv_mem_zalloc(priv, alloc * sizeof (i_nvp_t *));
-	if (arr == NULL)
-		return (ENOMEM);
+	i_nvp_t **dest;
+	boolean_t inplace;
+	if (alloc <= priv->nvp_arr_alloc) {
+		/* Allocation is large enough, compact in place. */
+		dest = priv->nvp_arr;
+		inplace = B_TRUE;
+	} else {
+		/* Need a larger allocation. */
+		dest = nv_mem_alloc(priv, alloc * sizeof (i_nvp_t *));
+		if (dest == NULL)
+			return (ENOMEM);
+		inplace = B_FALSE;
+	}
 
-	memcpy(arr, priv->nvp_arr, priv->nvp_arr_alloc * sizeof (i_nvp_t *));
-	nv_mem_free(priv, priv->nvp_arr,
-	    priv->nvp_arr_alloc * sizeof (i_nvp_t *));
-	priv->nvp_arr = arr;
-	priv->nvp_arr_alloc = alloc;
+	/*
+	 * Now walk the source and dest array, skipping NULLs in the source,
+	 * and copying the rest to dest.
+	 */
+	uint32_t sslot = priv->nvp_arr_first;
+	uint32_t dslot = 0;
+	while (sslot <= priv->nvp_arr_last) {
+
+		/* Skip holes in the source. */
+		i_nvp_t *e = priv->nvp_arr[sslot];
+		if (e == NULL) {
+			sslot++;
+			continue;
+		}
+
+		/*
+		 * If in-place and on the same slot, just move both slots
+		 * forward, no need to copy anything.
+		 */
+		if (inplace && sslot == dslot) {
+			sslot++;
+			dslot++;
+			continue;
+		}
+
+		/* Copy pair to new array, updating it with its new slot id */
+		e->nvi_slot = dslot;
+		dest[dslot++] = e;
+
+		sslot++;
+	}
+
+	ASSERT3U(dslot, ==, priv->nvp_npairs);
+
+	/* Reset the first and last slot pointers after compact. */
+	priv->nvp_arr_first = 0;
+	priv->nvp_arr_last = dslot-1;
+
+	/*
+	 * If we grew the array, free the old one and update the array pointer
+	 * and alloc size for the new one.
+	 */
+	if (!inplace) {
+		nv_mem_free(priv, priv->nvp_arr,
+		    priv->nvp_arr_alloc * sizeof (i_nvp_t *));
+		priv->nvp_arr = dest;
+		priv->nvp_arr_alloc = alloc;
+	}
+
+	/* Zero the tail. */
+	memset(&priv->nvp_arr[dslot], 0,
+	    (priv->nvp_arr_alloc - dslot) * sizeof (i_nvp_t *));
 
 	/* Sanity check that we did what we came here to do! */
 	ASSERT(nv_arr_has_room(priv, npairs));
